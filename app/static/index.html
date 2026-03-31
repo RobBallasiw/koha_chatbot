@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Library Assistant</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f0ebe3;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 12px;
+  }
+
+  #chat-container {
+    width: 100%;
+    max-width: 500px;
+    height: 90vh;
+    max-height: 700px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #chat-header {
+    background: #3a506b;
+    color: #fff;
+    padding: 16px 20px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  #chat-header .icon { font-size: 1.3rem; }
+
+  #messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #fafaf7;
+  }
+
+  .message {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  .message.user {
+    align-self: flex-end;
+    background: #3a506b;
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+
+  .message.bot {
+    align-self: flex-start;
+    background: #e8e4de;
+    color: #2d2d2d;
+    border-bottom-left-radius: 4px;
+  }
+
+  .message.error {
+    align-self: center;
+    background: #fce4e4;
+    color: #a94442;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+
+  .typing-indicator {
+    align-self: flex-start;
+    display: flex;
+    gap: 5px;
+    padding: 10px 14px;
+    background: #e8e4de;
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+  }
+
+  .typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: #999;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out;
+  }
+
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+
+  #input-area {
+    display: flex;
+    padding: 12px;
+    gap: 8px;
+    border-top: 1px solid #e0dcd5;
+    background: #fff;
+    flex-shrink: 0;
+  }
+
+  #message-input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #message-input:focus { border-color: #3a506b; }
+
+  #send-btn {
+    background: #3a506b;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+
+  #send-btn:hover { background: #2c3e50; }
+  #send-btn:disabled { background: #a0aab4; cursor: not-allowed; }
+
+  .welcome {
+    text-align: center;
+    color: #777;
+    font-size: 0.9rem;
+    padding: 20px 10px;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 540px) {
+    body { padding: 0; }
+    #chat-container {
+      max-width: 100%;
+      height: 100vh;
+      max-height: none;
+      border-radius: 0;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="chat-container">
+  <div id="chat-header">
+    <span class="icon" aria-hidden="true">&#128218;</span>
+    <span>Library Assistant</span>
+  </div>
+  <div id="messages" role="log" aria-live="polite">
+    <div class="welcome">
+      Welcome! I can help you search the catalog, check book availability, or answer questions about library hours, policies, and fines.
+    </div>
+  </div>
+  <div id="input-area">
+    <label for="message-input" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Type your message</label>
+    <input type="text" id="message-input" placeholder="Ask me about the library..." autocomplete="off" aria-label="Type your message">
+    <button id="send-btn" aria-label="Send message" disabled>&#10148;</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  "use strict";
+
+  // --- Session ID ---
+  var sessionId = generateUUID();
+
+  function generateUUID() {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+    // Fallback UUID v4 generator
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
+      var r = (Math.random() * 16) | 0;
+      var v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  // --- DOM refs ---
+  var messagesEl = document.getElementById("messages");
+  var inputEl = document.getElementById("message-input");
+  var sendBtn = document.getElementById("send-btn");
+
+  // --- Enable/disable send button based on input ---
+  inputEl.addEventListener("input", function() {
+    sendBtn.disabled = !inputEl.value.trim();
+  });
+
+  // --- Send on Enter ---
+  inputEl.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && !sendBtn.disabled) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  sendBtn.addEventListener("click", function() {
+    sendMessage();
+  });
+
+  function scrollToBottom() {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function addMessage(text, role) {
+    var div = document.createElement("div");
+    div.className = "message " + role;
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    scrollToBottom();
+  }
+
+  function showTyping() {
+    var div = document.createElement("div");
+    div.className = "typing-indicator";
+    div.id = "typing";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messagesEl.appendChild(div);
+    scrollToBottom();
+  }
+
+  function hideTyping() {
+    var el = document.getElementById("typing");
+    if (el) el.remove();
+  }
+
+  function showError(text) {
+    var div = document.createElement("div");
+    div.className = "message error";
+    div.textContent = text;
+    messagesEl.appendChild(div);
+    scrollToBottom();
+  }
+
+  function sendMessage() {
+    var text = inputEl.value.trim();
+    if (!text) return;
+
+    // Clear welcome message on first send
+    var welcome = messagesEl.querySelector(".welcome");
+    if (welcome) welcome.remove();
+
+    addMessage(text, "user");
+    inputEl.value = "";
+    sendBtn.disabled = true;
+    inputEl.disabled = true;
+
+    showTyping();
+
+    fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, session_id: sessionId })
+    })
+    .then(function(res) {
+      if (!res.ok) {
+        return res.json().then(function(data) {
+          throw new Error(data.error || "Request failed");
+        });
+      }
+      return res.json();
+    })
+    .then(function(data) {
+      hideTyping();
+      addMessage(data.reply, "bot");
+    })
+    .catch(function(err) {
+      hideTyping();
+      if (err.message === "Failed to fetch" || err.name === "TypeError") {
+        showError("The chatbot is temporarily unavailable. Please try again later.");
+      } else {
+        showError(err.message || "Something went wrong. Please try again.");
+      }
+    })
+    .finally(function() {
+      inputEl.disabled = false;
+      inputEl.focus();
+      sendBtn.disabled = !inputEl.value.trim();
+    });
+  }
+
+  // Focus input on load
+  inputEl.focus();
+})();
+</script>
+</body>
+</html>
