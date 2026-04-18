@@ -41,12 +41,11 @@ def load_settings() -> Settings:
     missing = [var for var in REQUIRED_ENV_VARS if not os.environ.get(var)]
     if missing:
         for var in missing:
-            print(f"Error: Required environment variable '{var}' is not set.", file=sys.stderr)
-        sys.exit(1)
+            print(f"Warning: Required environment variable '{var}' is not set.", file=sys.stderr)
 
     return Settings(
-        koha_api_url=os.environ["KOHA_API_URL"],
-        library_info_path=os.environ["LIBRARY_INFO_PATH"],
+        koha_api_url=os.environ.get("KOHA_API_URL", ""),
+        library_info_path=os.environ.get("LIBRARY_INFO_PATH", "data/library_info.json"),
         ollama_url=os.environ.get("OLLAMA_URL", "http://localhost:11434/v1"),
         ollama_model=os.environ.get("OLLAMA_MODEL", "llama3.2:3b"),
         admin_api_key=os.environ.get("ADMIN_API_KEY"),

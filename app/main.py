@@ -99,7 +99,7 @@ async def startup() -> None:
     library_info = load_library_info(settings.library_info_path)
 
     # Initialise persistent session store for admin monitoring.
-    db_path = os.environ.get("SESSION_DB_PATH", "data/sessions.db")
+    db_path = os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
     session_store = SessionStore(db_path=db_path)
     set_session_store(session_store)
     set_library_info_path(settings.library_info_path)
