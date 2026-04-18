@@ -4,7 +4,6 @@ httpx
 openai
 pydantic
 python-dotenv
-libsql-experimental
 pytest
 hypothesis
 pytest-asyncio
