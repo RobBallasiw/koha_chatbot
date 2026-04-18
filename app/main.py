@@ -140,6 +140,12 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/")
+async def root():
+    """Root endpoint — confirms the API is running."""
+    return {"status": "ok", "app": "Library AI Chatbot"}
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Process a patron chat message and return a response.
