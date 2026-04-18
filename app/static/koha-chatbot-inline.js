@@ -11,6 +11,11 @@
 (function () {
   "use strict";
   var CHATBOT_API = "/chatbot";
+  // For Vercel deployment, override with the actual URL.
+  // When served from the same domain, relative path works.
+  if (window.location.hostname.includes("vercel.app")) {
+    CHATBOT_API = "";
+  }
   // Don't init inside iframes that we created (prevents infinite nesting)
   // but allow init on normal Koha pages even if they happen to be framed
   try {

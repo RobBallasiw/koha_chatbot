@@ -4,16 +4,21 @@ from fastapi import Header, HTTPException
 
 
 def get_admin_api_key() -> str | None:
-    """Return the configured admin API key from settings.
+    """Return the configured admin API key from environment or settings.
 
     Returns None if the key is not configured, which causes all
     admin requests to be rejected with 401.
     """
-    from app.config import load_settings
+    import os
+    # Try environment variable directly first (works on Vercel)
+    key = os.environ.get("ADMIN_API_KEY")
+    if key:
+        return key
 
+    from app.config import load_settings
     try:
         settings = load_settings()
-    except SystemExit:
+    except Exception:
         return None
     return settings.admin_api_key
 
