@@ -158,6 +158,30 @@ async def root():
     return {"status": "ok", "app": "Library AI Chatbot"}
 
 
+@app.get("/debug/test-store")
+async def debug_test_store():
+    """Debug endpoint to test if the session store works (no auth required)."""
+    try:
+        if session_store is None:
+            return {"error": "session_store is None"}
+        stats = session_store.get_stats()
+        return {"ok": True, "stats": stats.model_dump() if hasattr(stats, 'model_dump') else str(stats)}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "type": type(e).__name__}
+
+
+@app.get("/debug/test-auth")
+async def debug_test_auth():
+    """Debug endpoint to test if admin auth works."""
+    import os
+    try:
+        from app.admin_auth import get_admin_api_key
+        key = get_admin_api_key()
+        return {"ok": True, "key_set": bool(key)}
+    except Exception as e:
+        return {"ok": False, "error": str(e), "type": type(e).__name__}
+
+
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
     """Process a patron chat message and return a response.
