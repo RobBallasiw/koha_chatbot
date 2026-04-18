@@ -90,23 +90,45 @@ async def startup() -> None:
     """Initialise application state on startup."""
     global settings, groq_client, session_manager, session_store, library_info
 
-    settings = load_settings()
-    groq_client = GroqClient(
-        base_url=settings.ollama_url,
-        model=settings.ollama_model,
-    )
+    try:
+        settings = load_settings()
+    except Exception:
+        logger.warning("Failed to load settings — using defaults")
+        settings = None
+
+    if settings:
+        groq_client = GroqClient(
+            base_url=settings.ollama_url,
+            model=settings.ollama_model,
+        )
+    else:
+        groq_client = None
+
     session_manager = SessionManager()
-    library_info = load_library_info(settings.library_info_path)
+
+    if settings:
+        library_info = load_library_info(settings.library_info_path)
+    else:
+        library_info = LibraryInfo()
 
     # Initialise persistent session store for admin monitoring.
     db_path = os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
-    session_store = SessionStore(db_path=db_path)
-    set_session_store(session_store)
-    set_library_info_path(settings.library_info_path)
+    try:
+        session_store = SessionStore(db_path=db_path)
+        set_session_store(session_store)
+    except Exception:
+        logger.warning("Failed to initialise session store at %s", db_path)
+        session_store = None
+
+    if settings:
+        set_library_info_path(settings.library_info_path)
 
     # Initialise staff account and settings store.
-    staff_store_instance = StaffStore(db_path=db_path)
-    set_staff_store(staff_store_instance)
+    try:
+        staff_store_instance = StaffStore(db_path=db_path)
+        set_staff_store(staff_store_instance)
+    except Exception:
+        logger.warning("Failed to initialise staff store")
 
     # Background task that purges expired sessions every 5 minutes.
     asyncio.create_task(_periodic_cleanup(session_manager))

@@ -43,36 +43,41 @@ INFO_RESPONSE_PROMPT = (
 )
 
 
+def _resolve_library_info_path(file_path: str) -> str:
+    """Resolve the library info path, trying the project root as a fallback."""
+    import os
+    if os.path.isfile(file_path):
+        return file_path
+    # Try relative to this file's directory (works on Vercel)
+    base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidate = os.path.join(base, file_path)
+    if os.path.isfile(candidate):
+        return candidate
+    return file_path
+
+
 def load_library_info(file_path: str) -> LibraryInfo:
     """Load and validate library information from a JSON file.
 
     Supports both multi-location format (with ``locations`` key) and
     legacy single-location format (top-level hours/policies/fines).
     """
+    resolved = _resolve_library_info_path(file_path)
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(resolved, "r", encoding="utf-8") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(
-            f"Error: Library info file not found at '{file_path}'.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        logger.error("Library info file not found at '%s' (resolved: '%s')", file_path, resolved)
+        return LibraryInfo()
     except json.JSONDecodeError as exc:
-        print(
-            f"Error: Library info file at '{file_path}' is malformed: {exc}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        logger.error("Library info file at '%s' is malformed: %s", resolved, exc)
+        return LibraryInfo()
 
     try:
         return LibraryInfo(**data)
     except Exception as exc:
-        print(
-            f"Error: Library info file at '{file_path}' has invalid structure: {exc}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        logger.error("Library info file at '%s' has invalid structure: %s", resolved, exc)
+        return LibraryInfo()
 
 
 _HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time",
