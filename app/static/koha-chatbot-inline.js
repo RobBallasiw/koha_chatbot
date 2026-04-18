@@ -11,10 +11,22 @@
 (function () {
   "use strict";
   var CHATBOT_API = "/chatbot";
-  // For Vercel deployment, override with the actual URL.
-  // When served from the same domain, relative path works.
+  // Auto-detect: when served from Vercel, use same origin (empty string = relative).
+  // When embedded on an external site (like Koha), use the script's own origin.
   if (window.location.hostname.includes("vercel.app")) {
     CHATBOT_API = "";
+  } else {
+    // Detect the origin from the script tag's src attribute
+    try {
+      var scripts = document.getElementsByTagName("script");
+      for (var i = scripts.length - 1; i >= 0; i--) {
+        var src = scripts[i].src || "";
+        if (src.indexOf("koha-chatbot-inline") !== -1) {
+          CHATBOT_API = src.replace(/\/static\/koha-chatbot-inline\.js.*$/, "");
+          break;
+        }
+      }
+    } catch (e) {}
   }
   // Don't init inside iframes that we created (prevents infinite nesting)
   // but allow init on normal Koha pages even if they happen to be framed
