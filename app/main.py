@@ -136,8 +136,20 @@ async def startup() -> None:
 
 @app.get("/health")
 async def health():
-    """Simple health-check endpoint."""
-    return {"status": "ok"}
+    """Simple health-check endpoint with debug info."""
+    import os
+    return {
+        "status": "ok",
+        "env_check": {
+            "ADMIN_API_KEY": bool(os.environ.get("ADMIN_API_KEY")),
+            "ADMIN_USERNAME": bool(os.environ.get("ADMIN_USERNAME")),
+            "KOHA_API_URL": bool(os.environ.get("KOHA_API_URL")),
+            "LIBRARY_INFO_PATH": bool(os.environ.get("LIBRARY_INFO_PATH")),
+            "SESSION_DB_PATH": os.environ.get("SESSION_DB_PATH", "(default /tmp/sessions.db)"),
+        },
+        "session_store_ok": session_store is not None,
+        "settings_ok": settings is not None,
+    }
 
 
 @app.get("/")
