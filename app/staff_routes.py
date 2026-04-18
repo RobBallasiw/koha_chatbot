@@ -23,8 +23,15 @@ def set_staff_store(store: StaffStore) -> None:
 
 
 def _get_store() -> StaffStore:
+    global staff_store
     if staff_store is None:
-        raise HTTPException(status_code=500, detail={"error": "Staff store not initialised"})
+        # Try to initialise on-demand (for serverless cold starts)
+        import os
+        db_path = os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
+        try:
+            staff_store = StaffStore(db_path=db_path)
+        except Exception:
+            raise HTTPException(status_code=500, detail={"error": "Staff store not initialised"})
     return staff_store
 
 

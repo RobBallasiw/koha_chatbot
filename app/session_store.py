@@ -26,7 +26,7 @@ from app.session_manager import SESSION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
-_DEFAULT_DB_PATH = "data/sessions.db"
+_DEFAULT_DB_PATH = "/tmp/sessions.db"
 
 
 class SessionStore:

@@ -85,8 +85,15 @@ async def admin_login(request: LoginRequest):
 
 def _get_store() -> SessionStore:
     """Return the session store or raise 500 if not initialised."""
+    global session_store
     if session_store is None:
-        raise HTTPException(status_code=500, detail={"error": "Unable to retrieve session data"})
+        # Try to initialise on-demand (for serverless cold starts)
+        import os
+        db_path = os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
+        try:
+            session_store = SessionStore(db_path=db_path)
+        except Exception:
+            raise HTTPException(status_code=500, detail={"error": "Unable to retrieve session data"})
     return session_store
 
 

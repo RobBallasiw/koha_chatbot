@@ -20,7 +20,7 @@ class StaffStore:
     """Manages staff accounts and feature settings in SQLite."""
 
     def __init__(self, db_path: str | None = None) -> None:
-        self.db_path = db_path or os.environ.get("SESSION_DB_PATH", "data/sessions.db")
+        self.db_path = db_path or os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
         self._init_tables()
 
     def _get_connection(self) -> sqlite3.Connection:
