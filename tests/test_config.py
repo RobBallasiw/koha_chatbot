@@ -50,27 +50,21 @@ def _restore_env(saved: dict[str, str | None]):
 @settings(max_examples=100)
 @given(
     koha_api_url=env_value_st,
-    groq_api_key=env_value_st,
-    groq_api_url=env_value_st,
     library_info_path=env_value_st,
 )
 def test_config_reads_from_environment_variables(
-    koha_api_url, groq_api_key, groq_api_url, library_info_path
+    koha_api_url, library_info_path
 ):
     """For any set of environment variable values, the Settings object
     should reflect those exact values."""
     env_map = {
         "KOHA_API_URL": koha_api_url,
-        "GROQ_API_KEY": groq_api_key,
-        "GROQ_API_URL": groq_api_url,
         "LIBRARY_INFO_PATH": library_info_path,
     }
     saved = _set_all_env(env_map)
     try:
         cfg = load_settings()
         assert cfg.koha_api_url == koha_api_url
-        assert cfg.groq_api_key == groq_api_key
-        assert cfg.groq_api_url == groq_api_url
         assert cfg.library_info_path == library_info_path
     finally:
         _restore_env(saved)
@@ -85,19 +79,15 @@ def test_config_reads_from_environment_variables(
 @given(
     missing_var=st.sampled_from(REQUIRED_ENV_VARS),
     koha_api_url=env_value_st,
-    groq_api_key=env_value_st,
-    groq_api_url=env_value_st,
     library_info_path=env_value_st,
 )
 def test_missing_env_var_causes_startup_failure(
-    missing_var, koha_api_url, groq_api_key, groq_api_url, library_info_path
+    missing_var, koha_api_url, library_info_path
 ):
     """For any required environment variable that is absent, load_settings
     should raise SystemExit (non-zero)."""
     env_map = {
         "KOHA_API_URL": koha_api_url,
-        "GROQ_API_KEY": groq_api_key,
-        "GROQ_API_URL": groq_api_url,
         "LIBRARY_INFO_PATH": library_info_path,
     }
 

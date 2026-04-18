@@ -9,23 +9,23 @@ from app.models import LibraryInfo
 
 logger = logging.getLogger(__name__)
 
-# Keywords used to match patron queries to info categories.
-CATEGORY_KEYWORDS: dict[str, list[str]] = {
-    "hours": ["hours", "open", "close", "closing", "opening", "schedule", "time"],
-    "fines": ["fine", "fee", "overdue", "penalty", "charge", "cost", "lost"],
-    "policies": [
-        "policy",
-        "policies",
-        "borrow",
-        "renew",
-        "renewal",
-        "member",
-        "membership",
-        "limit",
-        "rule",
-        "loan",
-    ],
-}
+VALID_CATEGORIES = {"hours", "fines", "policies"}
+
+CATEGORY_CLASSIFY_SYSTEM = (
+    "You are a category classifier for a library information system. "
+    "Given a patron's message, determine which category of library information they need. "
+    "Respond with ONLY a JSON object, no other text.\n\n"
+    "Categories:\n"
+    '- "hours": anything about opening hours, schedules, locations, addresses, branches, where the library is, directions, visiting\n'
+    '- "policies": anything about borrowing rules, limits, renewals, membership, library cards, loans\n'
+    '- "fines": anything about fines, fees, overdue charges, lost items, penalties, costs\n'
+    '- "all": the question spans multiple categories or is a general library question\n'
+    '- "none": the message has nothing to do with library information\n\n'
+    "Respond in this exact format:\n"
+    '{"category": "<category>"}'
+)
+
+CATEGORY_CLASSIFY_PROMPT = 'Patron message: "{message}"'
 
 CONTACT_STAFF_MESSAGE = (
     "I'm sorry, I don't have that information available. "
@@ -33,11 +33,12 @@ CONTACT_STAFF_MESSAGE = (
 )
 
 INFO_RESPONSE_PROMPT = (
-    "You are a helpful library assistant. A patron asked the following question:\n\n"
+    "You are Hero, a helpful school library assistant. A patron asked the following question:\n\n"
     '"{message}"\n\n'
-    "Here is the relevant library information ({category}):\n"
+    "Here is the relevant library information:\n"
     "{data}\n\n"
     "Using ONLY the data above, provide a friendly, concise answer to the patron's question. "
+    "If there are multiple locations listed, include info for each location. "
     "Do not make up information that is not in the data."
 )
 
@@ -45,20 +46,8 @@ INFO_RESPONSE_PROMPT = (
 def load_library_info(file_path: str) -> LibraryInfo:
     """Load and validate library information from a JSON file.
 
-    Parameters
-    ----------
-    file_path:
-        Path to the JSON file containing library info.
-
-    Returns
-    -------
-    LibraryInfo
-        Parsed and validated library information.
-
-    Raises
-    ------
-    SystemExit
-        If the file is not found or contains malformed data.
+    Supports both multi-location format (with ``locations`` key) and
+    legacy single-location format (top-level hours/policies/fines).
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -86,23 +75,72 @@ def load_library_info(file_path: str) -> LibraryInfo:
         sys.exit(1)
 
 
-def _match_category(message: str) -> str | None:
-    """Match a patron message to a library info category via keyword matching.
+_HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time",
+                   "address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map"}
+_FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
+_POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
+                      "member", "membership", "limit", "rule", "rules", "loan", "card"}
 
-    Returns the category name ("hours", "fines", or "policies") or ``None``
-    if no keywords match.
-    """
-    lower = message.lower()
-    for category, keywords in CATEGORY_KEYWORDS.items():
-        if any(kw in lower for kw in keywords):
-            return category
+
+def _keyword_fallback(message: str) -> str | None:
+    """Fast keyword-based category matching as fallback when LLM is unavailable."""
+    words = set(message.lower().replace("?", " ").replace("!", " ").split())
+    if words & _HOURS_KEYWORDS:
+        return "hours"
+    if words & _FINES_KEYWORDS:
+        return "fines"
+    if words & _POLICIES_KEYWORDS:
+        return "policies"
     return None
 
 
+def _classify_category(client: GroqClient, message: str) -> str | None:
+    """Determine which library info category the patron needs.
+    Uses fast keyword matching first, falls back to LLM only when needed."""
+    # Try fast keyword match first (avoids slow LLM call)
+    keyword_result = _keyword_fallback(message)
+    if keyword_result:
+        return keyword_result
+
+    # Fall back to LLM for ambiguous messages
+    prompt = CATEGORY_CLASSIFY_PROMPT.format(message=message)
+    raw = client.chat_with_system(CATEGORY_CLASSIFY_SYSTEM, [{"role": "user", "content": prompt}])
+    logger.info("Category classification raw: %s", raw)
+    try:
+        data = json.loads(raw)
+        category = data.get("category", "none")
+        if category in VALID_CATEGORIES:
+            return category
+        if category == "all":
+            return "all"
+        return None
+    except (json.JSONDecodeError, TypeError, ValueError):
+        logger.warning("Failed to parse category classification: %s", raw)
+        return None
+
+
 def _format_category_data(category: str, library_info: LibraryInfo) -> str:
-    """Format the data for a matched category as a readable string."""
-    section: dict[str, str] = getattr(library_info, category)
-    return "\n".join(f"- {key}: {value}" for key, value in section.items())
+    """Format the data for a matched category across all locations."""
+    if category == "hours":
+        # Hours are per-location
+        locations = library_info.get_all_locations()
+        if not locations:
+            return "(No location data available)"
+        parts: list[str] = []
+        for loc_name, loc_info in locations.items():
+            if loc_info.hours:
+                header = loc_name
+                if loc_info.address:
+                    header += f" ({loc_info.address})"
+                lines = "\n".join(f"  - {key}: {value}" for key, value in loc_info.hours.items())
+                parts.append(f"{header}:\n{lines}")
+        return "\n\n".join(parts) if parts else "(No hours data available)"
+    else:
+        # Policies and fines are shared
+        section: dict[str, str] = getattr(library_info, category, {})
+        if not section:
+            return "(No data available)"
+        return "\n".join(f"- {key}: {value}" for key, value in section.items())
 
 
 def handle_library_info_query(
@@ -130,21 +168,21 @@ def handle_library_info_query(
         A natural language response, or a "contact staff" message when
         no relevant info category is found.
     """
-    category = _match_category(message)
+    category = _classify_category(client, message)
 
     if category is None:
         return CONTACT_STAFF_MESSAGE
 
-    data_str = _format_category_data(category, library_info)
-    prompt = INFO_RESPONSE_PROMPT.format(
-        message=message,
-        category=category,
-        data=data_str,
-    )
+    # Build data string — either a single category or all categories
+    if category == "all":
+        parts = []
+        for cat in ("hours", "policies", "fines"):
+            cat_data = _format_category_data(cat, library_info)
+            if cat_data and "No" not in cat_data:
+                parts.append(f"[{cat.upper()}]\n{cat_data}")
+        data_str = "\n\n".join(parts) if parts else "(No data available)"
+    else:
+        data_str = _format_category_data(category, library_info)
 
-    messages: list[dict] = []
-    if conversation_history:
-        messages.extend(conversation_history)
-    messages.append({"role": "user", "content": prompt})
-
-    return client.chat(messages)
+    # Return the data directly — avoids a slow LLM call for straightforward info
+    return f"Here's what I found 📚:\n\n{data_str}"

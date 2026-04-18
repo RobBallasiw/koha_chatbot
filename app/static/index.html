@@ -161,6 +161,10 @@
     line-height: 1.5;
   }
 
+  .faqs { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; padding: 8px 10px 14px; }
+  .faq-btn { background: #fff; color: #3a506b; border: 1px solid #3a506b; border-radius: 18px; padding: 7px 14px; font-size: 0.82rem; cursor: pointer; transition: background 0.15s; line-height: 1.3; }
+  .faq-btn:hover { background: #eef2f7; }
+
   @media (max-width: 540px) {
     body { padding: 0; }
     #chat-container {
@@ -176,11 +180,19 @@
 <div id="chat-container">
   <div id="chat-header">
     <span class="icon" aria-hidden="true">&#128218;</span>
-    <span>Library Assistant</span>
+    <span>Hero — Library Assistant</span>
   </div>
   <div id="messages" role="log" aria-live="polite">
     <div class="welcome">
-      Welcome! I can help you search the catalog, check book availability, or answer questions about library hours, policies, and fines.
+      Hi, I'm Hero! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?
+    </div>
+    <div class="faqs" id="faq-buttons">
+      <button class="faq-btn" data-q="What are the library hours?">🕐 Library hours</button>
+      <button class="faq-btn" data-q="What is the borrowing limit?">📖 Borrowing limit</button>
+      <button class="faq-btn" data-q="How do I renew a book?">🔄 Renew a book</button>
+      <button class="faq-btn" data-q="What are the overdue fines?">💰 Overdue fines</button>
+      <button class="faq-btn" data-q="Where are the library locations?">📍 Locations</button>
+      <button class="faq-btn" data-q="How do I get a library membership?">🎫 Membership</button>
     </div>
   </div>
   <div id="input-area">
@@ -194,19 +206,39 @@
 (function() {
   "use strict";
 
-  // --- Session ID ---
-  var sessionId = generateUUID();
+  var params = new URLSearchParams(window.location.search);
+  var API_BASE = params.get("api") || "";
+  if (!API_BASE) {
+    var pathParts = window.location.pathname.split("/static/");
+    API_BASE = pathParts[0] || "";
+  }
+
+  // --- Session persistence ---
+  var STORE_KEY = "hero_chat";
+  var STORE_VER = 3;
+  var stored = {};
+  try {
+    var raw = JSON.parse(sessionStorage.getItem(STORE_KEY)) || {};
+    if (raw.ver === STORE_VER) stored = raw;
+  } catch(e) {}
+
+  var sessionId = stored.sid || generateUUID();
+  var chatHistory = stored.history || [];
 
   function generateUUID() {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-      return crypto.randomUUID();
-    }
-    // Fallback UUID v4 generator
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
     return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function(c) {
       var r = (Math.random() * 16) | 0;
-      var v = c === "x" ? r : (r & 0x3) | 0x8;
-      return v.toString(16);
+      return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
     });
+  }
+
+  function saveState() {
+    try {
+      sessionStorage.setItem(STORE_KEY, JSON.stringify({
+        ver: STORE_VER, sid: sessionId, history: chatHistory.slice(-40)
+      }));
+    } catch(e) {}
   }
 
   // --- DOM refs ---
@@ -214,28 +246,41 @@
   var inputEl = document.getElementById("message-input");
   var sendBtn = document.getElementById("send-btn");
 
-  // --- Enable/disable send button based on input ---
+  // --- Restore previous messages ---
+  if (chatHistory.length > 0) {
+    var welcome = messagesEl.querySelector(".welcome");
+    if (welcome) welcome.remove();
+    chatHistory.forEach(function(m) { addMessageRaw(m.text, m.role); });
+    setTimeout(function() { messagesEl.scrollTop = messagesEl.scrollHeight; }, 50);
+    setTimeout(function() { messagesEl.scrollTop = messagesEl.scrollHeight; }, 200);
+  }
+
   inputEl.addEventListener("input", function() {
     sendBtn.disabled = !inputEl.value.trim();
   });
 
-  // --- Send on Enter ---
   inputEl.addEventListener("keydown", function(e) {
-    if (e.key === "Enter" && !sendBtn.disabled) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !sendBtn.disabled) { e.preventDefault(); sendMessage(); }
   });
 
-  sendBtn.addEventListener("click", function() {
+  sendBtn.addEventListener("click", sendMessage);
+
+  // FAQ buttons
+  messagesEl.addEventListener("click", function(e) {
+    var btn = e.target.closest ? e.target.closest(".faq-btn") : null;
+    if (!btn && e.target.classList && e.target.classList.contains("faq-btn")) btn = e.target;
+    if (!btn) return;
+    e.preventDefault();
+    var question = btn.getAttribute("data-q");
+    if (!question) return;
+    inputEl.value = question;
+    sendBtn.disabled = false;
     sendMessage();
   });
 
-  function scrollToBottom() {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
+  function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
 
-  function addMessage(text, role) {
+  function addMessageRaw(text, role) {
     var div = document.createElement("div");
     div.className = "message " + role;
     div.textContent = text;
@@ -243,77 +288,154 @@
     scrollToBottom();
   }
 
-  function showTyping() {
-    var div = document.createElement("div");
-    div.className = "typing-indicator";
-    div.id = "typing";
-    div.innerHTML = "<span></span><span></span><span></span>";
-    messagesEl.appendChild(div);
-    scrollToBottom();
+  function addMessage(text, role) {
+    addMessageRaw(text, role);
+    chatHistory.push({ text: text, role: role });
+    saveState();
   }
 
-  function hideTyping() {
-    var el = document.getElementById("typing");
-    if (el) el.remove();
+  function showTyping() {
+    var div = document.createElement("div");
+    div.className = "typing-indicator"; div.id = "typing";
+    div.innerHTML = "<span></span><span></span><span></span>";
+    messagesEl.appendChild(div); scrollToBottom();
   }
+
+  function hideTyping() { var el = document.getElementById("typing"); if (el) el.remove(); }
 
   function showError(text) {
     var div = document.createElement("div");
-    div.className = "message error";
-    div.textContent = text;
-    messagesEl.appendChild(div);
-    scrollToBottom();
+    div.className = "message error"; div.textContent = text;
+    messagesEl.appendChild(div); scrollToBottom();
   }
 
   function sendMessage() {
     var text = inputEl.value.trim();
     if (!text) return;
-
-    // Clear welcome message on first send
     var welcome = messagesEl.querySelector(".welcome");
     if (welcome) welcome.remove();
-
+    var faqDiv = document.getElementById("faq-buttons");
+    if (faqDiv) faqDiv.remove();
     addMessage(text, "user");
-    inputEl.value = "";
-    sendBtn.disabled = true;
-    inputEl.disabled = true;
-
+    inputEl.value = ""; sendBtn.disabled = true; inputEl.disabled = true;
     showTyping();
-
-    fetch("/api/chat", {
+    fetch(API_BASE + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text, session_id: sessionId })
     })
     .then(function(res) {
-      if (!res.ok) {
-        return res.json().then(function(data) {
-          throw new Error(data.error || "Request failed");
-        });
-      }
+      if (!res.ok) return res.json().then(function(d) { throw new Error(d.error || "Request failed"); });
       return res.json();
     })
-    .then(function(data) {
-      hideTyping();
-      addMessage(data.reply, "bot");
-    })
+    .then(function(data) { hideTyping(); addMessage(data.reply, "bot"); })
     .catch(function(err) {
       hideTyping();
       if (err.message === "Failed to fetch" || err.name === "TypeError") {
-        showError("The chatbot is temporarily unavailable. Please try again later.");
-      } else {
-        showError(err.message || "Something went wrong. Please try again.");
-      }
+        showError("Oops, I can't connect right now 😅 Check your internet and try again in a moment!");
+      } else { showError(err.message || "Something went wrong."); }
     })
-    .finally(function() {
-      inputEl.disabled = false;
-      inputEl.focus();
-      sendBtn.disabled = !inputEl.value.trim();
+    .finally(function() { inputEl.disabled = false; inputEl.focus(); sendBtn.disabled = !inputEl.value.trim(); });
+  }
+
+  inputEl.focus();
+
+  // --- Librarian handoff polling ---
+  var handoffActive = false;
+  var lastPollTs = 0;
+  var pollTimer = null;
+
+  function startHandoffPolling() {
+    if (pollTimer) return;
+    handoffActive = true;
+    pollTimer = setInterval(pollHandoff, 3000);
+  }
+
+  function stopHandoffPolling() {
+    handoffActive = false;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function pollHandoff() {
+    fetch(API_BASE + "/api/poll/" + encodeURIComponent(sessionId) + "?since=" + lastPollTs)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.messages && d.messages.length > 0) {
+          d.messages.forEach(function(m) {
+            if (m.role === "librarian" && m.timestamp > lastPollTs) {
+              addMessage("👩‍💼 Librarian: " + m.content, "bot");
+            } else if (m.role === "assistant" && m.timestamp > lastPollTs) {
+              addMessage(m.content, "bot");
+            }
+            if (m.timestamp > lastPollTs) lastPollTs = m.timestamp;
+          });
+        }
+        if (!d.handoff_active && handoffActive) {
+          stopHandoffPolling();
+          showHandoffRating();
+        }
+      })
+      .catch(function() {});
+  }
+
+  function showHandoffRating() {
+    var rateDiv = document.createElement("div");
+    rateDiv.className = "message bot";
+    rateDiv.style.cssText = "text-align:center;max-width:90%;padding:14px 18px";
+    rateDiv.innerHTML =
+      '<div style="margin-bottom:10px">How was your experience with the librarian?</div>' +
+      '<div style="display:flex;gap:8px;justify-content:center">' +
+      '<button class="rate-btn" data-rating="1" style="background:#fff;border:1px solid #ccc;border-radius:18px;padding:8px 16px;font-size:0.9rem;cursor:pointer">👍 Good</button>' +
+      '<button class="rate-btn" data-rating="-1" style="background:#fff;border:1px solid #ccc;border-radius:18px;padding:8px 16px;font-size:0.9rem;cursor:pointer">👎 Could be better</button>' +
+      '</div>';
+    messagesEl.appendChild(rateDiv);
+    scrollToBottom();
+    rateDiv.querySelectorAll(".rate-btn").forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        var rating = parseInt(btn.getAttribute("data-rating"));
+        rateDiv.innerHTML = '<div style="color:#555">Thanks for your feedback! ' + (rating === 1 ? '😊' : '🙏') + '</div>';
+        fetch(API_BASE + "/api/rate-handoff", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, rating: rating })
+        }).catch(function() {});
+      });
     });
   }
 
-  // Focus input on load
-  inputEl.focus();
+  // Detect handoff from bot response
+  var _origAddMessage = addMessage;
+  addMessage = function(text, role) {
+    _origAddMessage(text, role);
+    if (role === "bot" && text && text.indexOf("notified a librarian") !== -1) {
+      lastPollTs = Date.now() / 1000;
+      startHandoffPolling();
+    }
+  };
+
+  // Resume polling if handoff was active before page load
+  (function() {
+    fetch(API_BASE + "/api/poll/" + encodeURIComponent(sessionId) + "?since=0")
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.handoff_active) {
+          lastPollTs = Date.now() / 1000;
+          startHandoffPolling();
+        }
+      })
+      .catch(function() {});
+  })();
+
+  window.addEventListener("beforeunload", function() {
+    stopHandoffPolling();
+    if (sessionId) {
+      var blob = new Blob(
+        [JSON.stringify({ message: "", session_id: sessionId })],
+        { type: "application/json" }
+      );
+      navigator.sendBeacon(API_BASE + "/api/close-session", blob);
+    }
+  });
 })();
 </script>
 </body>

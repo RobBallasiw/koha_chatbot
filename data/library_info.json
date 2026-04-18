@@ -1,12 +1,29 @@
 {
-  "hours": {
-    "monday": "9:00 AM - 8:00 PM",
-    "tuesday": "9:00 AM - 8:00 PM",
-    "wednesday": "9:00 AM - 8:00 PM",
-    "thursday": "9:00 AM - 8:00 PM",
-    "friday": "9:00 AM - 6:00 PM",
-    "saturday": "10:00 AM - 5:00 PM",
-    "sunday": "Closed"
+  "locations": {
+    "CHS Library": {
+      "address": "Carlatan, San Fernando City, La Union",
+      "hours": {
+        "monday": "7:00 AM - 7:00 PM",
+        "tuesday": "7:00 AM - 7:00 PM",
+        "wednesday": "7:00 AM - 7:00 PM",
+        "thursday": "7:00 AM - 7:00 PM",
+        "friday": "7:00 AM - 7:00 PM",
+        "saturday": "8:30 AM - 4:30 PM",
+        "sunday": "Closed"
+      }
+    },
+    "CLI Library": {
+      "address": "Urbiztondo, San Juan, La Union",
+      "hours": {
+        "monday": "8:00 AM - 5:00 PM",
+        "tuesday": "8:00 AM - 5:00 PM",
+        "wednesday": "8:00 AM - 5:00 PM",
+        "thursday": "8:00 AM - 5:00 PM",
+        "friday": "8:00 AM - 5:00 PM",
+        "saturday": "Closed",
+        "sunday": "Closed"
+      }
+    }
   },
   "policies": {
     "borrowing_limit": "15 items at a time",

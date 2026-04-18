@@ -1,85 +1,100 @@
-"""Groq LLM client — wraps all communication with the Groq Cloud API."""
+"""LLM client — wraps communication with a local Ollama instance (OpenAI-compatible API)."""
 
-from groq import Groq, APIError, RateLimitError, APITimeoutError
+import logging
+
+from openai import OpenAI, APIError, APITimeoutError
+
+logger = logging.getLogger(__name__)
 
 # System prompt included in every LLM call to constrain responses.
 SYSTEM_PROMPT = (
-    "You are a helpful library assistant. You only answer questions related to "
-    "the library, its catalog, hours, policies, and fines. If asked about "
-    "unrelated topics, politely redirect the conversation to library services."
+    "You are Hero, a school library chatbot. Be warm, concise, and helpful. "
+    "Use 1-2 emojis per message. Only help with: finding books, library hours/locations, "
+    "policies, and fines. Redirect off-topic questions politely. "
+    "Never make up book titles. This is an academic library with textbooks and research materials."
 )
 
 # Default model and generation parameters.
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
-DEFAULT_MAX_TOKENS = 1024
+DEFAULT_MODEL = "qwen2.5:1.5b"
+DEFAULT_MAX_TOKENS = 256
 DEFAULT_TEMPERATURE = 0.7
+DEFAULT_OLLAMA_URL = "http://localhost:11434/v1"
 
-# Fallback messages returned when the Groq API is unavailable.
+# Fallback messages returned when the LLM is unavailable.
 FALLBACK_GENERAL = (
-    "I'm having trouble processing your request right now. "
-    "Please try again in a moment."
+    "Oops, I'm having a little trouble right now 😅 "
+    "Give me a moment and try again — I'll be right back!"
 )
 FALLBACK_RATE_LIMIT = (
-    "I'm experiencing high demand. "
-    "Your request will be processed shortly."
+    "I'm getting a lot of questions right now! 📚 "
+    "Give me about 30 seconds and try again — I promise I'll be ready!"
 )
 
 
 class GroqClient:
-    """Thin wrapper around the Groq Python SDK for library chatbot usage.
+    """LLM client that talks to a local Ollama instance via its OpenAI-compatible API.
+
+    The class name is kept as ``GroqClient`` so the rest of the codebase
+    doesn't need renaming — it's a drop-in replacement.
 
     Parameters
     ----------
     api_key:
-        Groq Cloud API key.
+        Ignored for Ollama (kept for interface compatibility).
     model:
-        Model identifier to use for chat completions.
+        Ollama model name (e.g. ``llama3.2:3b``).
     max_tokens:
         Maximum number of tokens in the generated response.
     temperature:
         Sampling temperature for response generation.
+    base_url:
+        Ollama OpenAI-compatible endpoint. Defaults to ``http://localhost:11434/v1``.
     """
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = "ollama",
         model: str = DEFAULT_MODEL,
         max_tokens: int = DEFAULT_MAX_TOKENS,
         temperature: float = DEFAULT_TEMPERATURE,
+        base_url: str = DEFAULT_OLLAMA_URL,
     ) -> None:
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
-        self._client = Groq(api_key=api_key)
+        # Ollama doesn't need a real API key but the OpenAI client requires one.
+        self._client = OpenAI(base_url=base_url, api_key=api_key or "ollama")
 
     def chat(self, messages: list[dict]) -> str:
-        """Send *messages* to the Groq API and return the assistant reply.
+        """Send *messages* to Ollama and return the assistant reply.
 
-        The library system prompt is always prepended to the messages list
-        so the model stays on-topic.
-
-        Parameters
-        ----------
-        messages:
-            Conversation history as a list of ``{"role": ..., "content": ...}``
-            dicts (user / assistant turns).
-
-        Returns
-        -------
-        str
-            The assistant's reply text, or a fallback message on failure.
+        The library system prompt is always prepended so the model stays on-topic.
         """
         full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
+        return self._send(full_messages)
 
+    def chat_with_system(self, system_prompt: str, messages: list[dict]) -> str:
+        """Send *messages* with a custom system prompt.
+
+        Used by the query classifier and other components that need a
+        different system-level instruction than the default library prompt.
+        """
+        full_messages = [{"role": "system", "content": system_prompt}] + messages
+        return self._send(full_messages)
+
+    def _send(self, messages: list[dict]) -> str:
+        """Send messages to Ollama and return the response text."""
         try:
             response = self._client.chat.completions.create(
                 model=self.model,
-                messages=full_messages,
+                messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
             return response.choices[0].message.content
-        except RateLimitError:
-            return FALLBACK_RATE_LIMIT
-        except (APITimeoutError, APIError):
+        except APITimeoutError:
+            logger.warning("Ollama request timed out")
+            return FALLBACK_GENERAL
+        except (APIError, Exception) as exc:
+            logger.warning("Ollama request failed: %s", exc)
             return FALLBACK_GENERAL

@@ -8,7 +8,7 @@ from app.models import SessionData
 MAX_MESSAGES = 20
 
 # Sessions inactive longer than this (seconds) are considered expired.
-SESSION_TIMEOUT = 30 * 60  # 30 minutes
+SESSION_TIMEOUT = 5 * 60  # 5 minutes
 
 
 class SessionManager:

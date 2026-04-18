@@ -13,9 +13,9 @@ from app.models import LibraryInfo
 def _mock_settings():
     return Settings(
         koha_api_url="http://koha.example.com",
-        groq_api_key="test-key",
-        groq_api_url="http://groq.example.com",
         library_info_path="data/library_info.json",
+        ollama_url="http://localhost:11434/v1",
+        ollama_model="llama3.2:3b",
     )
 
 
@@ -46,7 +46,10 @@ async def test_startup_initialises_module_variables(_mock_settings, _mock_librar
         assert main_module.groq_client is mock_groq_cls.return_value
         assert main_module.session_manager is not None
         assert main_module.library_info is _mock_library_info
-        mock_groq_cls.assert_called_once_with(api_key="test-key")
+        mock_groq_cls.assert_called_once_with(
+            base_url="http://localhost:11434/v1",
+            model="llama3.2:3b",
+        )
 
 
 @pytest.mark.asyncio

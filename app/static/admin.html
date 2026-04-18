@@ -1,0 +1,2408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Koha Chatbot — Admin Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f9; color: #333; line-height: 1.5; }
+    header { background: #2c3e50; color: #fff; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+    header h1 { font-size: 1.2rem; font-weight: 600; }
+    .logout-btn { padding: 4px 12px; border: 1px solid #7f8c8d; border-radius: 4px; background: transparent; color: #fff; cursor: pointer; font-size: 0.85rem; }
+    .logout-btn:hover { background: #34495e; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .user-info { font-size: 0.85rem; color: #bdc3c7; }
+    .user-info .user-name { color: #fff; font-weight: 600; }
+    .user-info .user-role { background: rgba(255,255,255,0.15); padding: 2px 8px; border-radius: 10px; font-size: 0.72rem; margin-left: 6px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    /* Login form */
+    .login-overlay { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
+    .login-card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); width: 340px; }
+    .login-card h2 { font-size: 1.2rem; color: #2c3e50; margin-bottom: 20px; text-align: center; }
+    .login-card label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 4px; }
+    .login-card input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; margin-bottom: 14px; }
+    .login-card button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    .login-card button:hover { background: #34495e; }
+    .login-error { color: #991b1b; font-size: 0.85rem; margin-bottom: 12px; text-align: center; }
+
+    /* Stats panel */
+    .stats-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: #fff; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; transition: opacity 0.3s ease; }
+    .stat-card .stat-label { font-size: 0.85rem; color: #7f8c8d; margin-top: 4px; }
+    .fade-update { animation: fadeIn 0.4s ease; }
+    @keyframes fadeIn { from { opacity: 0.3; } to { opacity: 1; } }
+
+    /* Tab navigation */
+    .tab-nav { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #ecf0f1; }
+    .tab-btn { padding: 10px 20px; border: none; background: transparent; cursor: pointer; font-size: 0.9rem; color: #7f8c8d; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .tab-btn:hover { color: #2c3e50; }
+    .tab-btn.active { color: #2c3e50; border-bottom-color: #2c3e50; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Koha Chatbot Admin</h1>
+    <div class="header-right">
+      <span id="user-info" class="user-info hidden"></span>
+      <button class="logout-btn hidden" id="logout-btn" type="button" aria-label="Log out">Logout</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Login Form -->
+    <div id="login-view" class="login-overlay">
+      <form class="login-card" id="login-form" aria-label="Admin login">
+        <h2>Admin Login</h2>
+        <div id="login-error" class="login-error hidden" role="alert"></div>
+        <label for="login-username">Username</label>
+        <input type="text" id="login-username" placeholder="Username" aria-label="Username" required>
+        <label for="login-password">Password</label>
+        <input type="password" id="login-password" placeholder="Password" aria-label="Password" required>
+        <button type="submit">Sign In</button>
+      </form>
+    </div>
+
+    <!-- Dashboard (hidden until login) -->
+    <div id="dashboard-view" class="hidden">
+      <div id="error-container" class="error-msg hidden" role="alert" aria-live="polite"></div>
+      <div id="loading-indicator" class="loading hidden" role="status" aria-live="polite">Loading…</div>
+
+      <nav class="tab-nav" aria-label="Dashboard tabs">
+        <button class="tab-btn active" data-tab="sessions-tab" type="button">Sessions</button>
+        <button class="tab-btn" data-tab="analytics-tab" type="button">Analytics</button>
+        <button class="tab-btn" data-tab="quality-tab" type="button">Quality</button>
+        <button class="tab-btn" data-tab="library-info-tab" type="button">Library Info</button>
+        <button class="tab-btn" data-tab="management-tab" type="button">Management</button>
+        <button class="tab-btn" data-tab="staff-tab" type="button">👥 Staff</button>
+        <button class="tab-btn" data-tab="settings-tab" type="button">⚙️ Settings</button>
+        <button class="tab-btn" data-tab="handoff-tab" type="button" id="handoff-tab-btn">💬 Live Chat</button>
+        <button class="tab-btn" data-tab="archive-tab" type="button">📋 Staff Performance</button>
+      </nav>
+
+      <div id="sessions-tab" class="tab-content active">
+        <section id="stats-panel" class="stats-panel" aria-label="Session statistics">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-messages">—</div>
+          <div class="stat-label">Total Messages</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-active">—</div>
+          <div class="stat-label">Active Sessions</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-expired">—</div>
+          <div class="stat-label">Expired Sessions</div>
+        </div>
+      </section>
+
+      <section id="list-view" aria-label="Session list">
+        <div class="controls">
+          <input type="text" id="search-input" placeholder="Search by keyword…" aria-label="Search sessions by keyword">
+          <select id="status-filter" aria-label="Filter sessions by status">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="expired">Expired</option>
+          </select>
+          <button id="search-btn" type="button" aria-label="Apply search and filter">Search</button>
+        </div>
+
+        <table class="session-table" aria-label="Chat sessions">
+          <thead>
+            <tr>
+              <th scope="col">Session ID</th>
+              <th scope="col">Started</th>
+              <th scope="col">Last Activity</th>
+              <th scope="col">Messages</th>
+              <th scope="col">Status</th>
+            </tr>
+          </thead>
+          <tbody id="session-tbody"></tbody>
+        </table>
+
+        <nav class="pagination" aria-label="Session list pagination">
+          <button id="prev-btn" type="button" disabled aria-label="Previous page">← Prev</button>
+          <span id="page-info">Page 1</span>
+          <button id="next-btn" type="button" disabled aria-label="Next page">Next →</button>
+        </nav>
+      </section>
+
+      <section id="detail-view" class="hidden" aria-label="Session detail">
+        <div class="detail-view">
+          <div class="detail-header">
+            <dl class="detail-meta" id="detail-meta"></dl>
+            <button class="back-btn" id="back-btn" type="button" aria-label="Back to session list">← Back to list</button>
+          </div>
+          <div class="messages" id="detail-messages" aria-label="Message transcript"></div>
+        </div>
+      </section>
+      </div><!-- end sessions-tab -->
+
+      <div id="analytics-tab" class="tab-content">
+        <div class="analytics-controls">
+          <label for="analytics-days">Time range:</label>
+          <select id="analytics-days" aria-label="Analytics time range">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="365">Last year</option>
+          </select>
+          <button id="analytics-refresh-btn" type="button" aria-label="Refresh analytics">Refresh</button>
+        </div>
+
+        <section class="stats-panel" aria-label="Analytics summary">
+          <div class="stat-card">
+            <div class="stat-value" id="analytics-total-msgs">—</div>
+            <div class="stat-label">User Messages</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="analytics-avg-msgs">—</div>
+            <div class="stat-label">Avg Msgs / Session</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="analytics-failed">—</div>
+            <div class="stat-label">Failed Queries</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="analytics-fail-rate">—</div>
+            <div class="stat-label">Fail Rate</div>
+          </div>
+        </section>
+
+        <div class="analytics-grid">
+          <section class="analytics-card" aria-label="Intent breakdown">
+            <h3>Intent Breakdown</h3>
+            <div id="intent-chart" class="bar-chart"></div>
+          </section>
+          <section class="analytics-card" aria-label="Hourly activity">
+            <h3>Hourly Activity</h3>
+            <div id="hourly-chart" class="line-chart-wrap"></div>
+          </section>
+          <section class="analytics-card" aria-label="Daily activity">
+            <h3>Activity by Day of Week</h3>
+            <div id="daily-chart" class="line-chart-wrap"></div>
+          </section>
+        </div>
+      </div><!-- end analytics-tab -->
+
+      <div id="quality-tab" class="tab-content">
+        <div class="analytics-controls">
+          <label for="quality-days">Time range:</label>
+          <select id="quality-days" aria-label="Quality time range">
+            <option value="7">Last 7 days</option>
+            <option value="30" selected>Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+          <button id="quality-refresh-btn" type="button" aria-label="Refresh quality data">Refresh</button>
+        </div>
+
+        <section class="stats-panel" aria-label="Feedback summary">
+          <div class="stat-card">
+            <div class="stat-value" id="q-total-ratings">—</div>
+            <div class="stat-label">Total Ratings</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="q-positive" style="color:#27ae60">—</div>
+            <div class="stat-label">👍 Positive</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="q-negative" style="color:#e74c3c">—</div>
+            <div class="stat-label">👎 Negative</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="q-satisfaction">—</div>
+            <div class="stat-label">Satisfaction Rate</div>
+          </div>
+        </section>
+
+        <div class="quality-grid">
+          <section class="analytics-card" aria-label="Recent feedback">
+            <div class="quality-section-header">
+              <h3>Recent Feedback</h3>
+              <select id="feedback-filter" aria-label="Filter feedback by rating">
+                <option value="">All ratings</option>
+                <option value="1">👍 Positive only</option>
+                <option value="-1">👎 Negative only</option>
+              </select>
+            </div>
+            <div id="feedback-list" class="quality-list"></div>
+            <nav class="pagination" aria-label="Feedback pagination">
+              <button id="fb-prev-btn" type="button" disabled>← Prev</button>
+              <span id="fb-page-info">Page 1</span>
+              <button id="fb-next-btn" type="button" disabled>Next →</button>
+            </nav>
+          </section>
+
+          <section class="analytics-card" aria-label="Unanswered queries">
+            <h3>Unanswered Queries</h3>
+            <p class="quality-desc">Messages the bot couldn't handle — classified as unclear or too vague.</p>
+            <div id="unanswered-list" class="quality-list"></div>
+            <nav class="pagination" aria-label="Unanswered queries pagination">
+              <button id="uq-prev-btn" type="button" disabled>← Prev</button>
+              <span id="uq-page-info">Page 1</span>
+              <button id="uq-next-btn" type="button" disabled>Next →</button>
+            </nav>
+          </section>
+        </div>
+      </div><!-- end quality-tab -->
+
+      <div id="library-info-tab" class="tab-content">
+        <div class="li-editor-wrap">
+          <div class="li-header">
+            <p class="li-desc">Manage library information. Hours are per-location. Policies and fines apply to all locations.</p>
+            <div class="li-actions">
+              <button id="li-save-btn" type="button" class="btn-primary">Save All Changes</button>
+              <span id="li-save-status" class="li-status"></span>
+            </div>
+          </div>
+
+          <div class="li-shared">
+            <section class="li-shared-section">
+              <h3>📋 Policies <span class="li-badge">All locations</span></h3>
+              <div id="li-policies" class="li-fields"></div>
+              <button class="li-add-btn" data-target="li-policies" type="button">+ Add entry</button>
+            </section>
+            <section class="li-shared-section">
+              <h3>💰 Fines <span class="li-badge">All locations</span></h3>
+              <div id="li-fines" class="li-fields"></div>
+              <button class="li-add-btn" data-target="li-fines" type="button">+ Add entry</button>
+            </section>
+          </div>
+
+          <div class="li-locations-header">
+            <h3>🕐 Hours by Location</h3>
+            <button id="li-add-location-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.82rem;padding:6px 14px">+ Add Location</button>
+          </div>
+          <div id="li-locations" class="li-locations"></div>
+        </div>
+      </div><!-- end library-info-tab -->
+
+      <div id="management-tab" class="tab-content">
+        <div class="mgmt-grid">
+          <section class="analytics-card" aria-label="Export sessions">
+            <h3>📥 Export Sessions</h3>
+            <p class="quality-desc">Download session data as CSV for reporting or offline analysis.</p>
+            <div class="mgmt-controls">
+              <select id="export-status" aria-label="Export status filter">
+                <option value="">All statuses</option>
+                <option value="active">Active only</option>
+                <option value="expired">Expired only</option>
+              </select>
+              <select id="export-days" aria-label="Export time range">
+                <option value="">All time</option>
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+              <button id="export-btn" type="button" class="btn-primary">Download CSV</button>
+            </div>
+          </section>
+
+          <section class="analytics-card" aria-label="Bulk cleanup">
+            <h3>🗑️ Bulk Cleanup</h3>
+            <p class="quality-desc">Permanently delete expired sessions older than the specified period to keep the database lean.</p>
+            <div class="mgmt-controls">
+              <select id="cleanup-days" aria-label="Cleanup age threshold">
+                <option value="7">Older than 7 days</option>
+                <option value="30" selected>Older than 30 days</option>
+                <option value="90">Older than 90 days</option>
+                <option value="180">Older than 180 days</option>
+              </select>
+              <button id="cleanup-btn" type="button" class="btn-danger">Delete Expired Sessions</button>
+              <span id="cleanup-status" class="li-status"></span>
+            </div>
+            <div class="mgmt-controls" style="margin-top:16px;padding-top:14px;border-top:1px solid #ecf0f1">
+              <button id="delete-all-btn" type="button" class="btn-danger" style="background:#8e44ad">Delete All Sessions</button>
+              <span id="delete-all-status" class="li-status"></span>
+            </div>
+          </section>
+
+          <section class="analytics-card" style="grid-column:1/-1" aria-label="Flagged sessions">
+            <div class="quality-section-header">
+              <h3>🚩 Flagged Sessions</h3>
+              <button id="flagged-refresh-btn" type="button" style="font-size:0.8rem;padding:4px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer">Refresh</button>
+            </div>
+            <p class="quality-desc">Sessions marked for follow-up by admins.</p>
+            <div id="flagged-list" class="quality-list"></div>
+            <nav class="pagination" aria-label="Flagged sessions pagination">
+              <button id="fl-prev-btn" type="button" disabled>← Prev</button>
+              <span id="fl-page-info">Page 1</span>
+              <button id="fl-next-btn" type="button" disabled>Next →</button>
+            </nav>
+          </section>
+        </div>
+      </div><!-- end management-tab -->
+
+      <div id="staff-tab" class="tab-content">
+        <div class="staff-wrap">
+          <div class="staff-header">
+            <h3>👥 Staff Accounts</h3>
+            <button id="staff-add-btn" type="button" class="btn-primary">+ Add Staff</button>
+          </div>
+          <p class="quality-desc">Create and manage staff accounts that can access the admin dashboard.</p>
+          <div id="staff-add-form" class="staff-form hidden">
+            <div class="staff-form-row">
+              <label>Username</label>
+              <input type="text" id="staff-new-username" placeholder="username" aria-label="New staff username">
+            </div>
+            <div class="staff-form-row">
+              <label>Display Name</label>
+              <input type="text" id="staff-new-display" placeholder="Display Name" aria-label="New staff display name">
+            </div>
+            <div class="staff-form-row">
+              <label>Password</label>
+              <input type="password" id="staff-new-password" placeholder="Password (min 4 chars)" aria-label="New staff password">
+            </div>
+            <div class="staff-form-row">
+              <label>Role</label>
+              <select id="staff-new-role" aria-label="New staff role">
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div class="staff-form-actions">
+              <button id="staff-save-btn" type="button" class="btn-primary">Create Account</button>
+              <button id="staff-cancel-btn" type="button" class="back-btn">Cancel</button>
+              <span id="staff-form-status" class="li-status"></span>
+            </div>
+          </div>
+          <table class="session-table" id="staff-table" aria-label="Staff accounts">
+            <thead>
+              <tr>
+                <th scope="col">Username</th>
+                <th scope="col">Display Name</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staff-tbody"></tbody>
+          </table>
+        </div>
+      </div><!-- end staff-tab -->
+
+      <div id="settings-tab" class="tab-content">
+        <div class="settings-wrap">
+          <div class="settings-header">
+            <h3>⚙️ Dashboard Settings</h3>
+            <div class="li-actions">
+              <button id="settings-save-btn" type="button" class="btn-primary">Save Settings</button>
+              <span id="settings-save-status" class="li-status"></span>
+            </div>
+          </div>
+          <p class="quality-desc">Toggle dashboard features on or off for staff accounts. Disabled features will be hidden from staff users. Admins always see all tabs.</p>
+
+          <section class="settings-section">
+            <h4>Feature Toggles</h4>
+            <div class="settings-toggles">
+              <label class="toggle-row"><input type="checkbox" id="set-analytics" data-key="feature_analytics"> Analytics Tab</label>
+              <label class="toggle-row"><input type="checkbox" id="set-quality" data-key="feature_quality"> Quality Tab</label>
+              <label class="toggle-row"><input type="checkbox" id="set-library-info" data-key="feature_library_info"> Library Info Tab</label>
+              <label class="toggle-row"><input type="checkbox" id="set-management" data-key="feature_management"> Management Tab</label>
+              <label class="toggle-row"><input type="checkbox" id="set-live-chat" data-key="feature_live_chat"> Live Chat Tab</label>
+              <label class="toggle-row"><input type="checkbox" id="set-staff-perf" data-key="feature_staff_performance"> Staff Performance Tab</label>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h4>Session Configuration</h4>
+            <div class="settings-fields">
+              <div class="settings-field-row">
+                <label for="set-timeout">Session timeout (minutes)</label>
+                <input type="number" id="set-timeout" data-key="session_timeout_minutes" min="1" max="60" value="5" aria-label="Session timeout in minutes">
+              </div>
+              <div class="settings-field-row">
+                <label for="set-max-msgs">Max messages per session</label>
+                <input type="number" id="set-max-msgs" data-key="max_messages_per_session" min="5" max="100" value="20" aria-label="Max messages per session">
+              </div>
+            </div>
+          </section>
+        </div>
+      </div><!-- end settings-tab -->
+
+      <div id="handoff-tab" class="tab-content">
+        <div class="handoff-layout">
+          <div class="handoff-queue" id="handoff-queue">
+            <h3>Waiting for Librarian</h3>
+            <div id="handoff-list" class="handoff-list">
+              <p class="quality-empty">No active handoff requests</p>
+            </div>
+          </div>
+          <div class="handoff-chat" id="handoff-chat">
+            <div class="handoff-chat-header" id="handoff-chat-header">
+              <span>Select a session from the queue</span>
+            </div>
+            <div class="handoff-messages" id="handoff-messages"></div>
+            <div class="handoff-input-bar" id="handoff-input-bar" style="display:none">
+              <input type="text" id="handoff-reply-input" placeholder="Type your reply..." aria-label="Reply to patron">
+              <button id="handoff-send-btn" type="button" aria-label="Send reply">Send</button>
+              <button id="handoff-end-btn" type="button" class="btn-danger" style="font-size:0.8rem;padding:6px 12px" aria-label="End handoff">End Chat</button>
+            </div>
+          </div>
+        </div>
+      </div><!-- end handoff-tab -->
+
+      <div id="archive-tab" class="tab-content">
+        <div class="archive-wrap">
+          <div class="archive-header">
+            <h3>📋 Staff Performance</h3>
+            <div class="analytics-controls" style="margin:0">
+              <label for="archive-days">Time range:</label>
+              <select id="archive-days" aria-label="Archive time range">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last year</option>
+              </select>
+              <label for="archive-staff-filter">Staff:</label>
+              <select id="archive-staff-filter" aria-label="Filter by staff">
+                <option value="">All staff</option>
+              </select>
+              <button id="archive-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
+            </div>
+          </div>
+
+          <section class="staff-ratings-section" aria-label="Staff ratings summary">
+            <h4 style="font-size:0.95rem;color:#2c3e50;margin:0 0 10px 0">Ratings by Staff</h4>
+            <div id="staff-ratings-list" class="staff-ratings-cards"></div>
+          </section>
+
+          <h4 style="font-size:0.95rem;color:#2c3e50;margin:20px 0 10px 0">Chat Sessions</h4>
+          <table class="session-table" id="archive-table" aria-label="Archived live chat sessions">
+            <thead>
+              <tr>
+                <th scope="col">Session ID</th>
+                <th scope="col">Handled By</th>
+                <th scope="col">Date</th>
+                <th scope="col">Messages</th>
+                <th scope="col">Rating</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="archive-tbody"></tbody>
+          </table>
+          <nav class="pagination" aria-label="Archive pagination">
+            <button id="archive-prev-btn" type="button" disabled>← Prev</button>
+            <span id="archive-page-info">Page 1</span>
+            <button id="archive-next-btn" type="button" disabled>Next →</button>
+          </nav>
+
+          <div class="archive-cleanup" style="margin-top:20px;padding-top:16px;border-top:1px solid #ecf0f1;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <button id="archive-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All Records</button>
+            <span id="archive-delete-status" class="li-status"></span>
+          </div>
+        </div>
+
+        <div id="archive-detail" class="hidden" style="margin-top:20px">
+          <div class="detail-view">
+            <div class="detail-header">
+              <dl class="detail-meta" id="archive-detail-meta"></dl>
+              <button class="back-btn" id="archive-back-btn" type="button">← Back to archive</button>
+            </div>
+            <div class="messages" id="archive-detail-messages" aria-label="Archived message transcript"></div>
+          </div>
+        </div>
+      </div><!-- end archive-tab -->
+
+    </div>
+  </main>
+
+  <style>
+    /* Controls bar */
+    .controls { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .controls input[type="text"] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 240px; }
+    .controls select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+    .controls button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; background: #2c3e50; color: #fff; }
+    .controls button:hover { background: #34495e; }
+    .session-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .session-table th, .session-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; }
+    .session-table th { background: #ecf0f1; font-weight: 600; color: #2c3e50; }
+    .session-table tr:hover { background: #f9fafb; cursor: pointer; }
+    .session-table tr { transition: opacity 0.3s ease; }
+    .session-table .status-active { color: #27ae60; font-weight: 600; }
+    .session-table .status-expired { color: #95a5a6; font-weight: 600; }
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; }
+    .pagination button { padding: 6px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; }
+    .pagination button:disabled { opacity: 0.5; cursor: default; }
+    .pagination span { font-size: 0.85rem; color: #555; }
+    .detail-view { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .detail-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+    .detail-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; font-size: 0.9rem; }
+    .detail-meta dt { color: #7f8c8d; font-weight: 600; }
+    .detail-meta dd { color: #2c3e50; }
+    .back-btn { padding: 6px 14px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.85rem; white-space: nowrap; }
+    .back-btn:hover { background: #ecf0f1; }
+    .messages { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .message { padding: 10px 14px; border-radius: 8px; max-width: 80%; font-size: 0.9rem; }
+    .message .msg-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 4px; }
+    .message-user { background: #dbeafe; align-self: flex-start; border: 1px solid #bfdbfe; }
+    .message-assistant { background: #f0fdf4; align-self: flex-end; border: 1px solid #bbf7d0; }
+    .loading { text-align: center; padding: 32px; color: #7f8c8d; font-size: 0.95rem; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+    .hidden { display: none; }
+
+    /* Analytics styles */
+    .analytics-controls { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .analytics-controls label { font-size: 0.9rem; color: #555; }
+    .analytics-controls select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+    .analytics-controls button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; background: #2c3e50; color: #fff; }
+    .analytics-controls button:hover { background: #34495e; }
+    .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+    .analytics-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .analytics-card h3 { font-size: 1rem; color: #2c3e50; margin-bottom: 16px; font-weight: 600; }
+    .analytics-card:last-child { grid-column: 1 / -1; }
+
+    /* Bar chart (intent breakdown) */
+    .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+    .bar-row { display: flex; align-items: center; gap: 10px; }
+    .bar-label { width: 100px; font-size: 0.8rem; color: #555; text-align: right; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { flex: 1; height: 24px; background: #ecf0f1; border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; min-width: 2px; }
+    .bar-value { width: 40px; font-size: 0.8rem; color: #555; flex-shrink: 0; }
+
+    /* Line chart */
+    .line-chart-wrap { position: relative; width: 100%; height: 220px; }
+    .line-chart-wrap svg { width: 100%; height: 100%; }
+    .lc-grid-line { stroke: #ecf0f1; stroke-width: 1; }
+    .lc-axis-label { font-size: 10px; fill: #7f8c8d; }
+    .lc-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .lc-area { opacity: 0.12; }
+    .lc-dot { r: 3.5; stroke: #fff; stroke-width: 1.5; }
+    .lc-tooltip { position: absolute; background: #2c3e50; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -8px; opacity: 0; transition: opacity 0.15s; }
+
+    /* Intent colors */
+    .intent-catalog_search { background: #3498db; }
+    .intent-library_info { background: #2ecc71; }
+    .intent-greeting { background: #f39c12; }
+    .intent-catalog_vague { background: #e67e22; }
+    .intent-unclear { background: #e74c3c; }
+    .intent-unknown { background: #95a5a6; }
+
+    @media (max-width: 768px) {
+      .analytics-grid { grid-template-columns: 1fr; }
+      .analytics-card:last-child { grid-column: auto; }
+      .stats-panel { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Quality tab */
+    .quality-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
+    .quality-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .quality-section-header h3 { margin-bottom: 0; }
+    .quality-section-header select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+    .quality-desc { font-size: 0.85rem; color: #7f8c8d; margin-bottom: 12px; }
+    .quality-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
+    .quality-item { background: #fff; border: 1px solid #ecf0f1; border-radius: 8px; padding: 12px 14px; font-size: 0.85rem; transition: border-color 0.15s; }
+    .quality-item:hover { border-color: #bdc3c7; }
+    .quality-item .qi-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .quality-item .qi-user { color: #2c3e50; margin-bottom: 4px; }
+    .quality-item .qi-user::before { content: "👤 "; }
+    .quality-item .qi-bot { color: #555; font-size: 0.82rem; }
+    .quality-item .qi-bot::before { content: "🤖 "; }
+    .quality-item .qi-rating { font-weight: 600; }
+    .quality-item .qi-rating.positive { color: #27ae60; }
+    .quality-item .qi-rating.negative { color: #e74c3c; }
+    .quality-item .qi-intent { display: inline-block; background: #ecf0f1; border-radius: 10px; padding: 2px 8px; font-size: 0.72rem; color: #555; }
+    .quality-empty { color: #7f8c8d; font-size: 0.85rem; text-align: center; padding: 32px; background: #f9fafb; border-radius: 8px; }
+
+    /* Library Info editor */
+    .li-editor-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .li-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+    .li-desc { font-size: 0.9rem; color: #555; max-width: 600px; }
+    .li-actions { display: flex; align-items: center; gap: 10px; }
+    .li-status { font-size: 0.85rem; transition: opacity 0.3s; }
+    .li-badge { font-size: 0.7rem; background: #e8f4fd; color: #2980b9; padding: 2px 8px; border-radius: 10px; font-weight: 500; vertical-align: middle; margin-left: 6px; }
+    .li-shared { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .li-shared-section { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 18px; }
+    .li-shared-section h3 { font-size: 0.95rem; color: #2c3e50; margin-bottom: 12px; }
+    .li-locations-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .li-locations-header h3 { font-size: 0.95rem; color: #2c3e50; margin: 0; }
+    .li-locations { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .li-location { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+    .li-location:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    .li-loc-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f0f2f5; border-bottom: 1px solid #ddd; }
+    .li-loc-header .li-loc-icon { font-size: 1rem; flex-shrink: 0; }
+    .li-loc-header input { font-size: 0.9rem; font-weight: 600; color: #2c3e50; border: 1px solid transparent; background: transparent; padding: 3px 6px; border-radius: 4px; flex: 1; min-width: 0; }
+    .li-loc-header input:focus { border-color: #2c3e50; background: #fff; outline: none; }
+    .li-loc-remove { background: none; border: 1px solid #ccc; color: #999; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .li-loc-remove:hover { color: #e74c3c; border-color: #e74c3c; background: #fef2f2; }
+    .li-loc-body { padding: 14px; }
+    .li-fields { display: flex; flex-direction: column; gap: 6px; }
+    .li-row { display: flex; gap: 6px; align-items: center; }
+    .li-row input { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.84rem; }
+    .li-row input:focus { border-color: #2c3e50; outline: none; }
+    .li-row .li-key { width: 130px; flex-shrink: 0; }
+    .li-row .li-val { flex: 1; min-width: 0; }
+    .li-row .li-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 1rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; }
+    .li-row .li-del:hover { color: #e74c3c; background: #fef2f2; }
+    .li-add-btn { margin-top: 6px; background: none; border: 1px dashed #ccc; border-radius: 4px; padding: 4px 10px; font-size: 0.78rem; color: #7f8c8d; cursor: pointer; width: fit-content; }
+    .li-add-btn:hover { border-color: #2c3e50; color: #2c3e50; }
+    .btn-primary { padding: 8px 16px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; cursor: pointer; font-size: 0.85rem; }
+    .btn-primary:hover { background: #34495e; }
+    .btn-danger { padding: 8px 16px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; font-size: 0.85rem; }
+    .btn-danger:hover { background: #c0392b; }
+
+    /* Management tab */
+    .mgmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .mgmt-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+    .mgmt-controls select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; }
+
+    /* Session detail flag button */
+    .flag-btn { padding: 4px 12px; border: 1px solid #f39c12; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #f39c12; margin-left: 8px; }
+    .flag-btn:hover { background: #fdf6e3; }
+    .flag-btn.flagged { background: #f39c12; color: #fff; }
+
+    @media (max-width: 768px) {
+      .li-shared { grid-template-columns: 1fr; }
+      .li-locations { grid-template-columns: 1fr; }
+      .li-row .li-key { width: 110px; }
+      .mgmt-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Handoff / Live Chat tab */
+    .handoff-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: calc(100vh - 220px); min-height: 400px; }
+    .handoff-queue { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
+    .handoff-queue h3 { padding: 14px 16px; font-size: 0.95rem; color: #2c3e50; border-bottom: 1px solid #ecf0f1; margin: 0; flex-shrink: 0; }
+    .handoff-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .handoff-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; border: 1px solid #ecf0f1; margin-bottom: 6px; transition: all 0.15s; }
+    .handoff-item:hover { border-color: #2c3e50; background: #f9fafb; }
+    .handoff-item.active { border-color: #2c3e50; background: #eaf2f8; }
+    .handoff-item .hi-sid { font-weight: 600; color: #2c3e50; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .handoff-item .hi-meta { font-size: 0.72rem; color: #7f8c8d; margin-top: 2px; }
+    .handoff-item.claimed-other { opacity: 0.65; }
+    .hi-claim { font-size: 0.65rem; border-radius: 8px; padding: 1px 7px; margin-left: 6px; font-weight: 500; vertical-align: middle; }
+    .hi-claim-me { background: #d5f5e3; color: #1e8449; }
+    .hi-claim-other { background: #fdebd0; color: #b9770e; }
+    .hi-claim-open { background: #ebf5fb; color: #2e86c1; }
+
+    /* Archive tab */
+    .archive-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .archive-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+    .archive-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
+    .rating-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; }
+    .rating-positive { background: #d5f5e3; color: #1e8449; }
+    .rating-negative { background: #fadbd8; color: #c0392b; }
+    .rating-none { background: #f2f3f4; color: #7f8c8d; }
+    .staff-ratings-section { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .staff-ratings-cards { display: flex; flex-wrap: wrap; gap: 12px; }
+    .staff-rating-card { background: #fff; border: 1px solid #ecf0f1; border-radius: 8px; padding: 14px 18px; min-width: 180px; flex: 1; max-width: 260px; }
+    .staff-rating-card .src-name { font-weight: 600; color: #2c3e50; font-size: 0.92rem; margin-bottom: 6px; }
+    .staff-rating-card .src-stats { display: flex; gap: 12px; font-size: 0.82rem; color: #555; }
+    .staff-rating-card .src-rate { font-size: 1rem; font-weight: 700; margin-top: 4px; }
+    .message-librarian { background: #fef3c7; align-self: flex-end; border: 1px solid #fde68a; }
+    .message-librarian .msg-meta { color: #92400e; }
+    .handoff-chat { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
+    .handoff-chat-header { padding: 12px 16px; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; color: #555; flex-shrink: 0; font-weight: 600; }
+    .handoff-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+    .handoff-messages .message-librarian { background: #fef3c7; align-self: flex-end; border: 1px solid #fde68a; }
+    .handoff-messages .message-librarian .msg-meta { color: #92400e; }
+    .handoff-input-bar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #ecf0f1; flex-shrink: 0; }
+    .handoff-input-bar input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    .handoff-input-bar input:focus { border-color: #2c3e50; outline: none; }
+    .handoff-input-bar button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    #handoff-send-btn { background: #2c3e50; color: #fff; }
+    #handoff-send-btn:hover { background: #34495e; }
+    .handoff-badge { background: #e74c3c; color: #fff; font-size: 0.65rem; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+    @media (max-width: 768px) {
+      .handoff-layout { grid-template-columns: 1fr; height: auto; }
+      .handoff-queue { max-height: 200px; }
+    }
+
+    /* Staff tab */
+    .staff-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .staff-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
+    .staff-form { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 18px; margin: 16px 0; }
+    .staff-form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .staff-form-row label { width: 110px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
+    .staff-form-row input, .staff-form-row select { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; max-width: 280px; }
+    .staff-form-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+    .staff-actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
+    .staff-actions-cell button { padding: 3px 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.78rem; }
+    .staff-actions-cell button:hover { background: #f0f2f5; }
+    .staff-actions-cell .btn-deactivate { color: #e67e22; border-color: #e67e22; }
+    .staff-actions-cell .btn-deactivate:hover { background: #fef3e2; }
+    .staff-actions-cell .btn-activate { color: #27ae60; border-color: #27ae60; }
+    .staff-actions-cell .btn-activate:hover { background: #eafaf1; }
+    .staff-actions-cell .btn-delete { color: #e74c3c; border-color: #e74c3c; }
+    .staff-actions-cell .btn-delete:hover { background: #fef2f2; }
+
+    /* Settings tab */
+    .settings-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .settings-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
+    .settings-section { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 18px; margin-top: 20px; }
+    .settings-section h4 { font-size: 0.92rem; color: #2c3e50; margin: 0 0 14px 0; }
+    .settings-toggles { display: flex; flex-direction: column; gap: 10px; }
+    .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #333; cursor: pointer; }
+    .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2c3e50; cursor: pointer; }
+    .settings-fields { display: flex; flex-direction: column; gap: 12px; }
+    .settings-field-row { display: flex; align-items: center; gap: 12px; }
+    .settings-field-row label { width: 200px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
+    .settings-field-row input { width: 100px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+  </style>
+
+  <script>
+    (function () {
+      "use strict";
+
+      let apiKey = sessionStorage.getItem("admin_api_key") || "";
+      let currentPage = 1;
+      const pageSize = 20;
+      const REFRESH_INTERVAL = 5000; // 5 seconds
+      let refreshTimer = null;
+
+      // --- DOM refs ---
+      const loginView = document.getElementById("login-view");
+      const dashboardView = document.getElementById("dashboard-view");
+      const loginForm = document.getElementById("login-form");
+      const loginError = document.getElementById("login-error");
+      const logoutBtn = document.getElementById("logout-btn");
+      const errorContainer = document.getElementById("error-container");
+      const loadingIndicator = document.getElementById("loading-indicator");
+      const listView = document.getElementById("list-view");
+      const detailView = document.getElementById("detail-view");
+      const sessionTbody = document.getElementById("session-tbody");
+      const searchInput = document.getElementById("search-input");
+      const statusFilter = document.getElementById("status-filter");
+      const searchBtn = document.getElementById("search-btn");
+      const prevBtn = document.getElementById("prev-btn");
+      const nextBtn = document.getElementById("next-btn");
+      const pageInfo = document.getElementById("page-info");
+      const backBtn = document.getElementById("back-btn");
+      const detailMeta = document.getElementById("detail-meta");
+      const detailMessages = document.getElementById("detail-messages");
+
+      // --- Helpers ---
+      function showError(msg) {
+        errorContainer.textContent = msg;
+        errorContainer.classList.remove("hidden");
+      }
+      function clearError() {
+        errorContainer.textContent = "";
+        errorContainer.classList.add("hidden");
+      }
+      function showLoading() { loadingIndicator.classList.remove("hidden"); }
+      function hideLoading() { loadingIndicator.classList.add("hidden"); }
+      function formatTime(ts) {
+        if (!ts) return "—";
+        return new Date(ts * 1000).toLocaleString();
+      }
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }
+
+      function triggerFade(el) {
+        el.classList.remove("fade-update");
+        void el.offsetWidth; // force reflow
+        el.classList.add("fade-update");
+      }
+
+      // --- Login ---
+      loginForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        loginError.classList.add("hidden");
+        const username = document.getElementById("login-username").value.trim();
+        const password = document.getElementById("login-password").value;
+        if (!username || !password) {
+          loginError.textContent = "Please enter both username and password.";
+          loginError.classList.remove("hidden");
+          return;
+        }
+        try {
+          const resp = await fetch("/admin/api/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: username, password: password }),
+          });
+          if (resp.status === 401) {
+            loginError.textContent = "Invalid username or password.";
+            loginError.classList.remove("hidden");
+            return;
+          }
+          if (!resp.ok) {
+            loginError.textContent = "Login failed. Please try again.";
+            loginError.classList.remove("hidden");
+            return;
+          }
+          const data = await resp.json();
+          apiKey = data.api_key;
+          sessionStorage.setItem("admin_api_key", apiKey);
+          sessionStorage.setItem("admin_role", data.role || "admin");
+          sessionStorage.setItem("admin_display_name", data.display_name || "");
+          sessionStorage.setItem("admin_username", document.getElementById("login-username").value.trim());
+          loginView.classList.add("hidden");
+          dashboardView.classList.remove("hidden");
+          logoutBtn.classList.remove("hidden");
+          showUserInfo();
+          applyRoleVisibility();
+          loadStats();
+          loadSessions();
+          startAutoRefresh();
+        } catch (err) {
+          loginError.textContent = "Network error: " + err.message;
+          loginError.classList.remove("hidden");
+        }
+      });
+
+      // --- Logout ---
+      logoutBtn.addEventListener("click", function () {
+        apiKey = "";
+        sessionStorage.removeItem("admin_api_key");
+        sessionStorage.removeItem("admin_role");
+        sessionStorage.removeItem("admin_display_name");
+        sessionStorage.removeItem("admin_username");
+        stopAutoRefresh();
+        dashboardView.classList.add("hidden");
+        detailView.classList.add("hidden");
+        listView.classList.remove("hidden");
+        loginView.classList.remove("hidden");
+        logoutBtn.classList.add("hidden");
+        document.getElementById("user-info").classList.add("hidden");
+        document.getElementById("login-username").value = "";
+        document.getElementById("login-password").value = "";
+      });
+
+      // --- API fetch ---
+      let isBackgroundPoll = false;
+
+      async function apiFetch(path) {
+        if (!apiKey) { showError("Not authenticated."); return null; }
+        clearError();
+        if (!isBackgroundPoll) showLoading();
+        try {
+          const resp = await fetch(path, { headers: { "X-Admin-Key": apiKey } });
+          if (resp.status === 401) {
+            showError("Session expired. Please log in again.");
+            logoutBtn.click();
+            return null;
+          }
+          if (!resp.ok) {
+            const body = await resp.json().catch(() => ({}));
+            showError(body.error || "Request failed (HTTP " + resp.status + ")");
+            return null;
+          }
+          return await resp.json();
+        } catch (err) {
+          showError("Network error: " + err.message);
+          return null;
+        } finally { if (!isBackgroundPoll) hideLoading(); }
+      }
+
+      // --- Stats ---
+      async function loadStats() {
+        const data = await apiFetch("/admin/api/stats");
+        if (!data) return;
+        lastStatsJson = JSON.stringify(data);
+        document.getElementById("stat-total").textContent = data.total_sessions;
+        document.getElementById("stat-messages").textContent = data.total_messages;
+        document.getElementById("stat-active").textContent = data.active_sessions;
+        document.getElementById("stat-expired").textContent = data.expired_sessions;
+      }
+
+      // --- Session List ---
+      async function loadSessions() {
+        const params = new URLSearchParams();
+        params.set("page", currentPage);
+        params.set("page_size", pageSize);
+        const status = statusFilter.value;
+        if (status) params.set("status", status);
+        const search = searchInput.value.trim();
+        if (search) params.set("search", search);
+        const data = await apiFetch("/admin/api/sessions?" + params.toString());
+        if (!data) return;
+        lastSessionsJson = JSON.stringify(data);
+        renderSessionTable(data.sessions);
+        updatePagination(data.total);
+      }
+
+      function renderSessionTable(sessions) {
+        sessionTbody.innerHTML = "";
+        if (sessions.length === 0) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = '<td colspan="5" style="text-align:center;color:#7f8c8d;">No sessions found.</td>';
+          sessionTbody.appendChild(tr);
+          return;
+        }
+        sessions.forEach(function (s) {
+          const tr = document.createElement("tr");
+          tr.setAttribute("role", "button");
+          tr.setAttribute("tabindex", "0");
+          tr.setAttribute("aria-label", "View session " + s.session_id);
+          const statusClass = s.status === "active" ? "status-active" : "status-expired";
+          tr.innerHTML =
+            "<td>" + escapeHtml(s.session_id) + "</td>" +
+            "<td>" + formatTime(s.created_at) + "</td>" +
+            "<td>" + formatTime(s.last_activity) + "</td>" +
+            "<td>" + s.message_count + "</td>" +
+            '<td class="' + statusClass + '">' + escapeHtml(s.status) + "</td>";
+          tr.addEventListener("click", function () { openDetail(s.session_id); });
+          tr.addEventListener("keydown", function (e) {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(s.session_id); }
+          });
+          sessionTbody.appendChild(tr);
+        });
+      }
+
+      function updatePagination(total) {
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        pageInfo.textContent = "Page " + currentPage + " of " + totalPages;
+        prevBtn.disabled = currentPage <= 1;
+        nextBtn.disabled = currentPage >= totalPages;
+      }
+
+      // --- Session Detail ---
+      async function openDetail(sessionId) {
+        listView.classList.add("hidden");
+        detailView.classList.remove("hidden");
+        const data = await apiFetch("/admin/api/sessions/" + encodeURIComponent(sessionId));
+        if (!data) return;
+        const statusClass = data.status === "active" ? "status-active" : "status-expired";
+        detailMeta.innerHTML =
+          "<dt>Session ID</dt><dd>" + escapeHtml(data.session_id) + "</dd>" +
+          "<dt>Created</dt><dd>" + formatTime(data.created_at) + "</dd>" +
+          "<dt>Last Activity</dt><dd>" + formatTime(data.last_activity) + "</dd>" +
+          "<dt>Messages</dt><dd>" + data.message_count + "</dd>" +
+          '<dt>Status</dt><dd class="' + statusClass + '">' + escapeHtml(data.status) + "</dd>" +
+          '<dt>Flag</dt><dd id="detail-flag-dd"></dd>';
+
+        // Load flag state
+        var flagDd = document.getElementById("detail-flag-dd");
+        var flagData = await apiFetch("/admin/api/sessions/" + encodeURIComponent(sessionId) + "/flag");
+        var flagBtn = document.createElement("button");
+        flagBtn.className = "flag-btn" + (flagData && flagData.flagged ? " flagged" : "");
+        flagBtn.textContent = flagData && flagData.flagged ? "🚩 Flagged" : "🏳️ Flag";
+        flagBtn.title = flagData && flagData.flagged ? flagData.note || "Flagged" : "Flag this session";
+        flagBtn.addEventListener("click", async function () {
+          if (flagBtn.classList.contains("flagged")) {
+            await fetch("/admin/api/sessions/" + encodeURIComponent(sessionId) + "/flag", {
+              method: "DELETE", headers: { "X-Admin-Key": apiKey }
+            });
+            flagBtn.classList.remove("flagged");
+            flagBtn.textContent = "🏳️ Flag";
+            flagBtn.title = "Flag this session";
+          } else {
+            var note = prompt("Add a note (optional):", "") || "";
+            await fetch("/admin/api/sessions/" + encodeURIComponent(sessionId) + "/flag", {
+              method: "POST", headers: { "X-Admin-Key": apiKey, "Content-Type": "application/json" },
+              body: JSON.stringify({ note: note })
+            });
+            flagBtn.classList.add("flagged");
+            flagBtn.textContent = "🚩 Flagged";
+            flagBtn.title = note || "Flagged";
+          }
+        });
+        flagDd.appendChild(flagBtn);
+
+        detailMessages.innerHTML = "";
+        if (data.messages.length === 0) {
+          detailMessages.innerHTML = '<p style="color:#7f8c8d;">No messages in this session.</p>';
+          return;
+        }
+        data.messages.forEach(function (m) {
+          const div = document.createElement("article");
+          const roleClass = m.role === "user" ? "message-user" : "message-assistant";
+          div.className = "message " + roleClass;
+          div.innerHTML =
+            '<div class="msg-meta">' + escapeHtml(m.role === "user" ? "Patron" : "Assistant") + " — " + formatTime(m.timestamp) + "</div>" +
+            "<div>" + escapeHtml(m.content) + "</div>";
+          detailMessages.appendChild(div);
+        });
+      }
+
+      function closeDetail() {
+        detailView.classList.add("hidden");
+        listView.classList.remove("hidden");
+      }
+
+      // --- Event listeners ---
+      searchBtn.addEventListener("click", function () { currentPage = 1; loadSessions(); });
+      searchInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { currentPage = 1; loadSessions(); } });
+      statusFilter.addEventListener("change", function () { currentPage = 1; loadSessions(); });
+      prevBtn.addEventListener("click", function () { if (currentPage > 1) { currentPage--; loadSessions(); } });
+      nextBtn.addEventListener("click", function () { currentPage++; loadSessions(); });
+      backBtn.addEventListener("click", closeDetail);
+
+      // --- Auto-refresh (only when data changes) ---
+      let lastStatsJson = "";
+      let lastSessionsJson = "";
+
+      function startAutoRefresh() {
+        stopAutoRefresh();
+        refreshTimer = setInterval(async function () {
+          isBackgroundPoll = true;
+          // Poll stats
+          var statsData = await apiFetch("/admin/api/stats");
+          if (statsData) {
+            var sj = JSON.stringify(statsData);
+            if (sj !== lastStatsJson) {
+              lastStatsJson = sj;
+              var ids = ["stat-total", "stat-messages", "stat-active", "stat-expired"];
+              var vals = [statsData.total_sessions, statsData.total_messages, statsData.active_sessions, statsData.expired_sessions];
+              for (var i = 0; i < ids.length; i++) {
+                var el = document.getElementById(ids[i]);
+                if (el.textContent !== String(vals[i])) {
+                  el.textContent = vals[i];
+                  triggerFade(el);
+                }
+              }
+            }
+          }
+          // Poll session list only if on list view
+          if (!listView.classList.contains("hidden")) {
+            var params = new URLSearchParams();
+            params.set("page", currentPage);
+            params.set("page_size", pageSize);
+            var status = statusFilter.value;
+            if (status) params.set("status", status);
+            var search = searchInput.value.trim();
+            if (search) params.set("search", search);
+            var sessData = await apiFetch("/admin/api/sessions?" + params.toString());
+            if (sessData) {
+              var ssj = JSON.stringify(sessData);
+              if (ssj !== lastSessionsJson) {
+                lastSessionsJson = ssj;
+                renderSessionTable(sessData.sessions);
+                updatePagination(sessData.total);
+                triggerFade(sessionTbody);
+              }
+            }
+          }
+          isBackgroundPoll = false;
+        }, REFRESH_INTERVAL);
+      }
+
+      function stopAutoRefresh() {
+        if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+      }
+
+      // --- Auto-login from cached session ---
+      if (apiKey) {
+        loginView.classList.add("hidden");
+        dashboardView.classList.remove("hidden");
+        logoutBtn.classList.remove("hidden");
+        showUserInfo();
+        applyRoleVisibility();
+        loadStats();
+        loadSessions();
+        startAutoRefresh();
+      }
+
+      // --- Show logged-in user info in header ---
+      function showUserInfo() {
+        var el = document.getElementById("user-info");
+        var displayName = sessionStorage.getItem("admin_display_name") || sessionStorage.getItem("admin_username") || "Admin";
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        el.innerHTML = '<span class="user-name">' + escapeHtml(displayName) + '</span><span class="user-role">' + escapeHtml(role) + '</span>';
+        el.classList.remove("hidden");
+      }
+
+      // --- Role-based visibility ---
+      function applyRoleVisibility() {
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        var isAdmin = role === "admin";
+        // Staff & Settings tabs are admin-only
+        var staffTabBtn = document.querySelector('[data-tab="staff-tab"]');
+        var settingsTabBtn = document.querySelector('[data-tab="settings-tab"]');
+        if (staffTabBtn) staffTabBtn.style.display = isAdmin ? "" : "none";
+        if (settingsTabBtn) settingsTabBtn.style.display = isAdmin ? "" : "none";
+      }
+
+      // --- Tab navigation ---
+      var tabBtns = document.querySelectorAll(".tab-btn");
+      tabBtns.forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          tabBtns.forEach(function (b) { b.classList.remove("active"); });
+          btn.classList.add("active");
+          document.querySelectorAll(".tab-content").forEach(function (tc) { tc.classList.remove("active"); });
+          var target = document.getElementById(btn.getAttribute("data-tab"));
+          if (target) target.classList.add("active");
+          if (btn.getAttribute("data-tab") === "analytics-tab") {
+            loadAnalytics();
+          }
+          if (btn.getAttribute("data-tab") === "quality-tab") {
+            loadQuality();
+          }
+          if (btn.getAttribute("data-tab") === "library-info-tab") {
+            loadLibraryInfo();
+          }
+          if (btn.getAttribute("data-tab") === "management-tab") {
+            loadFlaggedSessions();
+          }
+        });
+      });
+
+      // --- Analytics ---
+      var analyticsDays = document.getElementById("analytics-days");
+      var analyticsRefreshBtn = document.getElementById("analytics-refresh-btn");
+
+      analyticsRefreshBtn.addEventListener("click", loadAnalytics);
+      analyticsDays.addEventListener("change", loadAnalytics);
+
+      async function loadAnalytics() {
+        var days = analyticsDays.value;
+        var data = await apiFetch("/admin/api/analytics?days=" + days);
+        if (!data) return;
+        renderAnalyticsSummary(data);
+        renderIntentChart(data.intent_breakdown);
+        renderHourlyChart(data.hourly_activity);
+        renderDailyChart(data.daily_activity);
+      }
+
+      function renderAnalyticsSummary(data) {
+        document.getElementById("analytics-total-msgs").textContent = data.total_user_messages;
+        document.getElementById("analytics-avg-msgs").textContent = data.avg_messages_per_session;
+        document.getElementById("analytics-failed").textContent = data.failed_queries;
+        var rate = data.total_user_messages > 0
+          ? ((data.failed_queries / data.total_user_messages) * 100).toFixed(1) + "%"
+          : "0%";
+        document.getElementById("analytics-fail-rate").textContent = rate;
+      }
+
+      function renderBarChart(container, items, labelKey, valueKey, colorFn) {
+        container.innerHTML = "";
+        if (items.length === 0) {
+          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.85rem;">No data available.</p>';
+          return;
+        }
+        var maxVal = Math.max.apply(null, items.map(function (i) { return i[valueKey]; }));
+        if (maxVal === 0) maxVal = 1;
+        items.forEach(function (item) {
+          var row = document.createElement("div");
+          row.className = "bar-row";
+          var pct = (item[valueKey] / maxVal) * 100;
+          row.innerHTML =
+            '<span class="bar-label" title="' + escapeHtml(String(item[labelKey])) + '">' + escapeHtml(String(item[labelKey])) + '</span>' +
+            '<div class="bar-track"><div class="bar-fill ' + colorFn(item[labelKey]) + '" style="width:' + pct + '%"></div></div>' +
+            '<span class="bar-value">' + item[valueKey] + '</span>';
+          container.appendChild(row);
+        });
+      }
+
+      function renderLineChart(container, labels, values, color) {
+        container.innerHTML = "";
+        if (values.length === 0) {
+          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.85rem;">No data available.</p>';
+          return;
+        }
+        var pad = { top: 16, right: 16, bottom: 28, left: 40 };
+        var w = container.offsetWidth || 400;
+        var h = 220;
+        var cw = w - pad.left - pad.right;
+        var ch = h - pad.top - pad.bottom;
+        var maxVal = Math.max.apply(null, values);
+        if (maxVal === 0) maxVal = 1;
+
+        var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        // Grid lines
+        for (var g = 0; g <= 4; g++) {
+          var gy = pad.top + ch - (g / 4) * ch;
+          var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          line.setAttribute("x1", pad.left); line.setAttribute("x2", w - pad.right);
+          line.setAttribute("y1", gy); line.setAttribute("y2", gy);
+          line.setAttribute("class", "lc-grid-line");
+          svg.appendChild(line);
+          var lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          lbl.setAttribute("x", pad.left - 6); lbl.setAttribute("y", gy + 3);
+          lbl.setAttribute("text-anchor", "end"); lbl.setAttribute("class", "lc-axis-label");
+          lbl.textContent = Math.round((g / 4) * maxVal);
+          svg.appendChild(lbl);
+        }
+
+        // Points
+        var points = [];
+        var step = values.length > 1 ? cw / (values.length - 1) : cw;
+        for (var i = 0; i < values.length; i++) {
+          var px = pad.left + (values.length > 1 ? i * step : cw / 2);
+          var py = pad.top + ch - (values[i] / maxVal) * ch;
+          points.push({ x: px, y: py, val: values[i], label: labels[i] });
+        }
+
+        // Area fill
+        var areaPath = "M" + points[0].x + "," + (pad.top + ch);
+        points.forEach(function (p) { areaPath += " L" + p.x + "," + p.y; });
+        areaPath += " L" + points[points.length - 1].x + "," + (pad.top + ch) + " Z";
+        var area = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        area.setAttribute("d", areaPath);
+        area.setAttribute("fill", color);
+        area.setAttribute("class", "lc-area");
+        svg.appendChild(area);
+
+        // Line
+        var linePath = "M" + points.map(function (p) { return p.x + "," + p.y; }).join(" L");
+        var lineEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        lineEl.setAttribute("d", linePath);
+        lineEl.setAttribute("stroke", color);
+        lineEl.setAttribute("class", "lc-line");
+        svg.appendChild(lineEl);
+
+        // Dots + labels
+        var tooltip = document.createElement("div");
+        tooltip.className = "lc-tooltip";
+        container.appendChild(tooltip);
+
+        points.forEach(function (p) {
+          var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+          dot.setAttribute("cx", p.x); dot.setAttribute("cy", p.y);
+          dot.setAttribute("fill", color); dot.setAttribute("class", "lc-dot");
+          dot.addEventListener("mouseenter", function () {
+            tooltip.textContent = p.label + ": " + p.val;
+            tooltip.style.left = (p.x / w * 100) + "%";
+            tooltip.style.top = (p.y) + "px";
+            tooltip.style.opacity = "1";
+          });
+          dot.addEventListener("mouseleave", function () { tooltip.style.opacity = "0"; });
+          svg.appendChild(dot);
+
+          // X-axis label
+          var xl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          xl.setAttribute("x", p.x); xl.setAttribute("y", h - 4);
+          xl.setAttribute("text-anchor", "middle"); xl.setAttribute("class", "lc-axis-label");
+          xl.textContent = p.label;
+          svg.appendChild(xl);
+        });
+
+        container.insertBefore(svg, tooltip);
+      }
+
+      function renderIntentChart(breakdown) {
+        var container = document.getElementById("intent-chart");
+        renderBarChart(container, breakdown, "intent", "count", function (intent) {
+          return "intent-" + intent;
+        });
+      }
+
+      function renderHourlyChart(hourly) {
+        var container = document.getElementById("hourly-chart");
+        var labels = hourly.map(function (h) { return String(h.hour).padStart(2, "0"); });
+        var values = hourly.map(function (h) { return h.count; });
+        renderLineChart(container, labels, values, "#3498db");
+      }
+
+      function renderDailyChart(daily) {
+        var container = document.getElementById("daily-chart");
+        var labels = daily.map(function (d) { return d.day.substring(0, 3); });
+        var values = daily.map(function (d) { return d.count; });
+        renderLineChart(container, labels, values, "#9b59b6");
+      }
+
+      // --- Conversation Quality ---
+      var qualityDays = document.getElementById("quality-days");
+      var qualityRefreshBtn = document.getElementById("quality-refresh-btn");
+      var feedbackFilter = document.getElementById("feedback-filter");
+      var fbPage = 1;
+      var uqPage = 1;
+
+      qualityRefreshBtn.addEventListener("click", loadQuality);
+      qualityDays.addEventListener("change", function () { fbPage = 1; uqPage = 1; loadQuality(); });
+      feedbackFilter.addEventListener("change", function () { fbPage = 1; loadFeedbackList(); });
+
+      document.getElementById("fb-prev-btn").addEventListener("click", function () { if (fbPage > 1) { fbPage--; loadFeedbackList(); } });
+      document.getElementById("fb-next-btn").addEventListener("click", function () { fbPage++; loadFeedbackList(); });
+      document.getElementById("uq-prev-btn").addEventListener("click", function () { if (uqPage > 1) { uqPage--; loadUnanswered(); } });
+      document.getElementById("uq-next-btn").addEventListener("click", function () { uqPage++; loadUnanswered(); });
+
+      async function loadQuality() {
+        await Promise.all([loadFeedbackStats(), loadFeedbackList(), loadUnanswered()]);
+      }
+
+      async function loadFeedbackStats() {
+        var days = qualityDays.value;
+        var data = await apiFetch("/admin/api/quality/feedback-stats?days=" + days);
+        if (!data) return;
+        document.getElementById("q-total-ratings").textContent = data.total_ratings;
+        document.getElementById("q-positive").textContent = data.positive;
+        document.getElementById("q-negative").textContent = data.negative;
+        document.getElementById("q-satisfaction").textContent = data.satisfaction_rate + "%";
+      }
+
+      async function loadFeedbackList() {
+        var days = qualityDays.value;
+        var params = new URLSearchParams();
+        params.set("days", days);
+        params.set("page", fbPage);
+        params.set("page_size", "10");
+        var rating = feedbackFilter.value;
+        if (rating) params.set("rating", rating);
+        var data = await apiFetch("/admin/api/quality/feedback?" + params.toString());
+        if (!data) return;
+        var container = document.getElementById("feedback-list");
+        container.innerHTML = "";
+        if (data.length === 0) {
+          container.innerHTML = '<div class="quality-empty">No feedback yet. Patrons can rate bot responses with 👍/👎 in the chat widget.</div>';
+          document.getElementById("fb-prev-btn").disabled = true;
+          document.getElementById("fb-next-btn").disabled = true;
+          document.getElementById("fb-page-info").textContent = "Page 1";
+          return;
+        }
+        data.forEach(function (f) {
+          var item = document.createElement("div");
+          item.className = "quality-item";
+          var ratingClass = f.rating === 1 ? "positive" : "negative";
+          var ratingIcon = f.rating === 1 ? "👍" : "👎";
+          item.innerHTML =
+            '<div class="qi-meta"><span>' + formatTime(f.timestamp) + '</span><span class="qi-rating ' + ratingClass + '">' + ratingIcon + '</span></div>' +
+            '<div class="qi-user">' + escapeHtml(f.user_message || "—") + '</div>' +
+            '<div class="qi-bot">' + escapeHtml(truncate(f.assistant_message, 150)) + '</div>';
+          container.appendChild(item);
+        });
+        document.getElementById("fb-prev-btn").disabled = fbPage <= 1;
+        document.getElementById("fb-next-btn").disabled = data.length < 10;
+        document.getElementById("fb-page-info").textContent = "Page " + fbPage;
+      }
+
+      async function loadUnanswered() {
+        var days = qualityDays.value;
+        var params = new URLSearchParams();
+        params.set("days", days);
+        params.set("page", uqPage);
+        params.set("page_size", "10");
+        var data = await apiFetch("/admin/api/quality/unanswered?" + params.toString());
+        if (!data) return;
+        var container = document.getElementById("unanswered-list");
+        container.innerHTML = "";
+        if (data.queries.length === 0) {
+          container.innerHTML = '<div class="quality-empty">No unanswered queries found. The bot is handling everything well.</div>';
+          document.getElementById("uq-prev-btn").disabled = true;
+          document.getElementById("uq-next-btn").disabled = true;
+          document.getElementById("uq-page-info").textContent = "Page 1";
+          return;
+        }
+        data.queries.forEach(function (q) {
+          var item = document.createElement("div");
+          item.className = "quality-item";
+          item.innerHTML =
+            '<div class="qi-meta"><span>' + formatTime(q.timestamp) + '</span><span class="qi-intent">' + escapeHtml(q.intent) + '</span></div>' +
+            '<div class="qi-user">' + escapeHtml(q.content) + '</div>' +
+            '<div style="font-size:0.75rem;color:#7f8c8d;margin-top:4px">Session: ' + escapeHtml(q.session_id.substring(0, 8)) + '…</div>';
+          container.appendChild(item);
+        });
+        var totalPages = Math.max(1, Math.ceil(data.total / 10));
+        document.getElementById("uq-prev-btn").disabled = uqPage <= 1;
+        document.getElementById("uq-next-btn").disabled = uqPage >= totalPages;
+        document.getElementById("uq-page-info").textContent = "Page " + uqPage + " of " + totalPages;
+      }
+
+      function truncate(str, len) {
+        if (!str) return "—";
+        return str.length > len ? str.substring(0, len) + "…" : str;
+      }
+
+      // --- Library Info Editor ---
+      var liLocationsContainer = document.getElementById("li-locations");
+
+      async function loadLibraryInfo() {
+        var data = await apiFetch("/admin/api/library-info");
+        if (!data) return;
+
+        // Render shared policies
+        renderSharedSection("li-policies", data.policies || {});
+        // Render shared fines
+        renderSharedSection("li-fines", data.fines || {});
+
+        // Render location hours
+        liLocationsContainer.innerHTML = "";
+        var locations = data.locations || {};
+        Object.entries(locations).forEach(function (pair) {
+          addLocationBlock(pair[0], pair[1]);
+        });
+        if (Object.keys(locations).length === 0) {
+          liLocationsContainer.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:20px">No locations yet. Click "+ Add Location" to add one.</p>';
+        }
+      }
+
+      function renderSharedSection(containerId, entries) {
+        var container = document.getElementById(containerId);
+        container.innerHTML = "";
+        Object.entries(entries).forEach(function (pair) {
+          addLibraryInfoRow(container, pair[0], pair[1]);
+        });
+      }
+
+      function addLocationBlock(name, locData) {
+        var placeholder = liLocationsContainer.querySelector("p");
+        if (placeholder) placeholder.remove();
+
+        var address = (locData && locData.address) || "";
+        var hours = (locData && locData.hours) || {};
+
+        var loc = document.createElement("div");
+        loc.className = "li-location";
+
+        var header = document.createElement("div");
+        header.className = "li-loc-header";
+        header.innerHTML =
+          '<span class="li-loc-icon">📍</span>' +
+          '<input type="text" class="li-loc-name" value="' + escapeHtml(name) + '" placeholder="Location name" aria-label="Location name">' +
+          '<button class="li-loc-remove" type="button" aria-label="Remove location">✕ Remove</button>';
+        header.querySelector(".li-loc-remove").addEventListener("click", function () {
+          if (confirm("Remove \"" + (header.querySelector(".li-loc-name").value || name) + "\"?")) loc.remove();
+        });
+        loc.appendChild(header);
+
+        var body = document.createElement("div");
+        body.className = "li-loc-body";
+
+        var addrRow = document.createElement("div");
+        addrRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:10px";
+        addrRow.innerHTML =
+          '<label style="font-size:0.82rem;color:#7f8c8d;width:60px;flex-shrink:0">Address</label>' +
+          '<input type="text" class="li-loc-address" value="' + escapeHtml(address) + '" placeholder="e.g. 123 Main St, City" style="flex:1;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:0.84rem" aria-label="Location address">';
+        body.appendChild(addrRow);
+
+        var fields = document.createElement("div");
+        fields.className = "li-fields";
+        fields.setAttribute("data-category", "hours");
+        Object.entries(hours).forEach(function (pair) {
+          addLibraryInfoRow(fields, pair[0], pair[1]);
+        });
+        body.appendChild(fields);
+        var addBtn = document.createElement("button");
+        addBtn.className = "li-add-btn";
+        addBtn.type = "button";
+        addBtn.textContent = "+ Add hours entry";
+        addBtn.addEventListener("click", function () {
+          addLibraryInfoRow(fields, "", "");
+          fields.lastChild.querySelector(".li-key").focus();
+        });
+        body.appendChild(addBtn);
+        loc.appendChild(body);
+        liLocationsContainer.appendChild(loc);
+      }
+
+      function addLibraryInfoRow(container, key, value) {
+        var row = document.createElement("div");
+        row.className = "li-row";
+        row.innerHTML =
+          '<input type="text" class="li-key" value="' + escapeHtml(key) + '" placeholder="Key" aria-label="Key">' +
+          '<input type="text" class="li-val" value="' + escapeHtml(value) + '" placeholder="Value" aria-label="Value">' +
+          '<button class="li-del" type="button" aria-label="Remove entry">×</button>';
+        row.querySelector(".li-del").addEventListener("click", function () { row.remove(); });
+        container.appendChild(row);
+      }
+
+      // Shared section add-entry buttons
+      document.querySelectorAll(".li-add-btn[data-target]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var container = document.getElementById(btn.getAttribute("data-target"));
+          addLibraryInfoRow(container, "", "");
+          container.lastChild.querySelector(".li-key").focus();
+        });
+      });
+
+      // Add Location button
+      document.getElementById("li-add-location-btn").addEventListener("click", function () {
+        var name = prompt("Enter location name:", "");
+        if (name === null || !name.trim()) return;
+        addLocationBlock(name.trim(), { address: "", hours: {} });
+      });
+
+      // Save
+      document.getElementById("li-save-btn").addEventListener("click", async function () {
+        var payload = { locations: {}, policies: {}, fines: {} };
+
+        // Collect shared policies
+        document.getElementById("li-policies").querySelectorAll(".li-row").forEach(function (row) {
+          var k = row.querySelector(".li-key").value.trim();
+          var v = row.querySelector(".li-val").value.trim();
+          if (k) payload.policies[k] = v;
+        });
+        // Collect shared fines
+        document.getElementById("li-fines").querySelectorAll(".li-row").forEach(function (row) {
+          var k = row.querySelector(".li-key").value.trim();
+          var v = row.querySelector(".li-val").value.trim();
+          if (k) payload.fines[k] = v;
+        });
+        // Collect location hours + address
+        liLocationsContainer.querySelectorAll(".li-location").forEach(function (loc) {
+          var locName = loc.querySelector(".li-loc-name").value.trim();
+          if (!locName) return;
+          var address = (loc.querySelector(".li-loc-address") || {}).value || "";
+          var hours = {};
+          loc.querySelectorAll('.li-fields[data-category="hours"] .li-row').forEach(function (row) {
+            var k = row.querySelector(".li-key").value.trim();
+            var v = row.querySelector(".li-val").value.trim();
+            if (k) hours[k] = v;
+          });
+          payload.locations[locName] = { address: address.trim(), hours: hours };
+        });
+
+        var statusEl = document.getElementById("li-save-status");
+        try {
+          var resp = await fetch("/admin/api/library-info", {
+            method: "PUT",
+            headers: { "X-Admin-Key": apiKey, "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            statusEl.textContent = "✓ Saved";
+            statusEl.style.color = "#27ae60";
+          } else {
+            var err = await resp.json().catch(function () { return {}; });
+            statusEl.textContent = "✗ " + (err.error || "Save failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 4000);
+      });
+
+      // --- CSV Export ---
+      document.getElementById("export-btn").addEventListener("click", function () {
+        var params = new URLSearchParams();
+        var st = document.getElementById("export-status").value;
+        var days = document.getElementById("export-days").value;
+        if (st) params.set("status", st);
+        if (days) params.set("days", days);
+        var url = "/admin/api/export/csv?" + params.toString();
+        fetch(url, { headers: { "X-Admin-Key": apiKey } })
+          .then(function (r) {
+            if (!r.ok) throw new Error("Export failed");
+            return r.blob();
+          })
+          .then(function (blob) {
+            var csvBlob = new Blob([blob], { type: "text/csv;charset=utf-8;" });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(csvBlob);
+            a.download = "sessions_export.csv";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          })
+          .catch(function () { showError("Failed to download CSV"); });
+      });
+
+      // --- Bulk Cleanup ---
+      document.getElementById("cleanup-btn").addEventListener("click", async function () {
+        var days = document.getElementById("cleanup-days").value;
+        if (!confirm("This will permanently delete all expired sessions older than " + days + " days. Continue?")) return;
+        var statusEl = document.getElementById("cleanup-status");
+        try {
+          var resp = await fetch("/admin/api/cleanup?older_than_days=" + days, {
+            method: "DELETE",
+            headers: { "X-Admin-Key": apiKey },
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            statusEl.textContent = "✓ Deleted " + data.deleted_sessions + " sessions, " + data.deleted_messages + " messages";
+            statusEl.style.color = "#27ae60";
+            loadStats();
+            loadSessions();
+          } else {
+            statusEl.textContent = "✗ " + (data.error || "Cleanup failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 5000);
+      });
+
+      // --- Delete All Sessions ---
+      document.getElementById("delete-all-btn").addEventListener("click", async function () {
+        if (!confirm("⚠️ This will permanently delete ALL sessions, messages, feedback, and flags. This cannot be undone. Continue?")) return;
+        if (!confirm("Are you really sure? Type OK in the next prompt to confirm.")) return;
+        var statusEl = document.getElementById("delete-all-status");
+        try {
+          var resp = await fetch("/admin/api/cleanup/all", {
+            method: "DELETE",
+            headers: { "X-Admin-Key": apiKey },
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            statusEl.textContent = "✓ Deleted " + data.deleted_sessions + " sessions, " + data.deleted_messages + " messages";
+            statusEl.style.color = "#27ae60";
+            loadStats();
+            loadSessions();
+          } else {
+            statusEl.textContent = "✗ " + (data.error || "Delete failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 5000);
+      });
+
+      // --- Flagged Sessions ---
+      var flPage = 1;
+      document.getElementById("flagged-refresh-btn").addEventListener("click", loadFlaggedSessions);
+      document.getElementById("fl-prev-btn").addEventListener("click", function () { if (flPage > 1) { flPage--; loadFlaggedSessions(); } });
+      document.getElementById("fl-next-btn").addEventListener("click", function () { flPage++; loadFlaggedSessions(); });
+
+      async function loadFlaggedSessions() {
+        var data = await apiFetch("/admin/api/flagged-sessions?page=" + flPage + "&page_size=10");
+        if (!data) return;
+        var container = document.getElementById("flagged-list");
+        container.innerHTML = "";
+        if (data.flags.length === 0) {
+          container.innerHTML = '<div class="quality-empty">No flagged sessions. Use the 🏳️ Flag button in session detail to mark sessions for follow-up.</div>';
+          document.getElementById("fl-prev-btn").disabled = true;
+          document.getElementById("fl-next-btn").disabled = true;
+          document.getElementById("fl-page-info").textContent = "Page 1";
+          return;
+        }
+        data.flags.forEach(function (f) {
+          var item = document.createElement("div");
+          item.className = "quality-item";
+          item.style.cursor = "pointer";
+          var statusClass = f.status === "active" ? "status-active" : "status-expired";
+          item.innerHTML =
+            '<div class="qi-meta"><span>Flagged: ' + formatTime(f.flagged_at) + '</span><span class="' + statusClass + '">' + escapeHtml(f.status) + '</span></div>' +
+            '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(f.session_id.substring(0, 16)) + '…</div>' +
+            (f.note ? '<div style="color:#555;font-size:0.82rem">📝 ' + escapeHtml(f.note) + '</div>' : '') +
+            '<div style="font-size:0.75rem;color:#7f8c8d;margin-top:4px">' + f.message_count + ' messages · Last active: ' + formatTime(f.last_activity) + '</div>';
+          item.addEventListener("click", function () {
+            // Switch to sessions tab and open detail
+            tabBtns.forEach(function (b) { b.classList.remove("active"); });
+            document.querySelector('[data-tab="sessions-tab"]').classList.add("active");
+            document.querySelectorAll(".tab-content").forEach(function (tc) { tc.classList.remove("active"); });
+            document.getElementById("sessions-tab").classList.add("active");
+            openDetail(f.session_id);
+          });
+          container.appendChild(item);
+        });
+        var totalPages = Math.max(1, Math.ceil(data.total / 10));
+        document.getElementById("fl-prev-btn").disabled = flPage <= 1;
+        document.getElementById("fl-next-btn").disabled = flPage >= totalPages;
+        document.getElementById("fl-page-info").textContent = "Page " + flPage + " of " + totalPages;
+      }
+    })();
+
+    // =====================================================================
+    // Staff Accounts Tab
+    // =====================================================================
+    (function () {
+      var addBtn = document.getElementById("staff-add-btn");
+      var addForm = document.getElementById("staff-add-form");
+      var cancelBtn = document.getElementById("staff-cancel-btn");
+      var saveBtn = document.getElementById("staff-save-btn");
+      var formStatus = document.getElementById("staff-form-status");
+      var tbody = document.getElementById("staff-tbody");
+
+      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
+      function fmtTime(ts) { return ts ? new Date(ts * 1000).toLocaleDateString() : "—"; }
+      function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+      addBtn.addEventListener("click", function () {
+        addForm.classList.toggle("hidden");
+        if (!addForm.classList.contains("hidden")) document.getElementById("staff-new-username").focus();
+      });
+      cancelBtn.addEventListener("click", function () { addForm.classList.add("hidden"); clearForm(); });
+
+      function clearForm() {
+        document.getElementById("staff-new-username").value = "";
+        document.getElementById("staff-new-display").value = "";
+        document.getElementById("staff-new-password").value = "";
+        document.getElementById("staff-new-role").value = "staff";
+        formStatus.textContent = "";
+      }
+
+      saveBtn.addEventListener("click", async function () {
+        var username = document.getElementById("staff-new-username").value.trim();
+        var display = document.getElementById("staff-new-display").value.trim();
+        var password = document.getElementById("staff-new-password").value;
+        var role = document.getElementById("staff-new-role").value;
+        if (!username) { formStatus.textContent = "Username required"; formStatus.style.color = "#e74c3c"; return; }
+        if (!password || password.length < 4) { formStatus.textContent = "Password min 4 chars"; formStatus.style.color = "#e74c3c"; return; }
+        try {
+          var resp = await fetch("/admin/api/staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ username: username, password: password, display_name: display, role: role })
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            formStatus.textContent = "✓ Created"; formStatus.style.color = "#27ae60";
+            clearForm(); addForm.classList.add("hidden"); loadStaff();
+          } else {
+            formStatus.textContent = "✗ " + (data.error || "Failed"); formStatus.style.color = "#e74c3c";
+          }
+        } catch (e) { formStatus.textContent = "✗ Network error"; formStatus.style.color = "#e74c3c"; }
+        setTimeout(function () { formStatus.textContent = ""; }, 3000);
+      });
+
+      async function loadStaff() {
+        try {
+          var resp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
+          var data = await resp.json();
+          renderStaff(data);
+        } catch (e) { console.error("Failed to load staff", e); }
+      }
+
+      function renderStaff(accounts) {
+        tbody.innerHTML = "";
+        if (!accounts || accounts.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#7f8c8d">No staff accounts yet.</td></tr>';
+          return;
+        }
+        accounts.forEach(function (a) {
+          var tr = document.createElement("tr");
+          var statusCls = a.is_active ? "status-active" : "status-expired";
+          var statusText = a.is_active ? "Active" : "Inactive";
+          var toggleBtn = a.is_active
+            ? '<button class="btn-deactivate" data-action="deactivate">Deactivate</button>'
+            : '<button class="btn-activate" data-action="activate">Activate</button>';
+          tr.innerHTML =
+            "<td>" + esc(a.username) + "</td>" +
+            "<td>" + esc(a.display_name || "—") + "</td>" +
+            "<td>" + esc(a.role) + "</td>" +
+            '<td class="' + statusCls + '">' + statusText + "</td>" +
+            "<td>" + fmtTime(a.created_at) + "</td>" +
+            '<td class="staff-actions-cell">' +
+              '<button data-action="reset-pw">Reset PW</button>' +
+              toggleBtn +
+              '<button class="btn-delete" data-action="delete">Delete</button>' +
+            "</td>";
+          tr.querySelectorAll("button").forEach(function (btn) {
+            btn.addEventListener("click", function () { handleAction(a.id, btn.dataset.action, a.username); });
+          });
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function handleAction(id, action, username) {
+        var key = getKey();
+        if (action === "reset-pw") {
+          var pw = prompt("New password for " + username + " (min 4 chars):");
+          if (!pw || pw.length < 4) return;
+          await fetch("/admin/api/staff/" + id + "/reset-password", {
+            method: "POST", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
+            body: JSON.stringify({ new_password: pw })
+          });
+        } else if (action === "deactivate") {
+          if (!confirm("Deactivate " + username + "?")) return;
+          await fetch("/admin/api/staff/" + id, {
+            method: "PUT", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
+            body: JSON.stringify({ is_active: false })
+          });
+        } else if (action === "activate") {
+          await fetch("/admin/api/staff/" + id, {
+            method: "PUT", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
+            body: JSON.stringify({ is_active: true })
+          });
+        } else if (action === "delete") {
+          if (!confirm("Permanently delete " + username + "? This cannot be undone.")) return;
+          await fetch("/admin/api/staff/" + id, {
+            method: "DELETE", headers: { "X-Admin-Key": key }
+          });
+        }
+        loadStaff();
+      }
+
+      // Load when tab is shown
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (btn.dataset.tab === "staff-tab") loadStaff();
+        });
+      });
+    })();
+
+    // =====================================================================
+    // Dashboard Settings Tab
+    // =====================================================================
+    (function () {
+      var saveBtn = document.getElementById("settings-save-btn");
+      var statusEl = document.getElementById("settings-save-status");
+
+      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
+
+      var featureToTabMap = {
+        feature_analytics: "analytics-tab",
+        feature_quality: "quality-tab",
+        feature_library_info: "library-info-tab",
+        feature_management: "management-tab",
+        feature_live_chat: "handoff-tab",
+        feature_staff_performance: "archive-tab",
+      };
+
+      async function loadSettings() {
+        try {
+          var resp = await fetch("/admin/api/settings", { headers: { "X-Admin-Key": getKey() } });
+          var data = await resp.json();
+          // Populate checkboxes
+          document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
+            var key = cb.dataset.key;
+            if (key && data[key] !== undefined) cb.checked = data[key] === "true";
+          });
+          // Populate number fields
+          document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
+            var key = inp.dataset.key;
+            if (key && data[key] !== undefined) inp.value = data[key];
+          });
+          applyFeatureToggles(data);
+        } catch (e) { console.error("Failed to load settings", e); }
+      }
+
+      function applyFeatureToggles(settings) {
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        var isAdmin = role === "admin";
+        Object.entries(featureToTabMap).forEach(function (pair) {
+          var key = pair[0], tabId = pair[1];
+          var enabled = settings[key] !== "false";
+          var tabBtn = document.querySelector('[data-tab="' + tabId + '"]');
+          if (tabBtn) {
+            // Admins always see all feature tabs; staff respects the toggle
+            if (isAdmin) {
+              tabBtn.style.display = "";
+            } else {
+              tabBtn.style.display = enabled ? "" : "none";
+            }
+          }
+        });
+      }
+
+      saveBtn.addEventListener("click", async function () {
+        var payload = {};
+        document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
+          if (cb.dataset.key) payload[cb.dataset.key] = cb.checked ? "true" : "false";
+        });
+        document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
+          if (inp.dataset.key) payload[inp.dataset.key] = inp.value;
+        });
+        try {
+          var resp = await fetch("/admin/api/settings", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ settings: payload })
+          });
+          if (resp.ok) {
+            statusEl.textContent = "✓ Saved"; statusEl.style.color = "#27ae60";
+            applyFeatureToggles(payload);
+          } else {
+            statusEl.textContent = "✗ Save failed"; statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error"; statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 3000);
+      });
+
+      // Load when tab is shown
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (btn.dataset.tab === "settings-tab") loadSettings();
+        });
+      });
+
+      // Apply feature toggles on initial load (if already logged in)
+      if (sessionStorage.getItem("admin_api_key")) {
+        loadSettings();
+      }
+
+      // Also load settings after login succeeds
+      var origLoginForm = document.getElementById("login-form");
+      origLoginForm.addEventListener("submit", function () {
+        setTimeout(function () {
+          if (sessionStorage.getItem("admin_api_key")) loadSettings();
+        }, 1000);
+      });
+    })();
+
+    // =====================================================================
+    // Chat Archive Tab
+    // =====================================================================
+    (function () {
+      var archivePage = 1;
+      var archivePageSize = 20;
+      var archiveTbody = document.getElementById("archive-tbody");
+      var archiveDaysSelect = document.getElementById("archive-days");
+      var archiveStaffFilter = document.getElementById("archive-staff-filter");
+      var archiveRefreshBtn = document.getElementById("archive-refresh-btn");
+      var archiveDetail = document.getElementById("archive-detail");
+      var archiveDetailMeta = document.getElementById("archive-detail-meta");
+      var archiveDetailMsgs = document.getElementById("archive-detail-messages");
+      var archiveBackBtn = document.getElementById("archive-back-btn");
+      var archiveTable = document.getElementById("archive-table");
+
+      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
+      function fmtDate(ts) { return ts ? new Date(ts * 1000).toLocaleString() : "—"; }
+      function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+      async function loadArchive() {
+        loadStaffRatings();
+        var params = new URLSearchParams();
+        params.set("page", archivePage);
+        params.set("page_size", archivePageSize);
+        params.set("days", archiveDaysSelect.value);
+        var staff = archiveStaffFilter.value;
+        if (staff) params.set("staff", staff);
+        try {
+          var resp = await fetch("/admin/api/handoff-archive?" + params.toString(), {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          renderArchive(data.sessions || []);
+          var totalPages = Math.max(1, Math.ceil((data.total || 0) / archivePageSize));
+          document.getElementById("archive-prev-btn").disabled = archivePage <= 1;
+          document.getElementById("archive-next-btn").disabled = archivePage >= totalPages;
+          document.getElementById("archive-page-info").textContent = "Page " + archivePage + " of " + totalPages;
+        } catch (e) { console.error("Failed to load archive", e); }
+      }
+
+      function renderArchive(sessions) {
+        archiveTbody.innerHTML = "";
+        if (!sessions.length) {
+          archiveTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#7f8c8d">No archived live chat sessions found.</td></tr>';
+          return;
+        }
+        sessions.forEach(function (s) {
+          var tr = document.createElement("tr");
+          var ratingHtml;
+          if (s.rating === 1) ratingHtml = '<span class="rating-badge rating-positive">👍 Good</span>';
+          else if (s.rating === -1) ratingHtml = '<span class="rating-badge rating-negative">👎 Poor</span>';
+          else ratingHtml = '<span class="rating-badge rating-none">No rating</span>';
+          var handoffLabel = s.handoff_num > 1 ? " (#" + s.handoff_num + ")" : "";
+          tr.innerHTML =
+            "<td>" + esc(s.session_id.substring(0, 12)) + "…" + handoffLabel + "</td>" +
+            "<td>" + esc(s.handled_by || "—") + "</td>" +
+            "<td>" + fmtDate(s.rated_at) + "</td>" +
+            "<td>" + (s.message_count || "—") + "</td>" +
+            "<td>" + ratingHtml + "</td>" +
+            '<td class="staff-actions-cell">' +
+            '<button class="back-btn" style="padding:3px 10px;font-size:0.78rem">View</button>' +
+            '<button class="btn-delete" style="padding:3px 10px;font-size:0.78rem">Delete</button>' +
+            '</td>';
+          tr.querySelector(".back-btn").addEventListener("click", function () {
+            openArchiveDetail(s.session_id, s.handled_by, s.rating, s.handoff_num);
+          });
+          tr.querySelector(".btn-delete").addEventListener("click", function () {
+            deleteArchiveRecord(s.rating_id, tr);
+          });
+          archiveTbody.appendChild(tr);
+        });
+      }
+
+      async function deleteArchiveRecord(ratingId, rowEl) {
+        if (!confirm("Delete this handoff record?")) return;
+        try {
+          var resp = await fetch("/admin/api/handoff-archive/" + ratingId, {
+            method: "DELETE", headers: { "X-Admin-Key": getKey() }
+          });
+          if (resp.ok) {
+            rowEl.style.opacity = "0.3";
+            setTimeout(function () { loadArchive(); }, 300);
+          }
+        } catch (e) { console.error("Failed to delete record", e); }
+      }
+
+      async function openArchiveDetail(sid, handledBy, rating, handoffNum) {
+        archiveTable.parentElement.querySelector(".pagination").classList.add("hidden");
+        archiveTable.parentElement.querySelector(".archive-cleanup").classList.add("hidden");
+        archiveTable.classList.add("hidden");
+        archiveDetail.classList.remove("hidden");
+        var ratingText = rating === 1 ? "👍 Good" : rating === -1 ? "👎 Poor" : "No rating";
+        var handoffLabel = handoffNum > 1 ? " (Handoff #" + handoffNum + ")" : "";
+        archiveDetailMeta.innerHTML =
+          "<dt>Session ID</dt><dd>" + esc(sid) + handoffLabel + "</dd>" +
+          "<dt>Handled By</dt><dd>" + esc(handledBy || "—") + "</dd>" +
+          "<dt>Rating</dt><dd>" + ratingText + "</dd>";
+        archiveDetailMsgs.innerHTML = '<p style="color:#7f8c8d">Loading…</p>';
+        try {
+          var resp = await fetch("/admin/api/sessions/" + encodeURIComponent(sid) + "/handoff-messages?handoff_num=" + (handoffNum || 0), {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          archiveDetailMsgs.innerHTML = "";
+          if (!data.messages || !data.messages.length) {
+            archiveDetailMsgs.innerHTML = '<p style="color:#7f8c8d">No messages.</p>';
+            return;
+          }
+          data.messages.forEach(function (m) {
+            var div = document.createElement("article");
+            var cls = "message ";
+            if (m.role === "user") cls += "message-user";
+            else if (m.role === "librarian") cls += "message-librarian";
+            else cls += "message-assistant";
+            div.className = cls;
+            var label = m.role === "user" ? "👤 Patron" : m.role === "librarian" ? "👩‍💼 " + esc(handledBy || "Librarian") : "🤖 Hero";
+            div.innerHTML = '<div class="msg-meta">' + label + " — " + fmtDate(m.timestamp) + "</div><div>" + esc(m.content) + "</div>";
+            archiveDetailMsgs.appendChild(div);
+          });
+        } catch (e) {
+          archiveDetailMsgs.innerHTML = '<p style="color:#e74c3c">Failed to load messages.</p>';
+        }
+      }
+
+      archiveBackBtn.addEventListener("click", function () {
+        archiveDetail.classList.add("hidden");
+        archiveTable.classList.remove("hidden");
+        archiveTable.parentElement.querySelector(".pagination").classList.remove("hidden");
+        archiveTable.parentElement.querySelector(".archive-cleanup").classList.remove("hidden");
+      });
+
+      archiveRefreshBtn.addEventListener("click", function () { archivePage = 1; loadArchive(); });
+      archiveDaysSelect.addEventListener("change", function () { archivePage = 1; loadArchive(); });
+      archiveStaffFilter.addEventListener("change", function () { archivePage = 1; loadArchive(); });
+      document.getElementById("archive-prev-btn").addEventListener("click", function () { if (archivePage > 1) { archivePage--; loadArchive(); } });
+      document.getElementById("archive-next-btn").addEventListener("click", function () { archivePage++; loadArchive(); });
+
+      document.getElementById("archive-delete-all-btn").addEventListener("click", async function () {
+        if (!confirm("Delete ALL handoff records (staff assignments and ratings)? The chat sessions themselves will remain. This cannot be undone.")) return;
+        var statusEl = document.getElementById("archive-delete-status");
+        try {
+          var resp = await fetch("/admin/api/handoff-archive", {
+            method: "DELETE", headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            statusEl.textContent = "✓ Deleted " + (data.deleted_ratings || 0) + " ratings, cleared " + (data.cleared_sessions || 0) + " sessions";
+            statusEl.style.color = "#27ae60";
+            loadArchive();
+          } else {
+            statusEl.textContent = "✗ " + (data.error || "Failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 5000);
+      });
+
+      async function loadStaffRatings() {
+        var days = archiveDaysSelect.value;
+        try {
+          var resp = await fetch("/admin/api/staff-ratings?days=" + days, { headers: { "X-Admin-Key": getKey() } });
+          var data = await resp.json();
+          var container = document.getElementById("staff-ratings-list");
+          container.innerHTML = "";
+          if (!data || !data.length) {
+            container.innerHTML = '<div style="color:#7f8c8d;font-size:0.85rem">No ratings yet.</div>';
+            return;
+          }
+          data.forEach(function (s) {
+            var card = document.createElement("div");
+            card.className = "staff-rating-card";
+            var satColor = s.satisfaction_rate >= 70 ? "#27ae60" : s.satisfaction_rate >= 40 ? "#f39c12" : "#e74c3c";
+            card.innerHTML =
+              '<div class="src-name">' + esc(s.staff_username) + '</div>' +
+              '<div class="src-rate" style="color:' + satColor + '">' + s.satisfaction_rate + '%</div>' +
+              '<div class="src-stats">' +
+              '<span>👍 ' + s.positive + '</span>' +
+              '<span>👎 ' + s.negative + '</span>' +
+              '<span>Total: ' + s.total + '</span>' +
+              '</div>';
+            container.appendChild(card);
+          });
+        } catch (e) { console.error("Failed to load staff ratings", e); }
+      }
+
+      // Populate staff filter from staff ratings data
+      async function populateStaffFilter() {
+        try {
+          var resp = await fetch("/admin/api/staff-ratings?days=365", { headers: { "X-Admin-Key": getKey() } });
+          var data = await resp.json();
+          var select = archiveStaffFilter;
+          // Keep the "All staff" option, remove the rest
+          while (select.options.length > 1) select.remove(1);
+          if (data && data.length) {
+            data.forEach(function (s) {
+              var opt = document.createElement("option");
+              opt.value = s.staff_username;
+              opt.textContent = s.staff_username;
+              select.appendChild(opt);
+            });
+          }
+        } catch (e) {}
+      }
+
+      // Load when tab is shown
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (btn.dataset.tab === "archive-tab") {
+            populateStaffFilter();
+            loadArchive();
+          }
+        });
+      });
+    })();
+
+    // =====================================================================
+    // Handoff / Live Chat Tab
+    // =====================================================================
+    (function () {
+      let activeHandoffSid = null;
+      let handoffPollTimer = null;
+      let lastHandoffTs = 0;
+
+      const handoffList = document.getElementById("handoff-list");
+      const handoffMessages = document.getElementById("handoff-messages");
+      const handoffChatHeader = document.getElementById("handoff-chat-header");
+      const handoffInputBar = document.getElementById("handoff-input-bar");
+      const handoffReplyInput = document.getElementById("handoff-reply-input");
+      const handoffSendBtn = document.getElementById("handoff-send-btn");
+      const handoffEndBtn = document.getElementById("handoff-end-btn");
+      const handoffTabBtn = document.getElementById("handoff-tab-btn");
+
+      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
+      function getMyUsername() {
+        return sessionStorage.getItem("admin_display_name")
+          || sessionStorage.getItem("admin_username")
+          || "admin";
+      }
+
+      function fmtTime(ts) {
+        if (!ts) return "";
+        var d = new Date(ts * 1000);
+        return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function fmtDate(ts) {
+        if (!ts) return "";
+        var d = new Date(ts * 1000);
+        return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      async function loadHandoffQueue() {
+        try {
+          var resp = await fetch("/admin/api/handoff-sessions?page_size=50", {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          renderQueue(data.sessions || []);
+          // Update badge
+          var count = (data.sessions || []).length;
+          var existing = handoffTabBtn.querySelector(".handoff-badge");
+          if (count > 0) {
+            if (!existing) {
+              var badge = document.createElement("span");
+              badge.className = "handoff-badge";
+              badge.textContent = count;
+              handoffTabBtn.appendChild(badge);
+            } else {
+              existing.textContent = count;
+            }
+          } else if (existing) {
+            existing.remove();
+          }
+        } catch (e) { console.error("Failed to load handoff queue", e); }
+      }
+
+      function renderQueue(sessions) {
+        if (!sessions.length) {
+          handoffList.innerHTML = '<p class="quality-empty">No active handoff requests</p>';
+          return;
+        }
+        handoffList.innerHTML = "";
+        var me = getMyUsername();
+        sessions.forEach(function (s) {
+          var div = document.createElement("div");
+          var isActive = s.session_id === activeHandoffSid;
+          var claimedByMe = s.claimed_by && s.claimed_by === me;
+          var claimedByOther = s.claimed_by && s.claimed_by !== me;
+          div.className = "handoff-item" + (isActive ? " active" : "") + (claimedByOther ? " claimed-other" : "");
+          var claimTag = "";
+          if (s.claimed_by) {
+            claimTag = claimedByMe
+              ? ' <span class="hi-claim hi-claim-me">You</span>'
+              : ' <span class="hi-claim hi-claim-other">' + escapeHtml(s.claimed_by) + '</span>';
+          } else {
+            claimTag = ' <span class="hi-claim hi-claim-open">Open</span>';
+          }
+          div.innerHTML =
+            '<div class="hi-sid">' + s.session_id.substring(0, 16) + "…" + claimTag + "</div>" +
+            '<div class="hi-meta">' + s.message_count + " msgs · " + fmtDate(s.last_activity) + "</div>";
+          div.addEventListener("click", function () { openHandoffChat(s.session_id, s.claimed_by); });
+          handoffList.appendChild(div);
+        });
+      }
+
+      async function openHandoffChat(sid, claimedBy) {
+        var me = getMyUsername();
+        // If claimed by someone else, show a warning
+        if (claimedBy && claimedBy !== me) {
+          if (!confirm(claimedBy + " is already handling this session. Open anyway (read-only)?")) return;
+          // Open read-only
+          activeHandoffSid = sid;
+          lastHandoffTs = 0;
+          handoffChatHeader.innerHTML =
+            '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(claimedBy) + '</span></span>';
+          handoffInputBar.style.display = "none";
+          handoffMessages.innerHTML = "";
+          handoffList.querySelectorAll(".handoff-item").forEach(function (el) {
+            el.classList.toggle("active", el.querySelector(".hi-sid").textContent.startsWith(sid.substring(0, 16)));
+          });
+          await pollHandoffMessages();
+          startHandoffPoll();
+          return;
+        }
+
+        // Claim the session
+        activeHandoffSid = sid;
+        lastHandoffTs = 0;
+        try {
+          var claimResp = await fetch("/admin/api/sessions/" + encodeURIComponent(sid) + "/claim", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ username: me })
+          });
+          if (claimResp.status === 409) {
+            var claimData = await claimResp.json();
+            var other = claimData.claimed_by || "someone";
+            if (!confirm(other + " just claimed this session. Open read-only?")) {
+              activeHandoffSid = null;
+              return;
+            }
+            handoffChatHeader.innerHTML =
+              '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(other) + '</span></span>';
+            handoffInputBar.style.display = "none";
+          } else {
+            handoffChatHeader.innerHTML =
+              '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#27ae60">You are handling this</span></span>' +
+              ' <button id="handoff-release-btn" type="button" style="font-size:0.75rem;padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;margin-left:8px">Release</button>';
+            handoffInputBar.style.display = "flex";
+            var releaseBtn = document.getElementById("handoff-release-btn");
+            if (releaseBtn) {
+              releaseBtn.addEventListener("click", async function () {
+                await fetch("/admin/api/sessions/" + encodeURIComponent(sid) + "/release", {
+                  method: "POST", headers: { "X-Admin-Key": getKey() }
+                });
+                handoffChatHeader.innerHTML = "<span>Released. Select a session from the queue.</span>";
+                handoffInputBar.style.display = "none";
+                activeHandoffSid = null;
+                stopHandoffPoll();
+                await loadHandoffQueue();
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to claim session", e);
+          handoffChatHeader.innerHTML = '<span>Session: ' + sid.substring(0, 20) + '…</span>';
+          handoffInputBar.style.display = "flex";
+        }
+
+        handoffMessages.innerHTML = "";
+        handoffList.querySelectorAll(".handoff-item").forEach(function (el) {
+          el.classList.toggle("active", el.querySelector(".hi-sid").textContent.startsWith(sid.substring(0, 16)));
+        });
+        await pollHandoffMessages();
+        startHandoffPoll();
+        if (handoffInputBar.style.display !== "none") handoffReplyInput.focus();
+      }
+
+      async function pollHandoffMessages() {
+        if (!activeHandoffSid) return;
+        try {
+          var resp = await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid), {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          if (data.messages) {
+            renderHandoffMessages(data.messages);
+          }
+        } catch (e) { console.error("Failed to poll handoff messages", e); }
+      }
+
+      function renderHandoffMessages(messages) {
+        handoffMessages.innerHTML = "";
+        messages.forEach(function (m) {
+          var div = document.createElement("div");
+          var cls = "message ";
+          if (m.role === "user") cls += "message-user";
+          else if (m.role === "librarian") cls += "message-librarian";
+          else cls += "message-assistant";
+          div.className = cls;
+          var label = m.role === "user" ? "👤 Patron" : m.role === "librarian" ? "👩‍💼 Librarian" : "🤖 Hero";
+          div.innerHTML = '<div class="msg-meta">' + label + " · " + fmtTime(m.timestamp) + "</div>" + escapeHtml(m.content);
+          handoffMessages.appendChild(div);
+        });
+        handoffMessages.scrollTop = handoffMessages.scrollHeight;
+      }
+
+      function escapeHtml(text) {
+        var d = document.createElement("div");
+        d.textContent = text;
+        return d.innerHTML.replace(/\n/g, "<br>");
+      }
+
+      function startHandoffPoll() {
+        stopHandoffPoll();
+        handoffPollTimer = setInterval(pollHandoffMessages, 3000);
+      }
+
+      function stopHandoffPoll() {
+        if (handoffPollTimer) { clearInterval(handoffPollTimer); handoffPollTimer = null; }
+      }
+
+      async function sendReply() {
+        var text = handoffReplyInput.value.trim();
+        if (!text || !activeHandoffSid) return;
+        handoffReplyInput.value = "";
+        try {
+          await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid) + "/reply", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ message: text, sender_name: getMyUsername() })
+          });
+          await pollHandoffMessages();
+        } catch (e) { console.error("Failed to send reply", e); }
+        handoffReplyInput.focus();
+      }
+
+      async function endHandoff() {
+        if (!activeHandoffSid) return;
+        if (!confirm("End this chat? The patron will be returned to the bot.")) return;
+        try {
+          await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid) + "/end-handoff", {
+            method: "POST",
+            headers: { "X-Admin-Key": getKey() }
+          });
+          stopHandoffPoll();
+          activeHandoffSid = null;
+          handoffMessages.innerHTML = "";
+          handoffChatHeader.innerHTML = "<span>Chat ended. Select another session.</span>";
+          handoffInputBar.style.display = "none";
+          await loadHandoffQueue();
+        } catch (e) { console.error("Failed to end handoff", e); }
+      }
+
+      handoffSendBtn.addEventListener("click", sendReply);
+      handoffReplyInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); sendReply(); }
+      });
+      handoffEndBtn.addEventListener("click", endHandoff);
+
+      // Refresh queue when tab is shown
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (btn.dataset.tab === "handoff-tab") {
+            loadHandoffQueue();
+          }
+        });
+      });
+
+      // Periodic queue refresh (every 5s when tab is visible)
+      setInterval(function () {
+        var tab = document.getElementById("handoff-tab");
+        if (tab && tab.classList.contains("active")) {
+          loadHandoffQueue();
+        }
+      }, 5000);
+
+      // Initial load if already logged in
+      if (sessionStorage.getItem("admin_api_key")) {
+        loadHandoffQueue();
+      }
+    })();
+  </script>
+</body>
+</html>

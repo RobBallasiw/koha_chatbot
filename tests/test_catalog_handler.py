@@ -276,3 +276,184 @@ async def test_handle_catalog_query_with_results():
         result = await handle_catalog_query(client, "Beloved", "http://koha.test", [])
 
     assert "Beloved" in result
+
+
+# ---------------------------------------------------------------------------
+# Property-based tests (hypothesis)
+# ---------------------------------------------------------------------------
+
+import asyncio
+import re
+from hypothesis import given, settings
+from hypothesis import strategies as st
+
+
+def _non_empty_text():
+    """Strategy for non-empty printable text strings (no leading/trailing whitespace)."""
+    return st.text(
+        alphabet=st.characters(whitelist_categories=("L", "N", "P")),
+        min_size=1,
+        max_size=200,
+    )
+
+
+def _catalog_record_strategy():
+    """Strategy that generates CatalogRecord objects."""
+    return st.builds(
+        CatalogRecord,
+        title=_non_empty_text(),
+        author=_non_empty_text(),
+        call_number=st.one_of(st.none(), _non_empty_text()),
+        isbn=st.one_of(st.none(), _non_empty_text()),
+    )
+
+
+def _item_availability_strategy(
+    status_values=("available", "checked_out", "on_hold"),
+    force_due_date=False,
+):
+    """Strategy that generates ItemAvailability objects."""
+    due_date_st = (
+        _non_empty_text() if force_due_date
+        else st.one_of(st.none(), _non_empty_text())
+    )
+    return st.builds(
+        ItemAvailability,
+        branch=_non_empty_text(),
+        status=st.sampled_from(status_values),
+        call_number=st.one_of(st.none(), _non_empty_text()),
+        due_date=due_date_st,
+    )
+
+
+# Feature: library-ai-chatbot, Property 1: Search parameter extraction produces valid structure
+@given(message=_non_empty_text())
+@settings(max_examples=100)
+def test_property_search_param_extraction_valid_structure(message):
+    """**Validates: Requirements 1.1**
+
+    For any non-empty patron message string, the search parameter extraction
+    function should return a valid SearchParameters object where each field is
+    either None or a non-empty string.
+    """
+    # Mock the GroqClient to return a JSON with title = message
+    mock_client = MagicMock()
+    mock_client.chat.return_value = json.dumps({"title": message})
+
+    result = asyncio.run(extract_search_params(mock_client, message, []))
+
+    # Result must be a SearchParameters instance
+    assert isinstance(result, SearchParameters)
+
+    # Each field must be None or a non-empty string
+    for field_name in ("title", "author", "subject", "isbn"):
+        value = getattr(result, field_name)
+        assert value is None or (isinstance(value, str) and len(value) > 0), (
+            f"Field {field_name} must be None or non-empty string, got {value!r}"
+        )
+
+    # At least one field should be non-None (message is non-empty)
+    all_values = [result.title, result.author, result.subject, result.isbn]
+    assert any(v is not None for v in all_values), (
+        "At least one search parameter should be non-None for a non-empty message"
+    )
+
+
+# Feature: library-ai-chatbot, Property 2: Catalog result formatting includes required fields
+@given(records=st.lists(_catalog_record_strategy(), min_size=1, max_size=10))
+@settings(max_examples=100)
+def test_property_catalog_result_formatting_includes_required_fields(records):
+    """**Validates: Requirements 1.3**
+
+    For any non-empty list of CatalogRecord objects, the formatted response
+    string should contain the title, author, and call number of every record.
+    """
+    result = format_catalog_results(records)
+
+    for rec in records:
+        assert rec.title in result, f"Title {rec.title!r} not found in output"
+        assert rec.author in result, f"Author {rec.author!r} not found in output"
+        if rec.call_number is not None:
+            assert rec.call_number in result, (
+                f"Call number {rec.call_number!r} not found in output"
+            )
+
+
+# Feature: library-ai-chatbot, Property 3: Available item response includes location details
+@given(
+    item=_item_availability_strategy(
+        status_values=("available",),
+    ).filter(lambda i: i.call_number is not None),
+)
+@settings(max_examples=100)
+def test_property_available_item_includes_location_details(item):
+    """**Validates: Requirements 2.2**
+
+    For any ItemAvailability object with status "available" and a non-null
+    call_number, the formatted response should contain the branch name and
+    call number.
+    """
+    result = format_availability([item])
+
+    assert item.branch in result, f"Branch {item.branch!r} not found in output"
+    assert item.call_number in result, (
+        f"Call number {item.call_number!r} not found in output"
+    )
+
+
+# Feature: library-ai-chatbot, Property 4: Checked-out item response includes due date
+@given(
+    item=_item_availability_strategy(
+        status_values=("checked_out",),
+        force_due_date=True,
+    ),
+)
+@settings(max_examples=100)
+def test_property_checked_out_item_includes_due_date(item):
+    """**Validates: Requirements 2.3**
+
+    For any ItemAvailability object with status "checked_out" and a non-null
+    due_date, the formatted response should contain the due date value.
+    """
+    result = format_availability([item])
+
+    assert item.due_date in result, (
+        f"Due date {item.due_date!r} not found in output"
+    )
+
+
+# Feature: library-ai-chatbot, Property 5: Multi-copy availability grouped by branch
+@given(
+    items=st.lists(
+        _item_availability_strategy(),
+        min_size=2,
+        max_size=15,
+    ).filter(lambda lst: len({i.branch for i in lst}) >= 2),
+)
+@settings(max_examples=100)
+def test_property_multi_copy_availability_grouped_by_branch(items):
+    """**Validates: Requirements 2.4**
+
+    For any list of ItemAvailability objects spanning multiple branches, the
+    formatted response should group items by branch such that all items for a
+    given branch appear together contiguously (no interleaving of branches).
+    """
+    result = format_availability(items)
+
+    # Collect the branch names in the order they appear as headers
+    branch_header_order = []
+    for line in result.splitlines():
+        # Branch headers are lines like "BranchName:"
+        if line.endswith(":") and not line.startswith(" "):
+            branch_name = line[:-1]
+            branch_header_order.append(branch_name)
+
+    # Every branch that has items should appear exactly once as a header
+    expected_branches = {item.branch for item in items}
+    assert set(branch_header_order) == expected_branches, (
+        f"Expected branches {expected_branches}, got headers {branch_header_order}"
+    )
+    # No duplicate headers means items are grouped contiguously
+    assert len(branch_header_order) == len(set(branch_header_order)), (
+        "Branch headers should appear exactly once (items grouped contiguously)"
+    )

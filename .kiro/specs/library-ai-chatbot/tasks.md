@@ -108,7 +108,7 @@ Incremental implementation of the Library AI Chatbot using Python (FastAPI), Gro
     - Return "no results found" message with search refinement suggestions when empty
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5_
 
-  - [ ]* 8.2 Write property tests for catalog search handler (test_catalog_handler.py)
+  - [x] 8.2 Write property tests for catalog search handler (test_catalog_handler.py)
     - **Property 1: Search parameter extraction produces valid structure**
     - **Validates: Requirements 1.1**
     - **Property 2: Catalog result formatting includes required fields**
@@ -136,7 +136,7 @@ Incremental implementation of the Library AI Chatbot using Python (FastAPI), Gro
     - Serve static files for the chat widget
     - _Requirements: 4.2, 4.3, 6.1, 6.2, 8.1, 8.2, 8.3, 8.4_
 
-  - [ ]* 10.2 Write property tests for API endpoint (test_api_endpoint.py)
+  - [x] 10.2 Write property tests for API endpoint (test_api_endpoint.py)
     - **Property 15: Invalid requests are rejected with 400**
     - **Validates: Requirements 8.2**
     - **Property 16: Valid responses contain required JSON fields**

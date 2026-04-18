@@ -1,7 +1,7 @@
 fastapi
 uvicorn
 httpx
-groq
+openai
 pydantic
 python-dotenv
 pytest

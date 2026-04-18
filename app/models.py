@@ -17,6 +17,7 @@ class ChatResponse(BaseModel):
 
     reply: str  # Chatbot response text
     session_id: str  # Session identifier
+    timestamp: float | None = None  # Unix timestamp of the response
 
 
 class ErrorResponse(BaseModel):
@@ -48,6 +49,7 @@ class CatalogRecord(BaseModel):
     author: str
     call_number: str | None = None
     isbn: str | None = None
+    opac_url: str | None = None  # Link to the record in the Koha OPAC
 
 
 class ItemAvailability(BaseModel):
@@ -59,12 +61,34 @@ class ItemAvailability(BaseModel):
     due_date: str | None = None  # ISO date string if checked out
 
 
-class LibraryInfo(BaseModel):
-    """Structured library information loaded from the info store."""
+class LocationInfo(BaseModel):
+    """Information for a single library location."""
 
-    hours: dict[str, str]
-    policies: dict[str, str]
-    fines: dict[str, str]
+    address: str = ""
+    hours: dict[str, str] = {}
+
+
+class LibraryInfo(BaseModel):
+    """Structured library information.
+
+    Hours are per-location (under ``locations``).
+    Policies and fines are shared across all locations.
+    """
+
+    locations: dict[str, LocationInfo] = {}
+    policies: dict[str, str] = {}
+    fines: dict[str, str] = {}
+
+    # Legacy field for backward compatibility
+    hours: dict[str, str] = {}
+
+    def get_all_locations(self) -> dict[str, LocationInfo]:
+        """Return all locations. If legacy format, wrap in a single 'Main' location."""
+        if self.locations:
+            return self.locations
+        if self.hours:
+            return {"Main": LocationInfo(hours=self.hours)}
+        return {}
 
 
 class SessionData:
@@ -78,3 +102,161 @@ class SessionData:
         self.messages: list[dict] = []  # List of {role, content} message dicts
         self.last_accessed: float = time.time()  # Timestamp of last activity
         self.created_at: float = time.time()  # Timestamp of session creation
+
+
+# --- Admin Chat Monitoring Models ---
+
+
+class MessageRecord(BaseModel):
+    """A single persisted message."""
+
+    role: str  # "user" or "assistant"
+    content: str
+    timestamp: float  # Unix timestamp
+
+
+class SessionSummary(BaseModel):
+    """Summary of a chat session for the list view."""
+
+    session_id: str
+    created_at: float
+    last_activity: float
+    message_count: int
+    status: str  # "active" or "expired"
+
+
+class SessionDetail(BaseModel):
+    """Full chat session with message history."""
+
+    session_id: str
+    created_at: float
+    last_activity: float
+    message_count: int
+    status: str
+    messages: list[MessageRecord]
+
+
+class SessionListResponse(BaseModel):
+    """Paginated list of session summaries."""
+
+    sessions: list[SessionSummary]
+    total: int
+    page: int
+    page_size: int
+
+
+class SessionStatsResponse(BaseModel):
+    """Aggregate session statistics."""
+
+    total_sessions: int
+    total_messages: int
+    active_sessions: int
+    expired_sessions: int
+
+
+# --- Analytics Models ---
+
+
+class IntentCount(BaseModel):
+    """Count of messages for a single intent."""
+
+    intent: str
+    count: int
+
+
+class HourlyActivity(BaseModel):
+    """Message count for a single hour of the day."""
+
+    hour: int  # 0-23
+    count: int
+
+
+class DailyActivity(BaseModel):
+    """Message count for a single day of the week."""
+
+    day: str  # "Monday", "Tuesday", etc.
+    count: int
+
+
+class AnalyticsResponse(BaseModel):
+    """Full analytics payload for the admin dashboard."""
+
+    intent_breakdown: list[IntentCount]
+    hourly_activity: list[HourlyActivity]
+    daily_activity: list[DailyActivity]
+    avg_messages_per_session: float
+    failed_queries: int  # unclear + catalog_vague intents
+    total_user_messages: int
+
+
+# --- Conversation Quality Models ---
+
+
+class FeedbackRequest(BaseModel):
+    """Patron feedback on a bot response."""
+
+    session_id: str
+    message_timestamp: float  # timestamp of the assistant message being rated
+    rating: int  # 1 = thumbs up, -1 = thumbs down
+
+
+class FeedbackResponse(BaseModel):
+    """Acknowledgement of feedback submission."""
+
+    status: str
+
+
+class UnansweredQuery(BaseModel):
+    """A user message the bot couldn't handle well."""
+
+    session_id: str
+    content: str
+    intent: str
+    timestamp: float
+    resolved: bool
+
+
+class UnansweredQueueResponse(BaseModel):
+    """Paginated list of unanswered queries."""
+
+    queries: list[UnansweredQuery]
+    total: int
+    page: int
+    page_size: int
+
+
+class FeedbackStats(BaseModel):
+    """Aggregate feedback statistics."""
+
+    total_ratings: int
+    positive: int
+    negative: int
+    satisfaction_rate: float  # percentage of positive ratings
+
+
+class FeedbackEntry(BaseModel):
+    """A single feedback entry for the admin view."""
+
+    session_id: str
+    user_message: str
+    assistant_message: str
+    rating: int
+    timestamp: float
+
+
+# --- Session Management Models ---
+
+
+class SessionFlag(BaseModel):
+    """A flag/note on a session for admin follow-up."""
+
+    session_id: str
+    note: str
+    created_at: float
+
+
+class BulkCleanupResponse(BaseModel):
+    """Result of a bulk session cleanup operation."""
+
+    deleted_sessions: int
+    deleted_messages: int

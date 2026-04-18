@@ -6,3 +6,5 @@ __pycache__/
 .vscode/
 *.egg-info/
 venv/
+.venv/
+data/sessions.db

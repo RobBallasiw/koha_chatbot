@@ -8,21 +8,90 @@ from app.models import ClassificationResult
 
 logger = logging.getLogger(__name__)
 
-# Confidence threshold below which the intent is forced to "unclear".
-CONFIDENCE_THRESHOLD = 0.6
+CONFIDENCE_THRESHOLD = 0.4
+
+CLASSIFICATION_SYSTEM_PROMPT = (
+    "You are a query classifier for a school library chatbot called Hero. "
+    "Your ONLY job is to classify patron messages into one of these intents. "
+    "You must respond with ONLY a JSON object, no other text.\n\n"
+    "IMPORTANT: When in doubt, classify as catalog_search.\n\n"
+    "Intents:\n"
+    '- "catalog_search": the patron wants to find books, authors, topics, or any subject. '
+    "This is the DEFAULT for anything that could be a search query.\n"
+    '- "library_info": asking about hours, location, address, policies, fines, fees, membership.\n'
+    '- "greeting": ONLY saying hello/hi/hey with no other request.\n'
+    '- "unclear": ONLY truly nonsensical or completely unrelated messages.'
+)
 
 CLASSIFICATION_PROMPT = (
-    "You are a query classifier for a library chatbot. "
-    "Classify the following patron message into one of these intents:\n"
-    '- "catalog_search": the patron wants to find, search for, or look up books or other library materials\n'
-    '- "library_info": the patron is asking about library hours, policies, fines, fees, or general information\n'
-    '- "unclear": the message does not clearly fit either category\n\n'
-    "Respond with ONLY a JSON object in this exact format (no extra text):\n"
+    "Classify this patron message. Respond with ONLY a JSON object:\n"
     '{{"intent": "<intent>", "confidence": <float between 0 and 1>}}\n\n'
     "Patron message: {message}"
 )
 
-VALID_INTENTS = {"catalog_search", "library_info", "unclear"}
+VALID_INTENTS = {"catalog_search", "library_info", "greeting", "unclear"}
+
+# Keywords for fast local classification (no LLM call needed)
+_INFO_KEYWORDS = {
+    "hours", "hour", "open", "close", "closing", "opening", "schedule",
+    "address", "location", "locations", "loc", "where", "directions",
+    "branch", "branches", "visit", "map",
+    "fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "lost",
+    "policy", "policies", "borrow", "borrowing", "renew", "renewal",
+    "member", "membership", "limit", "rule", "rules", "loan", "card",
+}
+
+_GREETING_PATTERNS = {
+    "hi", "hello", "hey", "yo", "sup", "what up", "whats up", "what's up",
+    "good morning", "good afternoon", "good evening", "howdy", "hola",
+}
+
+_CATALOG_KEYWORDS = {
+    "book", "books", "find", "search", "look", "read", "reading",
+    "recommend", "suggest", "title", "author", "isbn", "catalog",
+    "subject", "topic", "study", "textbook", "reference", "material",
+    "math", "science", "history", "english", "programming", "computer",
+    "engineering", "physics", "chemistry", "biology", "literature",
+}
+
+_LIBRARIAN_KEYWORDS = {
+    "librarian", "staff", "human", "person",
+}
+
+_LIBRARIAN_PHRASES = {
+    "talk to a librarian", "talk to librarian", "speak to a librarian",
+    "speak to librarian", "talk to a human", "talk to a person",
+    "i want a librarian", "need a librarian", "live chat",
+    "real person please", "connect me to a librarian", "human please",
+}
+
+
+def _quick_classify(message: str) -> str | None:
+    """Fast keyword-based classification. Returns intent or None to defer to LLM."""
+    lower = message.lower().strip()
+
+    # Greetings (exact or near-exact match)
+    if lower in _GREETING_PATTERNS or lower.rstrip("!?.") in _GREETING_PATTERNS:
+        return "greeting"
+
+    # Talk to a librarian (check phrases first, then keywords)
+    if lower.rstrip("!?.") in _LIBRARIAN_PHRASES or lower in _LIBRARIAN_PHRASES:
+        return "talk_to_librarian"
+
+    words = set(lower.replace("?", " ").replace("!", " ").replace(".", " ").split())
+
+    if words & _LIBRARIAN_KEYWORDS:
+        return "talk_to_librarian"
+
+    # Library info (any keyword present in the message)
+    if words & _INFO_KEYWORDS:
+        return "library_info"
+
+    # Catalog search (any keyword present)
+    if words & _CATALOG_KEYWORDS:
+        return "catalog_search"
+
+    return None
 
 
 def classify_query(
@@ -30,58 +99,49 @@ def classify_query(
     message: str,
     conversation_history: list[dict] | None = None,
 ) -> ClassificationResult:
-    """Classify a patron message as a catalog search, library info query, or unclear.
+    """Classify a patron message."""
 
-    Parameters
-    ----------
-    client:
-        A configured :class:`GroqClient` instance.
-    message:
-        The patron's latest message text.
-    conversation_history:
-        Optional prior conversation turns as ``{"role": ..., "content": ...}`` dicts.
+    # Step 1: Fast keyword pre-check (no LLM needed, works even when rate-limited)
+    quick = _quick_classify(message)
+    if quick:
+        logger.info("Quick-classified as %s: %s", quick, message[:50])
+        return ClassificationResult(intent=quick, confidence=0.95)
 
-    Returns
-    -------
-    ClassificationResult
-        The classification with *intent* and *confidence*.
-    """
-    prompt = CLASSIFICATION_PROMPT.format(message=message)
-
-    messages: list[dict] = []
+    # Step 2: Conversation context — if bot just asked "what subject?", it's a search
     if conversation_history:
-        messages.extend(conversation_history)
-    messages.append({"role": "user", "content": prompt})
+        for msg in reversed(conversation_history):
+            if msg.get("role") == "assistant":
+                last_bot = msg.get("content", "").lower()
+                cues = ["what subject", "what topic", "looking for", "interested in",
+                        "what kind", "narrow down", "give me a hint", "more specific",
+                        "can you tell me", "mood for"]
+                if any(c in last_bot for c in cues):
+                    logger.info("Auto-classifying as catalog_search (follow-up)")
+                    return ClassificationResult(intent="catalog_search", confidence=0.95)
+                break
 
-    raw_response = client.chat(messages)
-
-    return _parse_classification(raw_response)
+    # Step 3: Default to catalog_search for unmatched messages
+    # (avoids slow LLM call — catalog handler handles vague queries gracefully)
+    logger.info("Default-classified as catalog_search: %s", message[:50])
+    return ClassificationResult(intent="catalog_search", confidence=0.7)
 
 
 def _parse_classification(raw: str) -> ClassificationResult:
-    """Parse the LLM's raw text into a :class:`ClassificationResult`.
-
-    Falls back to ``intent="unclear", confidence=0.0`` when parsing fails
-    or the response contains invalid values.
-    """
+    """Parse the LLM response. Defaults to catalog_search on failure."""
     try:
         data = json.loads(raw)
-        intent = data.get("intent", "unclear")
+        intent = data.get("intent", "catalog_search")
         confidence = float(data.get("confidence", 0.0))
 
-        # Validate intent value.
         if intent not in VALID_INTENTS:
-            intent = "unclear"
-            confidence = 0.0
+            intent = "catalog_search"
 
-        # Clamp confidence to [0, 1].
         confidence = max(0.0, min(1.0, confidence))
 
-        # Force "unclear" when confidence is below threshold.
         if confidence < CONFIDENCE_THRESHOLD:
-            intent = "unclear"
+            intent = "catalog_search"
 
         return ClassificationResult(intent=intent, confidence=confidence)
     except (json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
-        logger.warning("Failed to parse classification response: %s", exc)
-        return ClassificationResult(intent="unclear", confidence=0.0)
+        logger.warning("Failed to parse classification: %s", exc)
+        return ClassificationResult(intent="catalog_search", confidence=0.0)
