@@ -1,12 +1,13 @@
-"""SQLite-backed storage for staff accounts and dashboard settings."""
+"""Turso/SQLite-backed storage for staff accounts and dashboard settings."""
 
 import hashlib
 import logging
 import os
 import secrets
-import sqlite3
 import time
 from pathlib import Path
+
+from app.db import get_connection, sync_if_needed
 
 logger = logging.getLogger(__name__)
 
@@ -23,15 +24,20 @@ class StaffStore:
         self.db_path = db_path or os.environ.get("SESSION_DB_PATH", "/tmp/sessions.db")
         self._init_tables()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+    def _get_connection(self):
+        conn = get_connection(self.db_path)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+        except Exception:
+            pass
         return conn
 
     def _init_tables(self) -> None:
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass
         conn = self._get_connection()
         try:
             conn.executescript("""
@@ -58,7 +64,7 @@ class StaffStore:
         finally:
             conn.close()
 
-    def _seed_defaults(self, conn: sqlite3.Connection) -> None:
+    def _seed_defaults(self, conn: object) -> None:
         """Insert default settings if the table is empty."""
         count = conn.execute("SELECT COUNT(*) AS cnt FROM dashboard_settings").fetchone()["cnt"]
         if count > 0:
@@ -99,7 +105,7 @@ class StaffStore:
             )
             conn.commit()
             return {"username": username.strip().lower(), "display_name": display_name.strip(), "role": role, "is_active": True}
-        except sqlite3.IntegrityError:
+        except Exception:
             raise ValueError(f"Username '{username}' already exists")
         finally:
             conn.close()

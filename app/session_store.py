@@ -1,9 +1,10 @@
-"""SQLite-backed persistent storage for chat sessions and messages."""
+"""Turso/SQLite-backed persistent storage for chat sessions and messages."""
 
 import logging
-import sqlite3
 import time
 from pathlib import Path
+
+from app.db import get_connection, sync_if_needed, libsql
 
 from app.models import (
     AnalyticsResponse,
@@ -49,17 +50,27 @@ class SessionStore:
     # Database initialisation
     # ------------------------------------------------------------------
 
-    def _get_connection(self) -> sqlite3.Connection:
+    def _get_connection(self):
         """Return a new connection with row-factory enabled."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        conn = get_connection(self.db_path)
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA foreign_keys=ON")
+        except Exception:
+            pass  # Turso may not support all PRAGMAs
         return conn
+
+    def _commit(self, conn) -> None:
+        """Commit and sync with Turso if applicable."""
+        conn.commit()
+        sync_if_needed(conn)
 
     def _init_db(self) -> None:
         """Create tables and indexes if they don't already exist."""
-        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        try:
+            Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        except Exception:
+            pass  # Turso URLs don't need local directories
         conn = self._get_connection()
         try:
             conn.executescript(
@@ -288,7 +299,7 @@ class SessionStore:
                 (session_id, role, content, ts, intent),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to save message for session %s", session_id)
             raise
         finally:
@@ -303,7 +314,7 @@ class SessionStore:
                 (session_id,),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to close session %s", session_id)
         finally:
             conn.close()
@@ -325,7 +336,7 @@ class SessionStore:
                 (session_id,),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to activate handoff for session %s", session_id)
             raise
         finally:
@@ -340,7 +351,7 @@ class SessionStore:
                 (session_id,),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to deactivate handoff for session %s", session_id)
             raise
         finally:
@@ -370,7 +381,7 @@ class SessionStore:
             )
             conn.commit()
             return {"ok": True}
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to claim handoff for session %s", session_id)
             raise
         finally:
@@ -385,7 +396,7 @@ class SessionStore:
                 (session_id,),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to release handoff for session %s", session_id)
             raise
         finally:
@@ -620,7 +631,7 @@ class SessionStore:
             cur = conn.execute("DELETE FROM staff_ratings WHERE id = ?", (rating_id,))
             conn.commit()
             return cur.rowcount > 0
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to delete handoff record %s", rating_id)
             raise
         finally:
@@ -658,7 +669,7 @@ class SessionStore:
             )
             conn.commit()
             return {"deleted_ratings": rating_count, "cleared_sessions": len(sids)}
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to delete handoff records")
             raise
         finally:
@@ -970,7 +981,7 @@ class SessionStore:
                 (session_id, message_timestamp, rating, time.time()),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to save feedback for session %s", session_id)
             raise
         finally:
@@ -1069,7 +1080,7 @@ class SessionStore:
                 (session_id, handoff_num, staff_username, rating, time.time()),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to save staff rating for session %s", session_id)
             raise
         finally:
@@ -1205,7 +1216,7 @@ class SessionStore:
                 (session_id, note, time.time()),
             )
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to flag session %s", session_id)
             raise
         finally:
@@ -1217,7 +1228,7 @@ class SessionStore:
         try:
             conn.execute("DELETE FROM session_flags WHERE session_id = ?", (session_id,))
             conn.commit()
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to unflag session %s", session_id)
             raise
         finally:
@@ -1302,7 +1313,7 @@ class SessionStore:
             conn.commit()
 
             return BulkCleanupResponse(deleted_sessions=len(session_ids), deleted_messages=msg_count)
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to bulk delete expired sessions")
             raise
         finally:
@@ -1320,7 +1331,7 @@ class SessionStore:
             conn.execute("DELETE FROM sessions")
             conn.commit()
             return BulkCleanupResponse(deleted_sessions=sess_count, deleted_messages=msg_count)
-        except sqlite3.Error:
+        except Exception:
             logger.exception("Failed to delete all sessions")
             raise
         finally:
