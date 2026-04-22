@@ -272,7 +272,10 @@
     return d;
   }
   function renderCatalogCards(text, ts) {
+    var d = document.createElement("div"); d.className = "lc-m b";
+    d.style.cssText = "max-width:95%;white-space:normal";
     var wrap = document.createElement("div"); wrap.className = "lc-results";
+    wrap.style.cssText = "width:100%";
     var lines = text.split("\n");
     var headerDiv = document.createElement("div"); headerDiv.className = "lc-results-header";
     headerDiv.textContent = "📚 Here's what I found in the catalog:";
@@ -382,7 +385,8 @@
       fb.appendChild(up); fb.appendChild(down);
       wrap.appendChild(fb);
     }
-    return wrap;
+    d.appendChild(wrap);
+    return d;
   }
   function addMsgRaw(t, c, ts) {
     msgs.appendChild(renderMsg(t, c, ts)); scroll();
