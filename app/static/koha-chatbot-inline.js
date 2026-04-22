@@ -111,6 +111,13 @@
     "padding:5px 14px;font-size:.76rem;cursor:pointer;text-decoration:none;" +
     "text-align:center;transition:background .15s;align-self:flex-start}" +
     ".lc-card-btn:hover{background:#0a3f2e}" +
+    ".lc-pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0}" +
+    ".lc-pager-btn{background:#fff;border:1px solid #ccc;border-radius:14px;" +
+    "padding:4px 12px;font-size:.78rem;cursor:pointer;color:#0E553F;transition:all .15s}" +
+    ".lc-pager-btn:hover{background:#f0fdf4;border-color:#0E553F}" +
+    ".lc-pager-btn:disabled{opacity:.4;cursor:default;background:#fff}" +
+    ".lc-pager-btn.active{background:#0E553F;color:#fff;border-color:#0E553F}" +
+    ".lc-pager-info{font-size:.75rem;color:#888}" +
     "#lc-librarian{background:none;border:1px solid rgba(255,255,255,.4);color:#fff;" +
     "border-radius:14px;padding:4px 10px;font-size:.72rem;cursor:pointer;" +
     "transition:background .15s;white-space:nowrap}" +
@@ -266,42 +273,26 @@
   }
   function renderCatalogCards(text, ts) {
     var wrap = document.createElement("div"); wrap.className = "lc-results";
-    // Parse the text format: "Here's what I found...\n\n1. Title by Author\n   View in catalog: URL"
     var lines = text.split("\n");
     var headerDiv = document.createElement("div"); headerDiv.className = "lc-results-header";
     headerDiv.textContent = "📚 Here's what I found in the catalog:";
     wrap.appendChild(headerDiv);
+
+    // Parse all cards from text
+    var allCards = [];
     var currentTitle = "", currentAuthor = "", currentUrl = "";
-    function flushCard() {
+    function collectCard() {
       if (!currentTitle) return;
-      var card = document.createElement("div"); card.className = "lc-card";
-      var titleEl = document.createElement("div"); titleEl.className = "lc-card-title";
-      titleEl.textContent = currentTitle;
-      card.appendChild(titleEl);
-      if (currentAuthor) {
-        var authorEl = document.createElement("div"); authorEl.className = "lc-card-author";
-        authorEl.textContent = "by " + currentAuthor;
-        card.appendChild(authorEl);
-      }
-      if (currentUrl) {
-        var btn = document.createElement("a"); btn.className = "lc-card-btn";
-        btn.href = currentUrl; btn.textContent = "View in catalog";
-        btn.setAttribute("target", "_blank"); btn.setAttribute("rel", "noopener");
-        btn.addEventListener("click", function(e) { e.stopPropagation(); });
-        card.appendChild(btn);
-      }
-      wrap.appendChild(card);
+      allCards.push({ title: currentTitle, author: currentAuthor, url: currentUrl });
       currentTitle = ""; currentAuthor = ""; currentUrl = "";
     }
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i].trim();
-      // Match "1. Title by Author" or "1. Title"
       var numMatch = line.match(/^\d+\.\s+(.+?)(?:\s+by\s+(.+))?$/);
       if (numMatch && line.indexOf("View in catalog") === -1) {
-        flushCard();
+        collectCard();
         currentTitle = numMatch[1] || "";
         currentAuthor = numMatch[2] || "";
-        // Clean trailing "by" if author is empty
         if (!currentAuthor && currentTitle.match(/\s+by\s*$/)) {
           currentTitle = currentTitle.replace(/\s+by\s*$/, "");
         }
@@ -310,8 +301,72 @@
         if (urlMatch) currentUrl = urlMatch[0];
       }
     }
-    flushCard();
-    // Add feedback buttons
+    collectCard();
+
+    // Pagination
+    var PAGE_SIZE = 3;
+    var currentPage = 0;
+    var totalPages = Math.ceil(allCards.length / PAGE_SIZE);
+
+    var cardsContainer = document.createElement("div");
+    cardsContainer.style.cssText = "display:flex;flex-direction:column;gap:8px";
+    wrap.appendChild(cardsContainer);
+
+    var pagerDiv = document.createElement("div"); pagerDiv.className = "lc-pager";
+    if (totalPages > 1) wrap.appendChild(pagerDiv);
+
+    function renderPage() {
+      cardsContainer.innerHTML = "";
+      var start = currentPage * PAGE_SIZE;
+      var end = Math.min(start + PAGE_SIZE, allCards.length);
+      for (var j = start; j < end; j++) {
+        var rec = allCards[j];
+        var card = document.createElement("div"); card.className = "lc-card";
+        var titleEl = document.createElement("div"); titleEl.className = "lc-card-title";
+        titleEl.textContent = rec.title;
+        card.appendChild(titleEl);
+        if (rec.author) {
+          var authorEl = document.createElement("div"); authorEl.className = "lc-card-author";
+          authorEl.textContent = "by " + rec.author;
+          card.appendChild(authorEl);
+        }
+        if (rec.url) {
+          var btn = document.createElement("a"); btn.className = "lc-card-btn";
+          btn.href = rec.url; btn.textContent = "View in catalog";
+          btn.setAttribute("target", "_blank"); btn.setAttribute("rel", "noopener");
+          btn.addEventListener("click", function(e) { e.stopPropagation(); });
+          card.appendChild(btn);
+        }
+        cardsContainer.appendChild(card);
+      }
+      // Update pager
+      if (totalPages > 1) {
+        pagerDiv.innerHTML = "";
+        var prev = document.createElement("button"); prev.className = "lc-pager-btn";
+        prev.textContent = "◀"; prev.disabled = currentPage === 0;
+        prev.addEventListener("click", function() { if (currentPage > 0) { currentPage--; renderPage(); scroll(); } });
+        pagerDiv.appendChild(prev);
+        for (var p = 0; p < totalPages; p++) {
+          (function(pg) {
+            var numBtn = document.createElement("button"); numBtn.className = "lc-pager-btn";
+            numBtn.textContent = pg + 1;
+            if (pg === currentPage) numBtn.classList.add("active");
+            numBtn.addEventListener("click", function() { currentPage = pg; renderPage(); scroll(); });
+            pagerDiv.appendChild(numBtn);
+          })(p);
+        }
+        var next = document.createElement("button"); next.className = "lc-pager-btn";
+        next.textContent = "▶"; next.disabled = currentPage === totalPages - 1;
+        next.addEventListener("click", function() { if (currentPage < totalPages - 1) { currentPage++; renderPage(); scroll(); } });
+        pagerDiv.appendChild(next);
+        var info = document.createElement("span"); info.className = "lc-pager-info";
+        info.textContent = (start + 1) + "–" + end + " of " + allCards.length;
+        pagerDiv.appendChild(info);
+      }
+    }
+    renderPage();
+
+    // Feedback buttons
     if (ts) {
       var fb = document.createElement("div"); fb.className = "lc-fb"; fb.style.padding = "4px 0";
       var up = document.createElement("button"); up.innerHTML = "&#128077;"; up.setAttribute("aria-label", "Helpful");
