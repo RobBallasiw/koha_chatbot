@@ -18,6 +18,7 @@ class ChatResponse(BaseModel):
     reply: str  # Chatbot response text
     session_id: str  # Session identifier
     timestamp: float | None = None  # Unix timestamp of the response
+    client_search: str | None = None  # If set, client should search Koha with this query
 
 
 class ErrorResponse(BaseModel):

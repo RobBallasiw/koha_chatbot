@@ -344,7 +344,52 @@
       if (!r.ok) return r.json().then(function (d) { throw new Error(d.error || "Request failed"); });
       return r.json();
     })
-    .then(function (d) { hideTyping(); if (d.reply) addMsg(d.reply, "b", d.timestamp); })
+    .then(function (d) {
+      // If server says to do client-side search, fetch Koha RSS directly
+      if (d.client_search) {
+        var kohaBase = "";
+        // Detect Koha OPAC origin — if we're on the OPAC, use same origin
+        if (window.location.hostname.indexOf("lorma") !== -1 || document.querySelector("#opac-main-search")) {
+          kohaBase = window.location.origin;
+        } else {
+          kohaBase = "https://library.lorma.edu";
+        }
+        var rssUrl = kohaBase + "/cgi-bin/koha/opac-search.pl?q=" + encodeURIComponent(d.client_search) + "&format=rss";
+        fetch(rssUrl)
+          .then(function(r) { return r.text(); })
+          .then(function(xml) {
+            var parser = new DOMParser();
+            var doc = parser.parseFromString(xml, "text/xml");
+            var items = doc.querySelectorAll("item");
+            var results = [];
+            items.forEach(function(item, idx) {
+              if (idx >= 10) return;
+              var title = item.querySelector("title");
+              var link = item.querySelector("link");
+              var creator = item.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator");
+              results.push({
+                title: title ? title.textContent.trim() : "Unknown",
+                author: creator.length > 0 ? creator[0].textContent.trim() : "Unknown Author",
+                url: link ? kohaBase + link.textContent.trim() : ""
+              });
+            });
+            // Send results to backend for formatting
+            return fetch(CHATBOT_API + "/api/format-results", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ results: results, session_id: sid, message: d.client_search })
+            });
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(d2) { hideTyping(); if (d2.reply) addMsg(d2.reply, "b", d2.timestamp); })
+          .catch(function() {
+            hideTyping();
+            addMsg("Hmm, I couldn't search the catalog right now. Try searching directly on the library website! 🔍", "e");
+          });
+        return;
+      }
+      hideTyping(); if (d.reply) addMsg(d.reply, "b", d.timestamp);
+    })
     .catch(function (err) {
       hideTyping();
       if (err.message === "Failed to fetch" || err.name === "TypeError") {

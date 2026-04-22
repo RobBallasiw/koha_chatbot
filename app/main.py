@@ -163,6 +163,39 @@ async def debug_koha_test():
         }
 
 
+@app.post("/api/format-results")
+async def format_results(request: dict):
+    """Format raw catalog search results from client-side Koha search."""
+    results = request.get("results", [])
+    session_id = request.get("session_id", "")
+    message = request.get("message", "")
+
+    if not results:
+        from app.catalog_handler import NO_RESULTS_MESSAGE
+        reply = NO_RESULTS_MESSAGE
+    else:
+        lines = []
+        for i, rec in enumerate(results[:10], start=1):
+            parts = [f"{i}. {rec.get('title', 'Unknown')} by {rec.get('author', 'Unknown Author')}"]
+            if rec.get("url"):
+                parts.append(f"   View in catalog: {rec['url']}")
+            lines.append("\n".join(parts))
+        reply = "Here's what I found in the catalog 📚:\n\n" + "\n".join(lines)
+
+    # Store in session
+    if session_manager and session_id:
+        session_manager.add_message(session_id, "assistant", reply)
+
+    # Persist
+    if session_store and session_id:
+        try:
+            session_store.save_message(session_id, "assistant", reply)
+        except Exception:
+            pass
+
+    return ChatResponse(reply=reply, session_id=session_id, timestamp=time.time())
+
+
 @app.get("/health")
 async def health():
     """Simple health-check endpoint."""
@@ -274,9 +307,25 @@ async def chat(request: ChatRequest):
         return ChatResponse(reply=reply, session_id=request.session_id, timestamp=time.time())
     elif classification.intent == "catalog_search":
         koha_url = settings.koha_api_url if settings else ""
+        # First try server-side search
         reply = await handle_catalog_query(
             client, request.message, koha_url, history
         )
+        # If server-side search failed (likely 403 from WAF), fall back to client-side
+        if reply == CLARIFYING_MESSAGE or "couldn't find" in reply:
+            from app.catalog_handler import extract_search_params, _extract_keywords, _is_vague_query
+            raw_kw = _extract_keywords(request.message)
+            if not _is_vague_query(raw_kw):
+                params = await extract_search_params(client, request.message, history)
+                search_term = params.title or params.subject or params.author or raw_kw
+                # Return client_search so the frontend searches Koha directly
+                session_mgr.add_message(request.session_id, "user", request.message)
+                return ChatResponse(
+                    reply="",
+                    session_id=request.session_id,
+                    timestamp=time.time(),
+                    client_search=search_term,
+                )
     elif classification.intent == "library_info":
         reply = handle_library_info_query(
             client, request.message, library_info, history
