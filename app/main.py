@@ -134,6 +134,35 @@ async def startup() -> None:
     asyncio.create_task(_periodic_cleanup(session_manager))
 
 
+@app.get("/debug/koha-test")
+async def debug_koha_test():
+    """Debug endpoint — test if we can reach the Koha catalog."""
+    import httpx
+    koha_url = os.environ.get("KOHA_API_URL", "not set")
+    url = f"{koha_url.rstrip('/')}/cgi-bin/koha/opac-search.pl"
+    try:
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
+            resp = await http.get(
+                url,
+                params={"q": "java", "format": "rss"},
+                headers={"User-Agent": "LibraryChatbot/1.0"},
+            )
+            return {
+                "koha_api_url": koha_url,
+                "search_url": url,
+                "status_code": resp.status_code,
+                "response_length": len(resp.text),
+                "first_200_chars": resp.text[:200],
+            }
+    except Exception as exc:
+        return {
+            "koha_api_url": koha_url,
+            "search_url": url,
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+        }
+
+
 @app.get("/health")
 async def health():
     """Simple health-check endpoint."""

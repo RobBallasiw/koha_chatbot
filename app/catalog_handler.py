@@ -114,11 +114,17 @@ async def search_catalog_raw(
     url = f"{koha_api_url.rstrip('/')}/cgi-bin/koha/opac-search.pl"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
-            response = await http.get(url, params={"q": query.strip(), "format": "rss"})
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
+            logger.info("Searching Koha at: %s with q=%s", url, query.strip())
+            response = await http.get(
+                url,
+                params={"q": query.strip(), "format": "rss"},
+                headers={"User-Agent": "LibraryChatbot/1.0"},
+            )
+            logger.info("Koha response status: %s, length: %s", response.status_code, len(response.text))
             response.raise_for_status()
     except (httpx.HTTPError, Exception) as exc:
-        logger.error("Koha catalog raw search failed: %s", exc)
+        logger.error("Koha catalog raw search failed: %s (type: %s)", exc, type(exc).__name__)
         return []
 
     return _parse_rss_results(response.text, koha_api_url)
@@ -163,11 +169,15 @@ async def search_catalog(
     url = f"{koha_api_url.rstrip('/')}/cgi-bin/koha/opac-search.pl"
 
     try:
-        async with httpx.AsyncClient(timeout=10.0) as http:
-            response = await http.get(url, params={"q": q, "format": "rss"})
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
+            response = await http.get(
+                url,
+                params={"q": q, "format": "rss"},
+                headers={"User-Agent": "LibraryChatbot/1.0"},
+            )
             response.raise_for_status()
     except (httpx.HTTPError, Exception) as exc:
-        logger.error("Koha catalog search failed: %s", exc)
+        logger.error("Koha catalog search failed: %s (type: %s)", exc, type(exc).__name__)
         return []
 
     return _parse_rss_results(response.text, koha_api_url)
