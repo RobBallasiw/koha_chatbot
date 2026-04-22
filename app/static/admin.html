@@ -1096,36 +1096,33 @@
             var settingsResp = await apiFetch(settingsUrl);
             if (settingsResp) {
               var setJson = JSON.stringify(settingsResp);
-              if (setJson !== lastSettingsJson) {
-                lastSettingsJson = setJson;
+              if (lastSettingsJson && setJson !== lastSettingsJson) {
+                // Settings changed — apply everywhere
                 applyFeatureToggles(settingsResp);
-                // If settings tab is visible, refresh the form values
-                var settingsTab = document.getElementById("settings-tab");
-                if (settingsTab && settingsTab.classList.contains("active")) {
-                  document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
-                    var key = cb.dataset.key;
-                    if (key && settingsResp[key] !== undefined) cb.checked = settingsResp[key] === "true";
-                  });
-                  document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
-                    var key = inp.dataset.key;
-                    if (key && settingsResp[key] !== undefined) inp.value = settingsResp[key];
-                  });
-                }
+                // Refresh settings form if it exists
+                document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
+                  var key = cb.dataset.key;
+                  if (key && settingsResp[key] !== undefined) cb.checked = settingsResp[key] === "true";
+                });
+                document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
+                  var key = inp.dataset.key;
+                  if (key && settingsResp[key] !== undefined) inp.value = settingsResp[key];
+                });
               }
+              lastSettingsJson = setJson;
             }
           } catch(e) {}
-          // Poll staff list for changes if staff tab is visible
+          // Poll staff list for changes
           try {
-            var staffTab = document.getElementById("staff-tab");
-            if (staffTab && staffTab.classList.contains("active")) {
-              var staffResp = await apiFetch("/admin/api/staff");
-              if (staffResp) {
-                var stJson = JSON.stringify(staffResp);
-                if (stJson !== lastStaffJson) {
-                  lastStaffJson = stJson;
-                  renderStaff(staffResp);
-                }
+            var staffResp = await apiFetch("/admin/api/staff");
+            if (staffResp) {
+              var stJson = JSON.stringify(staffResp);
+              if (lastStaffJson && stJson !== lastStaffJson) {
+                // Staff changed — refresh staff table and settings dropdown
+                renderStaff(staffResp);
+                if (typeof loadSettingsStaffList === "function") loadSettingsStaffList();
               }
+              lastStaffJson = stJson;
             }
           } catch(e) {}
           isBackgroundPoll = false;
