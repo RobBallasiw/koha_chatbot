@@ -859,6 +859,7 @@
           loadStats();
           loadSessions();
           startAutoRefresh();
+          startStaffSettingsPoll();
         } catch (err) {
           loginError.textContent = "Network error: " + err.message;
           loginError.classList.remove("hidden");
@@ -872,7 +873,9 @@
         sessionStorage.removeItem("admin_role");
         sessionStorage.removeItem("admin_display_name");
         sessionStorage.removeItem("admin_username");
+        sessionStorage.removeItem("admin_staff_id");
         stopAutoRefresh();
+        stopStaffSettingsPoll();
         dashboardView.classList.add("hidden");
         detailView.classList.add("hidden");
         listView.classList.remove("hidden");
@@ -1096,6 +1099,33 @@
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
       }
 
+      // Lightweight settings poll for staff — detects admin changes to their dashboard
+      var staffSettingsTimer = null;
+      var lastStaffSettingsJson = "";
+      function startStaffSettingsPoll() {
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        if (role === "admin") return; // admins don't need this
+        var staffId = sessionStorage.getItem("admin_staff_id") || "";
+        if (!staffId) return;
+        if (staffSettingsTimer) return; // already running
+        staffSettingsTimer = setInterval(async function() {
+          try {
+            var resp = await fetch("/admin/api/staff/" + staffId + "/settings", { headers: { "X-Admin-Key": getKey() } });
+            if (!resp.ok) return;
+            var data = await resp.json();
+            var json = JSON.stringify(data);
+            if (lastStaffSettingsJson && json !== lastStaffSettingsJson) {
+              applyFeatureToggles(data);
+            }
+            lastStaffSettingsJson = json;
+          } catch(e) {}
+        }, 10000); // every 10 seconds
+      }
+      function stopStaffSettingsPoll() {
+        if (staffSettingsTimer) { clearInterval(staffSettingsTimer); staffSettingsTimer = null; }
+        lastStaffSettingsJson = "";
+      }
+
       // --- Auto-login from cached session ---
       if (apiKey) {
         loginView.classList.add("hidden");
@@ -1106,6 +1136,7 @@
         loadStats();
         loadSessions();
         startAutoRefresh();
+        startStaffSettingsPoll();
       }
 
       // --- Show logged-in user info in header ---
