@@ -112,10 +112,9 @@
     "text-align:center;transition:background .15s;align-self:flex-start}" +
     ".lc-card-btn:hover{background:#0a3f2e}" +
     ".lc-pager{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0}" +
-    ".lc-pager-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:center}" +
-    ".lc-pager-btn{background:#fff;border:1px solid #ccc;border-radius:12px;" +
-    "padding:3px 8px;font-size:.72rem;cursor:pointer;color:#0E553F;transition:all .15s;" +
-    "min-width:24px;text-align:center}" +
+    ".lc-pager-row{display:flex;align-items:center;gap:6px}" +
+    ".lc-pager-btn{background:#fff;border:1px solid #ccc;border-radius:14px;" +
+    "padding:4px 12px;font-size:.78rem;cursor:pointer;color:#0E553F;transition:all .15s}" +
     ".lc-pager-btn:hover{background:#f0fdf4;border-color:#0E553F}" +
     ".lc-pager-btn:disabled{opacity:.4;cursor:default;background:#fff}" +
     ".lc-pager-btn.active{background:#0E553F;color:#fff;border-color:#0E553F}" +
@@ -351,10 +350,12 @@
         prev.textContent = "◀"; prev.disabled = currentPage === 0;
         prev.addEventListener("click", function() { if (currentPage > 0) { currentPage--; renderPage(); scroll(); } });
         row.appendChild(prev);
-        // Show limited page numbers to prevent overflow
-        var startPage = Math.max(0, currentPage - 2);
-        var endPage = Math.min(totalPages, startPage + 5);
-        if (endPage - startPage < 5) startPage = Math.max(0, endPage - 5);
+        // Sliding window: show max 5 page numbers around current page
+        var maxVisible = 5;
+        var half = Math.floor(maxVisible / 2);
+        var startPage = Math.max(0, currentPage - half);
+        var endPage = Math.min(totalPages, startPage + maxVisible);
+        if (endPage - startPage < maxVisible) startPage = Math.max(0, endPage - maxVisible);
         for (var p = startPage; p < endPage; p++) {
           (function(pg) {
             var numBtn = document.createElement("button"); numBtn.className = "lc-pager-btn";
