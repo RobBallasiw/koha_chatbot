@@ -185,6 +185,8 @@ async def search_catalog(
 
 def _parse_rss_results(xml_text: str, koha_api_url: str) -> list[CatalogRecord]:
     """Parse Koha OPAC RSS/XML response into CatalogRecord list."""
+    import re
+
     try:
         root = ET.fromstring(xml_text)
     except ET.ParseError as exc:
@@ -201,9 +203,21 @@ def _parse_rss_results(xml_text: str, koha_api_url: str) -> list[CatalogRecord]:
         title_el = item.find("title")
         title = title_el.text.strip() if title_el is not None and title_el.text else "Unknown Title"
 
-        # Extract author from dc:creator if available.
+        # Extract author: try dc:creator first, then parse from description "By Author.<br />"
         creator_el = item.find("dc:creator", ns)
-        author = creator_el.text.strip() if creator_el is not None and creator_el.text else "Unknown Author"
+        author = None
+        if creator_el is not None and creator_el.text and creator_el.text.strip():
+            author = creator_el.text.strip()
+
+        if not author:
+            desc_el = item.find("description")
+            if desc_el is not None and desc_el.text:
+                by_match = re.search(r"By\s+(.+?)\.\s*<br", desc_el.text)
+                if by_match:
+                    author = by_match.group(1).strip()
+
+        if not author:
+            author = "Unknown Author"
 
         # Extract ISBN from dc:identifier if it contains one.
         isbn = None

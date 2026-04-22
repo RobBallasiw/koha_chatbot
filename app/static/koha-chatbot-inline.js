@@ -367,9 +367,18 @@
               var title = item.querySelector("title");
               var link = item.querySelector("link");
               var creator = item.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator");
+              var author = (creator.length > 0 && creator[0].textContent.trim()) ? creator[0].textContent.trim() : "";
+              // If no dc:creator, extract from description "By Author.<br"
+              if (!author) {
+                var desc = item.querySelector("description");
+                if (desc && desc.textContent) {
+                  var byMatch = desc.textContent.match(/By\s+(.+?)\.\s*<br/);
+                  if (byMatch) author = byMatch[1].trim();
+                }
+              }
               results.push({
                 title: title ? title.textContent.trim() : "Unknown",
-                author: creator.length > 0 ? creator[0].textContent.trim() : "Unknown Author",
+                author: author || "Unknown Author",
                 url: link ? kohaBase + link.textContent.trim() : ""
               });
             });
