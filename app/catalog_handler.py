@@ -113,12 +113,15 @@ async def search_catalog_raw(
 
     url = f"{koha_api_url.rstrip('/')}/cgi-bin/koha/opac-search.pl"
 
+    # Restrict search to title and author fields only
+    scoped_query = f"ti:{query.strip()} OR au:{query.strip()}"
+
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
-            logger.info("Searching Koha at: %s with q=%s", url, query.strip())
+            logger.info("Searching Koha at: %s with q=%s", url, scoped_query)
             response = await http.get(
                 url,
-                params={"q": query.strip(), "format": "rss"},
+                params={"q": scoped_query, "format": "rss"},
                 headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
             )
             logger.info("Koha response status: %s, length: %s", response.status_code, len(response.text))
@@ -507,34 +510,15 @@ async def handle_catalog_query(
     # Step 1: Use LLM to extract the real search term from conversational input
     params = await extract_search_params(client, message, conversation_history)
 
-    # Step 2: Search Koha using field-specific indexes for better relevance
+    # Step 2: Search Koha — try raw keywords first (most reliable), then LLM-extracted terms
     records = []
 
-    # Detect if this is an author search from the original message
-    import re
-    is_author_search = bool(re.search(r'\b(by|author)\b', message.lower()))
+    # Try raw keywords first — this is what the patron actually meant
+    records = await search_catalog_raw(koha_api_url, raw_keywords)
 
-    # Try LLM-extracted fields with Koha search indexes first (most precise)
-    if params.author and params.author.strip():
-        records = await search_catalog_raw(koha_api_url, f"au:{params.author.strip()}")
-    if not records and params.title and params.title.strip():
-        records = await search_catalog_raw(koha_api_url, f"ti:{params.title.strip()}")
-    if not records and params.subject and params.subject.strip():
-        records = await search_catalog_raw(koha_api_url, f"su:{params.subject.strip()}")
-    if not records and params.isbn and params.isbn.strip():
-        records = await search_catalog_raw(koha_api_url, params.isbn.strip())
-
-    # Try raw keywords with author index if it looks like an author search
-    if not records and is_author_search:
-        records = await search_catalog_raw(koha_api_url, f"au:{raw_keywords}")
-
-    # Fall back to raw keywords as plain keyword search
+    # If no results, try each LLM-extracted field individually
     if not records:
-        records = await search_catalog_raw(koha_api_url, raw_keywords)
-
-    # If no results, try each LLM field as plain keyword search
-    if not records:
-        for term in [params.author, params.title, params.subject]:
+        for term in [params.author, params.title, params.subject, params.isbn]:
             if term and term.strip():
                 records = await search_catalog_raw(koha_api_url, term.strip())
                 if records:

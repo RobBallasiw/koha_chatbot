@@ -496,7 +496,7 @@
         } else {
           kohaBase = "https://library.lorma.edu";
         }
-        var rssUrl = kohaBase + "/cgi-bin/koha/opac-search.pl?q=" + encodeURIComponent(d.client_search) + "&format=rss";
+        var rssUrl = kohaBase + "/cgi-bin/koha/opac-search.pl?q=" + encodeURIComponent("ti:" + d.client_search + " OR au:" + d.client_search) + "&format=rss";
         fetch(rssUrl)
           .then(function(r) { return r.text(); })
           .then(function(xml) {
