@@ -398,7 +398,7 @@
   }
   function showTyping() {
     var d = document.createElement("div"); d.className = "lc-t"; d.id = "lc-tp";
-    d.innerHTML = '<div class="lc-spinner"></div> Searching…';
+    d.innerHTML = '<div class="lc-spinner"></div> Thinking…';
     msgs.appendChild(d); scroll();
   }
   function hideTyping() { var e = document.getElementById("lc-tp"); if (e) e.remove(); }
