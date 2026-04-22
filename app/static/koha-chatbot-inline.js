@@ -85,7 +85,7 @@
     "#lc-bar{display:flex;padding:10px;gap:8px;border-top:1px solid #e0e0e0;" +
     "background:#fff;flex-shrink:0}" +
     "#lc-in{flex:1;padding:10px 14px;border:1px solid #ccc;border-radius:20px;" +
-    "font-size:.93rem;outline:none}" +
+    "font-size:.93rem;outline:none;text-align:left}" +
     "#lc-in:focus{border-color:#0E553F}" +
     "#lc-go{background:#D4A017;color:#fff;border:none;border-radius:50%;" +
     "width:40px;height:40px;cursor:pointer;display:flex;align-items:center;" +
