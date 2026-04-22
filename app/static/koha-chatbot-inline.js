@@ -273,7 +273,7 @@
   }
   function renderCatalogCards(text, ts) {
     var d = document.createElement("div"); d.className = "lc-m b";
-    d.style.cssText = "max-width:95%;white-space:normal";
+    d.style.cssText = "max-width:80%;white-space:normal";
     var wrap = document.createElement("div"); wrap.className = "lc-results";
     wrap.style.cssText = "width:100%";
     var lines = text.split("\n");
