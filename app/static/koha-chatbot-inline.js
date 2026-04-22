@@ -99,6 +99,18 @@
     "padding:7px 14px;font-size:.82rem;cursor:pointer;transition:background .15s,border-color .15s;" +
     "line-height:1.3;text-align:left}" +
     ".lc-faq:hover{background:#fdf6e3;border-color:#b8890f}" +
+    // Catalog result cards
+    ".lc-results{display:flex;flex-direction:column;gap:8px;width:100%;max-width:95%;align-self:flex-start}" +
+    ".lc-results-header{font-size:.88rem;color:#555;padding:4px 0}" +
+    ".lc-card{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;" +
+    "display:flex;flex-direction:column;gap:6px;transition:border-color .15s}" +
+    ".lc-card:hover{border-color:#0E553F}" +
+    ".lc-card-title{font-size:.88rem;font-weight:600;color:#2d2d2d;line-height:1.3}" +
+    ".lc-card-author{font-size:.78rem;color:#666}" +
+    ".lc-card-btn{display:inline-block;background:#0E553F;color:#fff;border:none;border-radius:14px;" +
+    "padding:5px 14px;font-size:.76rem;cursor:pointer;text-decoration:none;" +
+    "text-align:center;transition:background .15s;align-self:flex-start}" +
+    ".lc-card-btn:hover{background:#0a3f2e}" +
     "#lc-librarian{background:none;border:1px solid rgba(255,255,255,.4);color:#fff;" +
     "border-radius:14px;padding:4px 10px;font-size:.72rem;cursor:pointer;" +
     "transition:background .15s;white-space:nowrap}" +
@@ -216,6 +228,10 @@
   function scroll() { msgs.scrollTop = msgs.scrollHeight; }
   function renderMsg(t, c, ts) {
     var d = document.createElement("div"); d.className = "lc-m " + c;
+    // Check if this is a catalog result message — render as cards
+    if (c === "b" && t && t.indexOf("found in the catalog") !== -1) {
+      return renderCatalogCards(t, ts);
+    }
     var html = t.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
       '<a href="$2" class="lc-link" style="color:inherit;text-decoration:underline;cursor:pointer">$1</a>');
     html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g,
@@ -247,6 +263,72 @@
       });
     });
     return d;
+  }
+  function renderCatalogCards(text, ts) {
+    var wrap = document.createElement("div"); wrap.className = "lc-results";
+    // Parse the text format: "Here's what I found...\n\n1. Title by Author\n   View in catalog: URL"
+    var lines = text.split("\n");
+    var headerDiv = document.createElement("div"); headerDiv.className = "lc-results-header";
+    headerDiv.textContent = "📚 Here's what I found in the catalog:";
+    wrap.appendChild(headerDiv);
+    var currentTitle = "", currentAuthor = "", currentUrl = "";
+    function flushCard() {
+      if (!currentTitle) return;
+      var card = document.createElement("div"); card.className = "lc-card";
+      var titleEl = document.createElement("div"); titleEl.className = "lc-card-title";
+      titleEl.textContent = currentTitle;
+      card.appendChild(titleEl);
+      if (currentAuthor) {
+        var authorEl = document.createElement("div"); authorEl.className = "lc-card-author";
+        authorEl.textContent = "by " + currentAuthor;
+        card.appendChild(authorEl);
+      }
+      if (currentUrl) {
+        var btn = document.createElement("a"); btn.className = "lc-card-btn";
+        btn.href = currentUrl; btn.textContent = "View in catalog";
+        btn.setAttribute("target", "_blank"); btn.setAttribute("rel", "noopener");
+        btn.addEventListener("click", function(e) { e.stopPropagation(); });
+        card.appendChild(btn);
+      }
+      wrap.appendChild(card);
+      currentTitle = ""; currentAuthor = ""; currentUrl = "";
+    }
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      // Match "1. Title by Author" or "1. Title"
+      var numMatch = line.match(/^\d+\.\s+(.+?)(?:\s+by\s+(.+))?$/);
+      if (numMatch && line.indexOf("View in catalog") === -1) {
+        flushCard();
+        currentTitle = numMatch[1] || "";
+        currentAuthor = numMatch[2] || "";
+        // Clean trailing "by" if author is empty
+        if (!currentAuthor && currentTitle.match(/\s+by\s*$/)) {
+          currentTitle = currentTitle.replace(/\s+by\s*$/, "");
+        }
+      } else if (line.indexOf("View in catalog:") !== -1) {
+        var urlMatch = line.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) currentUrl = urlMatch[0];
+      }
+    }
+    flushCard();
+    // Add feedback buttons
+    if (ts) {
+      var fb = document.createElement("div"); fb.className = "lc-fb"; fb.style.padding = "4px 0";
+      var up = document.createElement("button"); up.innerHTML = "&#128077;"; up.setAttribute("aria-label", "Helpful");
+      var down = document.createElement("button"); down.innerHTML = "&#128078;"; down.setAttribute("aria-label", "Not helpful");
+      function voteCards(rating, b, o) {
+        b.classList.add("voted"); b.disabled = true; o.disabled = true;
+        fetch(CHATBOT_API + "/api/feedback", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sid, message_timestamp: ts, rating: rating })
+        }).catch(function(){});
+      }
+      up.addEventListener("click", function() { voteCards(1, up, down); });
+      down.addEventListener("click", function() { voteCards(-1, down, up); });
+      fb.appendChild(up); fb.appendChild(down);
+      wrap.appendChild(fb);
+    }
+    return wrap;
   }
   function addMsgRaw(t, c, ts) {
     msgs.appendChild(renderMsg(t, c, ts)); scroll();
