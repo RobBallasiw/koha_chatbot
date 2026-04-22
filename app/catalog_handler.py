@@ -113,8 +113,8 @@ async def search_catalog_raw(
 
     url = f"{koha_api_url.rstrip('/')}/cgi-bin/koha/opac-search.pl"
 
-    # Restrict search to title and author fields only
-    scoped_query = f"ti:{query.strip()} OR au:{query.strip()}"
+    # Restrict search to title and author fields, with plain keyword fallback
+    scoped_query = f"ti:{query.strip()} OR au:{query.strip()} OR {query.strip()}"
 
     try:
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as http:
