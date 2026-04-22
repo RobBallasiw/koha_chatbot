@@ -1088,9 +1088,38 @@
               }
             }
           }
+          // Poll settings for changes by other admins
+          try {
+            var role = sessionStorage.getItem("admin_role") || "admin";
+            var staffId = sessionStorage.getItem("admin_staff_id") || "";
+            var settingsUrl = (staffId && role !== "admin") ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
+            var settingsResp = await apiFetch(settingsUrl);
+            if (settingsResp) {
+              var setJson = JSON.stringify(settingsResp);
+              if (setJson !== lastSettingsJson) {
+                lastSettingsJson = setJson;
+                applyFeatureToggles(settingsResp);
+                // If settings tab is visible, refresh the form values
+                var settingsTab = document.getElementById("settings-tab");
+                if (settingsTab && settingsTab.classList.contains("active")) {
+                  document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
+                    var key = cb.dataset.key;
+                    if (key && settingsResp[key] !== undefined) cb.checked = settingsResp[key] === "true";
+                  });
+                  document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
+                    var key = inp.dataset.key;
+                    if (key && settingsResp[key] !== undefined) inp.value = settingsResp[key];
+                  });
+                }
+              }
+            }
+          } catch(e) {}
           isBackgroundPoll = false;
         }, REFRESH_INTERVAL);
       }
+
+      // Track last known settings JSON to detect changes
+      var lastSettingsJson = "";
 
       function stopAutoRefresh() {
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
