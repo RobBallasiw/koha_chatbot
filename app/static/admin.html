@@ -1121,11 +1121,11 @@
       function applyRoleVisibility() {
         var role = sessionStorage.getItem("admin_role") || "admin";
         var isAdmin = role === "admin";
-        // Staff & Settings tabs — staff can see Settings for their own config
+        // Staff & Settings tabs — admin only
         var staffTabBtn = document.querySelector('[data-tab="staff-tab"]');
         var settingsTabBtn = document.querySelector('[data-tab="settings-tab"]');
         if (staffTabBtn) staffTabBtn.style.display = isAdmin ? "" : "none";
-        if (settingsTabBtn) settingsTabBtn.style.display = "";
+        if (settingsTabBtn) settingsTabBtn.style.display = isAdmin ? "" : "none";
       }
 
       // --- Tab navigation ---
