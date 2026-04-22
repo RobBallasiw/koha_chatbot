@@ -170,3 +170,28 @@ async def update_settings(request: UpdateSettingsRequest):
     except Exception:
         logger.exception("Failed to update settings")
         return JSONResponse(status_code=500, content={"error": "Failed to update settings"})
+
+
+# ------------------------------------------------------------------
+# Per-staff settings endpoints
+# ------------------------------------------------------------------
+
+@router.get("/staff/{staff_id}/settings")
+async def get_staff_settings(staff_id: int):
+    """Return merged settings for a specific staff member (global + overrides)."""
+    store = _get_store()
+    return store.get_staff_settings(staff_id)
+
+
+@router.put("/staff/{staff_id}/settings")
+async def update_staff_settings(staff_id: int, request: UpdateSettingsRequest):
+    """Update per-staff settings (overrides global defaults)."""
+    store = _get_store()
+    if not request.settings:
+        return JSONResponse(status_code=400, content={"error": "No settings provided"})
+    try:
+        store.update_staff_settings(staff_id, request.settings)
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to update staff settings for %s", staff_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to update settings"})

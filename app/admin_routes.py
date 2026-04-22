@@ -35,6 +35,7 @@ class LoginResponse(BaseModel):
     api_key: str
     role: str = "admin"
     display_name: str = ""
+    staff_id: int | None = None
 
 
 def set_session_store(store: SessionStore) -> None:
@@ -64,7 +65,7 @@ async def admin_login(request: LoginRequest):
         api_key = os.environ.get("ADMIN_API_KEY", "")
         if not api_key:
             raise HTTPException(status_code=500, detail={"error": "Admin API key not configured"})
-        return LoginResponse(api_key=api_key, role="admin", display_name="Admin")
+        return LoginResponse(api_key=api_key, role="admin", display_name="Admin", staff_id=None)
 
     # Check staff accounts in the database
     from app.staff_routes import staff_store as _staff_store
@@ -78,6 +79,7 @@ async def admin_login(request: LoginRequest):
                 api_key=api_key,
                 role=account["role"],
                 display_name=account.get("display_name", ""),
+                staff_id=account.get("id"),
             )
 
     raise HTTPException(status_code=401, detail={"error": "Invalid username or password"})

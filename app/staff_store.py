@@ -58,6 +58,14 @@ class StaffStore:
                     value TEXT NOT NULL,
                     updated_at REAL NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS staff_settings (
+                    staff_id INTEGER NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at REAL NOT NULL,
+                    PRIMARY KEY (staff_id, key)
+                );
             """)
             conn.commit()
             self._seed_defaults(conn)
@@ -247,3 +255,36 @@ class StaffStore:
         """Check if a feature toggle is enabled."""
         val = self.get_setting(feature_key)
         return val == "true" if val is not None else True
+
+    # ------------------------------------------------------------------
+    # Per-staff settings operations
+    # ------------------------------------------------------------------
+
+    def get_staff_settings(self, staff_id: int) -> dict[str, str]:
+        """Return merged settings: global defaults overridden by staff-specific values."""
+        global_settings = self.get_all_settings()
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT key, value FROM staff_settings WHERE staff_id = ?", (staff_id,)
+            ).fetchall()
+            for r in rows:
+                global_settings[r["key"]] = r["value"]
+            return global_settings
+        finally:
+            conn.close()
+
+    def update_staff_settings(self, staff_id: int, settings: dict[str, str]) -> None:
+        """Upsert per-staff settings."""
+        now = time.time()
+        conn = self._get_connection()
+        try:
+            for key, value in settings.items():
+                conn.execute(
+                    """INSERT INTO staff_settings (staff_id, key, value, updated_at) VALUES (?, ?, ?, ?)
+                       ON CONFLICT(staff_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at""",
+                    (staff_id, key, str(value), now),
+                )
+            conn.commit()
+        finally:
+            conn.close()

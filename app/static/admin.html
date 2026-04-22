@@ -399,7 +399,16 @@
               <span id="settings-save-status" class="li-status"></span>
             </div>
           </div>
-          <p class="quality-desc">Toggle dashboard features on or off for staff accounts. Disabled features will be hidden from staff users. Admins always see all tabs.</p>
+
+          <!-- Staff selector (admin only) -->
+          <div id="settings-staff-selector" class="hidden" style="margin-bottom:16px;">
+            <label for="settings-staff-select" style="font-size:.85rem;color:#555;margin-right:8px;">Editing settings for:</label>
+            <select id="settings-staff-select" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
+              <option value="">Global (default for all staff)</option>
+            </select>
+          </div>
+
+          <p class="quality-desc" id="settings-desc">Toggle dashboard features on or off for staff accounts. Disabled features will be hidden from staff users. Admins always see all tabs.</p>
 
           <section class="settings-section">
             <h4>Feature Toggles</h4>
@@ -841,6 +850,7 @@
           sessionStorage.setItem("admin_role", data.role || "admin");
           sessionStorage.setItem("admin_display_name", data.display_name || "");
           sessionStorage.setItem("admin_username", document.getElementById("login-username").value.trim());
+          sessionStorage.setItem("admin_staff_id", data.staff_id || "");
           loginView.classList.add("hidden");
           dashboardView.classList.remove("hidden");
           logoutBtn.classList.remove("hidden");
@@ -1111,11 +1121,11 @@
       function applyRoleVisibility() {
         var role = sessionStorage.getItem("admin_role") || "admin";
         var isAdmin = role === "admin";
-        // Staff & Settings tabs are admin-only
+        // Staff & Settings tabs — staff can see Settings for their own config
         var staffTabBtn = document.querySelector('[data-tab="staff-tab"]');
         var settingsTabBtn = document.querySelector('[data-tab="settings-tab"]');
         if (staffTabBtn) staffTabBtn.style.display = isAdmin ? "" : "none";
-        if (settingsTabBtn) settingsTabBtn.style.display = isAdmin ? "" : "none";
+        if (settingsTabBtn) settingsTabBtn.style.display = "";
       }
 
       // --- Tab navigation ---
@@ -1834,9 +1844,49 @@
         feature_staff_performance: "archive-tab",
       };
 
-      async function loadSettings() {
+      var settingsStaffSelect = document.getElementById("settings-staff-select");
+      var settingsStaffSelector = document.getElementById("settings-staff-selector");
+      var settingsDesc = document.getElementById("settings-desc");
+
+      // Populate staff dropdown for admins
+      async function loadSettingsStaffList() {
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        if (role !== "admin") {
+          settingsStaffSelector.classList.add("hidden");
+          settingsDesc.textContent = "Customize your dashboard — toggle features on or off.";
+          return;
+        }
+        settingsStaffSelector.classList.remove("hidden");
         try {
-          var resp = await fetch("/admin/api/settings", { headers: { "X-Admin-Key": getKey() } });
+          var resp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
+          var staffList = await resp.json();
+          // Keep "Global" option, add staff
+          settingsStaffSelect.innerHTML = '<option value="">Global (default for all staff)</option>';
+          staffList.forEach(function(s) {
+            var opt = document.createElement("option");
+            opt.value = s.id;
+            opt.textContent = (s.display_name || s.username) + " (" + s.role + ")";
+            settingsStaffSelect.appendChild(opt);
+          });
+        } catch(e) { console.error("Failed to load staff list for settings", e); }
+      }
+
+      settingsStaffSelect.addEventListener("change", function() { loadSettings(); });
+
+      async function loadSettings() {
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        var isAdmin = role === "admin";
+        var staffId = "";
+
+        if (isAdmin) {
+          staffId = settingsStaffSelect.value; // "" = global, or a staff_id
+        } else {
+          staffId = sessionStorage.getItem("admin_staff_id") || "";
+        }
+
+        var url = staffId ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
+        try {
+          var resp = await fetch(url, { headers: { "X-Admin-Key": getKey() } });
           var data = await resp.json();
           // Populate checkboxes
           document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
@@ -1848,7 +1898,8 @@
             var key = inp.dataset.key;
             if (key && data[key] !== undefined) inp.value = data[key];
           });
-          applyFeatureToggles(data);
+          if (isAdmin && !staffId) applyFeatureToggles(data);
+          if (!isAdmin) applyFeatureToggles(data);
         } catch (e) { console.error("Failed to load settings", e); }
       }
 
@@ -1878,15 +1929,26 @@
         document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
           if (inp.dataset.key) payload[inp.dataset.key] = inp.value;
         });
+
+        var role = sessionStorage.getItem("admin_role") || "admin";
+        var isAdmin = role === "admin";
+        var staffId = "";
+        if (isAdmin) {
+          staffId = settingsStaffSelect.value;
+        } else {
+          staffId = sessionStorage.getItem("admin_staff_id") || "";
+        }
+
+        var url = staffId ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
         try {
-          var resp = await fetch("/admin/api/settings", {
+          var resp = await fetch(url, {
             method: "PUT",
             headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
             body: JSON.stringify({ settings: payload })
           });
           if (resp.ok) {
             statusEl.textContent = "✓ Saved"; statusEl.style.color = "#27ae60";
-            applyFeatureToggles(payload);
+            if (!staffId || !isAdmin) applyFeatureToggles(payload);
           } else {
             statusEl.textContent = "✗ Save failed"; statusEl.style.color = "#e74c3c";
           }
@@ -1899,7 +1961,7 @@
       // Load when tab is shown
       document.querySelectorAll(".tab-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          if (btn.dataset.tab === "settings-tab") loadSettings();
+          if (btn.dataset.tab === "settings-tab") { loadSettingsStaffList(); loadSettings(); }
         });
       });
 
