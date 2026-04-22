@@ -396,9 +396,9 @@
     chatHistory.push({text: t, cls: c, ts: ts});
     saveState();
   }
-  function showTyping() {
+  function showTyping(label) {
     var d = document.createElement("div"); d.className = "lc-t"; d.id = "lc-tp";
-    d.innerHTML = '<div class="lc-spinner"></div> Thinking…';
+    d.innerHTML = '<div class="lc-spinner"></div> ' + (label || 'Thinking…');
     msgs.appendChild(d); scroll();
   }
   function hideTyping() { var e = document.getElementById("lc-tp"); if (e) e.remove(); }
@@ -474,7 +474,9 @@
     var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
     inp.value = ""; btn.disabled = true; inp.disabled = true;
-    showTyping();
+    var lower = text.toLowerCase();
+    var isSearch = /\b(find|search|look|book|books|author|title|catalog|isbn)\b/.test(lower);
+    showTyping(isSearch ? "Searching…" : "Thinking…");
     fetch(CHATBOT_API + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
