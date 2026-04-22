@@ -1114,12 +1114,27 @@
               }
             }
           } catch(e) {}
+          // Poll staff list for changes if staff tab is visible
+          try {
+            var staffTab = document.getElementById("staff-tab");
+            if (staffTab && staffTab.classList.contains("active")) {
+              var staffResp = await apiFetch("/admin/api/staff");
+              if (staffResp) {
+                var stJson = JSON.stringify(staffResp);
+                if (stJson !== lastStaffJson) {
+                  lastStaffJson = stJson;
+                  renderStaff(staffResp);
+                }
+              }
+            }
+          } catch(e) {}
           isBackgroundPoll = false;
         }, REFRESH_INTERVAL);
       }
 
       // Track last known settings JSON to detect changes
       var lastSettingsJson = "";
+      var lastStaffJson = "";
 
       function stopAutoRefresh() {
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
