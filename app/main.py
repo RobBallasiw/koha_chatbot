@@ -145,7 +145,7 @@ async def debug_koha_test():
             resp = await http.get(
                 url,
                 params={"q": "java", "format": "rss"},
-                headers={"User-Agent": "LibraryChatbot/1.0"},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
             )
             return {
                 "koha_api_url": koha_url,

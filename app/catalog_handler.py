@@ -119,7 +119,7 @@ async def search_catalog_raw(
             response = await http.get(
                 url,
                 params={"q": query.strip(), "format": "rss"},
-                headers={"User-Agent": "LibraryChatbot/1.0"},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
             )
             logger.info("Koha response status: %s, length: %s", response.status_code, len(response.text))
             response.raise_for_status()
@@ -173,7 +173,7 @@ async def search_catalog(
             response = await http.get(
                 url,
                 params={"q": q, "format": "rss"},
-                headers={"User-Agent": "LibraryChatbot/1.0"},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
             )
             response.raise_for_status()
     except (httpx.HTTPError, Exception) as exc:
