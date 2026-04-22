@@ -175,7 +175,7 @@ async def format_results(request: dict):
         reply = NO_RESULTS_MESSAGE
     else:
         lines = []
-        for i, rec in enumerate(results[:10], start=1):
+        for i, rec in enumerate(results[:20], start=1):
             parts = [f"{i}. {rec.get('title', 'Unknown')} by {rec.get('author', 'Unknown Author')}"]
             if rec.get("url"):
                 parts.append(f"   View in catalog: {rec['url']}")

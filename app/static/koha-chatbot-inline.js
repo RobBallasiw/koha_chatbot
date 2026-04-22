@@ -111,7 +111,8 @@
     "padding:5px 14px;font-size:.76rem;cursor:pointer;text-decoration:none;" +
     "text-align:center;transition:background .15s;align-self:flex-start}" +
     ".lc-card-btn:hover{background:#0a3f2e}" +
-    ".lc-pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 0}" +
+    ".lc-pager{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0}" +
+    ".lc-pager-row{display:flex;align-items:center;gap:6px}" +
     ".lc-pager-btn{background:#fff;border:1px solid #ccc;border-radius:14px;" +
     "padding:4px 12px;font-size:.78rem;cursor:pointer;color:#0E553F;transition:all .15s}" +
     ".lc-pager-btn:hover{background:#f0fdf4;border-color:#0E553F}" +
@@ -344,23 +345,25 @@
       // Update pager
       if (totalPages > 1) {
         pagerDiv.innerHTML = "";
+        var row = document.createElement("div"); row.className = "lc-pager-row";
         var prev = document.createElement("button"); prev.className = "lc-pager-btn";
         prev.textContent = "◀"; prev.disabled = currentPage === 0;
         prev.addEventListener("click", function() { if (currentPage > 0) { currentPage--; renderPage(); scroll(); } });
-        pagerDiv.appendChild(prev);
+        row.appendChild(prev);
         for (var p = 0; p < totalPages; p++) {
           (function(pg) {
             var numBtn = document.createElement("button"); numBtn.className = "lc-pager-btn";
             numBtn.textContent = pg + 1;
             if (pg === currentPage) numBtn.classList.add("active");
             numBtn.addEventListener("click", function() { currentPage = pg; renderPage(); scroll(); });
-            pagerDiv.appendChild(numBtn);
+            row.appendChild(numBtn);
           })(p);
         }
         var next = document.createElement("button"); next.className = "lc-pager-btn";
         next.textContent = "▶"; next.disabled = currentPage === totalPages - 1;
         next.addEventListener("click", function() { if (currentPage < totalPages - 1) { currentPage++; renderPage(); scroll(); } });
-        pagerDiv.appendChild(next);
+        row.appendChild(next);
+        pagerDiv.appendChild(row);
         var info = document.createElement("span"); info.className = "lc-pager-info";
         info.textContent = (start + 1) + "–" + end + " of " + allCards.length;
         pagerDiv.appendChild(info);
@@ -505,7 +508,7 @@
             var items = doc.querySelectorAll("item");
             var results = [];
             items.forEach(function(item, idx) {
-              if (idx >= 10) return;
+              if (idx >= 20) return;
               var title = item.querySelector("title");
               var link = item.querySelector("link");
               var creator = item.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator");
