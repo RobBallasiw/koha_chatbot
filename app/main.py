@@ -313,16 +313,29 @@ async def chat(request: ChatRequest):
         )
         # If server-side search failed (likely 403 from WAF), fall back to client-side
         if reply == CLARIFYING_MESSAGE or "couldn't find" in reply:
-            from app.catalog_handler import _extract_keywords, _is_vague_query
+            from app.catalog_handler import _extract_keywords, _is_vague_query, extract_search_params
+            import re as _re
             raw_kw = _extract_keywords(request.message)
             if not _is_vague_query(raw_kw):
-                # Always use raw keywords — most reliable for client-side search
+                # Use field-specific search for better relevance
+                is_author = bool(_re.search(r'\b(by|author)\b', request.message.lower()))
+                params = await extract_search_params(client, request.message, history)
+                if params.author and params.author.strip():
+                    search_q = "au:" + params.author.strip()
+                elif is_author:
+                    search_q = "au:" + raw_kw
+                elif params.title and params.title.strip():
+                    search_q = "ti:" + params.title.strip()
+                elif params.subject and params.subject.strip():
+                    search_q = "su:" + params.subject.strip()
+                else:
+                    search_q = raw_kw
                 session_mgr.add_message(request.session_id, "user", request.message)
                 return ChatResponse(
                     reply="",
                     session_id=request.session_id,
                     timestamp=time.time(),
-                    client_search=raw_kw,
+                    client_search=search_q,
                 )
     elif classification.intent == "library_info":
         reply = handle_library_info_query(
