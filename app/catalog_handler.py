@@ -435,6 +435,8 @@ def _extract_keywords(message: str) -> str:
     # Second pass to catch chained prefixes like "can you find me"
     for pattern in prefixes:
         cleaned = re.sub(pattern, "", cleaned)
+    # Strip "by" prefix only if it's a standalone word (author search like "books by lee rv" → "lee rv")
+    cleaned = re.sub(r"^by\s+", "", cleaned)
     # Remove trailing filler
     cleaned = re.sub(r"(please|thanks|thank you|pls|\?|!|\.)+$", "", cleaned)
     cleaned = cleaned.strip()
@@ -505,28 +507,19 @@ async def handle_catalog_query(
     # Step 1: Use LLM to extract the real search term from conversational input
     params = await extract_search_params(client, message, conversation_history)
 
-    # Step 2: Search Koha — try LLM-extracted terms, then raw keywords
+    # Step 2: Search Koha — try raw keywords first (most reliable), then LLM-extracted terms
     records = []
 
-    # Try each extracted field individually (most specific first)
-    for term in [params.title, params.subject, params.author, params.isbn]:
-        if term and term.strip():
-            records = await search_catalog_raw(koha_api_url, term.strip())
-            if records:
-                break
-            # If multi-word, also try individual significant words
-            words = [w for w in term.strip().split() if len(w) > 2 and w.lower() not in
-                     {"the", "and", "for", "about", "books", "book", "related", "studies", "literature", "on", "with"}]
-            for w in words:
-                records = await search_catalog_raw(koha_api_url, w)
+    # Try raw keywords first — this is what the patron actually meant
+    records = await search_catalog_raw(koha_api_url, raw_keywords)
+
+    # If no results, try each LLM-extracted field individually
+    if not records:
+        for term in [params.author, params.title, params.subject, params.isbn]:
+            if term and term.strip():
+                records = await search_catalog_raw(koha_api_url, term.strip())
                 if records:
                     break
-            if records:
-                break
-
-    # Fall back to raw keywords from the message
-    if not records:
-        records = await search_catalog_raw(koha_api_url, raw_keywords)
 
     if records is None:
         return CATALOG_UNAVAILABLE_MESSAGE
