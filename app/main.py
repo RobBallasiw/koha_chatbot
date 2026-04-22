@@ -313,18 +313,16 @@ async def chat(request: ChatRequest):
         )
         # If server-side search failed (likely 403 from WAF), fall back to client-side
         if reply == CLARIFYING_MESSAGE or "couldn't find" in reply:
-            from app.catalog_handler import extract_search_params, _extract_keywords, _is_vague_query
+            from app.catalog_handler import _extract_keywords, _is_vague_query
             raw_kw = _extract_keywords(request.message)
             if not _is_vague_query(raw_kw):
-                params = await extract_search_params(client, request.message, history)
-                search_term = params.title or params.subject or params.author or raw_kw
-                # Return client_search so the frontend searches Koha directly
+                # Always use raw keywords — most reliable for client-side search
                 session_mgr.add_message(request.session_id, "user", request.message)
                 return ChatResponse(
                     reply="",
                     session_id=request.session_id,
                     timestamp=time.time(),
-                    client_search=search_term,
+                    client_search=raw_kw,
                 )
     elif classification.intent == "library_info":
         reply = handle_library_info_query(

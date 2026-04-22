@@ -424,7 +424,7 @@ def _extract_keywords(message: str) -> str:
         r"^(can you |could you |please |i want to |i'd like to |i would like to )",
         r"^(i need to |i gotta |i wanna |i have to )",
         r"^(search for |find me |find |look up |look for |show me |get me |recommend |suggest )",
-        r"^(books? about |books? on |books? related to |books? for )",
+        r"^(books? about |books? on |books? related to |books? for |books? by )",
         r"^(any |some |a few )",
         r"^(do you have |are there |is there )",
         r"^(fetch |give |bring )",
