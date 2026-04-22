@@ -1088,50 +1088,9 @@
               }
             }
           }
-          // Poll settings for changes by other admins
-          try {
-            var role = sessionStorage.getItem("admin_role") || "admin";
-            var staffId = sessionStorage.getItem("admin_staff_id") || "";
-            var settingsUrl = (staffId && role !== "admin") ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
-            var settingsResp = await apiFetch(settingsUrl);
-            if (settingsResp) {
-              var setJson = JSON.stringify(settingsResp);
-              if (lastSettingsJson && setJson !== lastSettingsJson) {
-                // Settings changed — apply everywhere
-                applyFeatureToggles(settingsResp);
-                // Refresh settings form if it exists
-                document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
-                  var key = cb.dataset.key;
-                  if (key && settingsResp[key] !== undefined) cb.checked = settingsResp[key] === "true";
-                });
-                document.querySelectorAll(".settings-fields input[type=number]").forEach(function (inp) {
-                  var key = inp.dataset.key;
-                  if (key && settingsResp[key] !== undefined) inp.value = settingsResp[key];
-                });
-              }
-              lastSettingsJson = setJson;
-            }
-          } catch(e) {}
-          // Poll staff list for changes
-          try {
-            var staffResp = await apiFetch("/admin/api/staff");
-            if (staffResp) {
-              var stJson = JSON.stringify(staffResp);
-              if (lastStaffJson && stJson !== lastStaffJson) {
-                // Staff changed — refresh staff table and settings dropdown
-                renderStaff(staffResp);
-                if (typeof loadSettingsStaffList === "function") loadSettingsStaffList();
-              }
-              lastStaffJson = stJson;
-            }
-          } catch(e) {}
           isBackgroundPoll = false;
         }, REFRESH_INTERVAL);
       }
-
-      // Track last known settings JSON to detect changes
-      var lastSettingsJson = "";
-      var lastStaffJson = "";
 
       function stopAutoRefresh() {
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
@@ -1783,7 +1742,7 @@
           var data = await resp.json();
           if (resp.ok) {
             formStatus.textContent = "✓ Created"; formStatus.style.color = "#27ae60";
-            clearForm(); addForm.classList.add("hidden"); loadStaff();
+            clearForm(); addForm.classList.add("hidden"); loadStaff(); loadSettingsStaffList();
           } else {
             formStatus.textContent = "✗ " + (data.error || "Failed"); formStatus.style.color = "#e74c3c";
           }
@@ -1857,6 +1816,7 @@
           });
         }
         loadStaff();
+        loadSettingsStaffList();
       }
 
       // Load when tab is shown
@@ -1989,7 +1949,9 @@
           });
           if (resp.ok) {
             statusEl.textContent = "✓ Saved"; statusEl.style.color = "#27ae60";
-            if (!staffId || !isAdmin) applyFeatureToggles(payload);
+            // Reload settings to apply changes across all tabs
+            loadSettings();
+            loadSettingsStaffList();
           } else {
             statusEl.textContent = "✗ Save failed"; statusEl.style.color = "#e74c3c";
           }
