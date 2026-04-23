@@ -107,10 +107,10 @@
     ".lc-card:hover{border-color:#0E553F}" +
     ".lc-card-title{font-size:.88rem;font-weight:600;color:#2d2d2d;line-height:1.3}" +
     ".lc-card-author{font-size:.78rem;color:#666}" +
-    ".lc-card-btn{display:inline-block;background:#0E553F;color:#fff;border:none;border-radius:14px;" +
-    "padding:5px 14px;font-size:.76rem;cursor:pointer;text-decoration:none;" +
+    ".lc-card-btn{display:inline-block;background:#0E553F!important;color:#fff!important;border:none;border-radius:14px;" +
+    "padding:5px 14px;font-size:.76rem;cursor:pointer;text-decoration:none!important;" +
     "text-align:center;transition:background .15s;align-self:flex-start}" +
-    ".lc-card-btn:hover{background:#0a3f2e}" +
+    ".lc-card-btn:hover{background:#0a3f2e!important}" +
     ".lc-pager{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0}" +
     ".lc-pager-row{display:flex;align-items:center;gap:6px}" +
     ".lc-pager-btn{background:#fff;border:1px solid #ccc;border-radius:14px;" +
@@ -349,6 +349,7 @@
         if (rec.url) {
           var btn = document.createElement("a"); btn.className = "lc-card-btn";
           btn.href = rec.url; btn.textContent = "View in catalog";
+          btn.target = "_blank"; btn.rel = "noopener";
           btn.addEventListener("click", function(e) { e.stopPropagation(); });
           card.appendChild(btn);
         }
