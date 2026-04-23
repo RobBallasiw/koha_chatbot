@@ -427,23 +427,42 @@ class SessionStore:
             conn.close()
 
     def is_handoff_active(self, session_id: str) -> bool:
-        """Check if a session has an active librarian handoff."""
+        """Check if a session has an active librarian handoff.
+
+        Returns False if the session is expired (timed out).
+        """
         conn = self._get_connection()
         try:
             row = conn.execute(
-                "SELECT handoff_active FROM sessions WHERE session_id = ?",
+                "SELECT handoff_active, last_activity FROM sessions WHERE session_id = ?",
                 (session_id,),
             ).fetchone()
-            return bool(row and row["handoff_active"])
+            if not row or not row["handoff_active"]:
+                return False
+            # Expired sessions don't have active handoffs
+            if self._session_status(row["last_activity"]) == "expired":
+                return False
+            return True
         finally:
             conn.close()
 
     def get_handoff_sessions(self, page: int = 1, page_size: int = 20) -> dict:
-        """Return sessions with active handoff requests."""
+        """Return sessions with active handoff requests.
+
+        Automatically deactivates handoffs for expired sessions.
+        """
         page = max(1, page)
         page_size = max(1, page_size)
         conn = self._get_connection()
         try:
+            # Auto-deactivate handoffs for expired sessions
+            cutoff = time.time() - SESSION_TIMEOUT
+            conn.execute(
+                "UPDATE sessions SET handoff_active = 0 WHERE handoff_active = 1 AND last_activity < ?",
+                (cutoff,),
+            )
+            conn.commit()
+
             total = conn.execute(
                 "SELECT COUNT(*) AS cnt FROM sessions WHERE handoff_active = 1"
             ).fetchone()["cnt"]
