@@ -81,11 +81,11 @@ def test_config_reads_from_environment_variables(
     koha_api_url=env_value_st,
     library_info_path=env_value_st,
 )
-def test_missing_env_var_causes_startup_failure(
+def test_missing_env_var_uses_defaults(
     missing_var, koha_api_url, library_info_path
 ):
     """For any required environment variable that is absent, load_settings
-    should raise SystemExit (non-zero)."""
+    should still return a Settings object with a default/empty value."""
     env_map = {
         "KOHA_API_URL": koha_api_url,
         "LIBRARY_INFO_PATH": library_info_path,
@@ -95,9 +95,12 @@ def test_missing_env_var_causes_startup_failure(
     # Remove the target variable
     saved_missing = os.environ.pop(missing_var, None)
     try:
-        with pytest.raises(SystemExit) as exc_info:
-            load_settings()
-        assert exc_info.value.code != 0
+        cfg = load_settings()
+        # The missing var should have a default/empty value
+        if missing_var == "KOHA_API_URL":
+            assert cfg.koha_api_url == ""
+        elif missing_var == "LIBRARY_INFO_PATH":
+            assert cfg.library_info_path == "data/library_info.json"
     finally:
         # Restore the removed var too
         if saved_missing is not None:

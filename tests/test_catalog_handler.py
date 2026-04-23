@@ -24,9 +24,10 @@ from app.models import CatalogRecord, ItemAvailability, SearchParameters
 # ---------------------------------------------------------------------------
 
 def _make_groq_client(response_text: str) -> MagicMock:
-    """Create a mock GroqClient that returns *response_text* from chat()."""
+    """Create a mock GroqClient that returns *response_text* from chat() and chat_with_system()."""
     client = MagicMock()
     client.chat.return_value = response_text
+    client.chat_with_system.return_value = response_text
     return client
 
 
@@ -65,7 +66,8 @@ async def test_extract_search_params_includes_history():
 
     await extract_search_params(client, "Dune", history)
 
-    call_messages = client.chat.call_args[0][0]
+    # extract_search_params uses chat_with_system(system_prompt, messages)
+    call_messages = client.chat_with_system.call_args[0][1]
     assert call_messages[0] == history[0]
 
 
@@ -99,15 +101,28 @@ async def test_search_catalog_api_error():
 
 @pytest.mark.asyncio
 async def test_search_catalog_parses_response():
-    """Koha API returns records → parsed into CatalogRecord list."""
+    """Koha API returns RSS records → parsed into CatalogRecord list."""
     params = SearchParameters(author="Morrison")
-    api_data = [
-        {"title": "Beloved", "author": "Toni Morrison", "call_number": "813.54 MOR", "isbn": "123"},
-        {"title": "Song of Solomon", "author": "Toni Morrison"},
-    ]
+    rss_xml = """<?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <channel>
+        <item>
+          <title>Beloved</title>
+          <dc:creator>Toni Morrison</dc:creator>
+          <dc:identifier>ISBN:123</dc:identifier>
+          <link>/cgi-bin/koha/opac-detail.pl?biblionumber=1</link>
+        </item>
+        <item>
+          <title>Song of Solomon</title>
+          <dc:creator>Toni Morrison</dc:creator>
+          <link>/cgi-bin/koha/opac-detail.pl?biblionumber=2</link>
+        </item>
+      </channel>
+    </rss>"""
 
     mock_response = MagicMock()
-    mock_response.json.return_value = api_data
+    mock_response.text = rss_xml
+    mock_response.status_code = 200
     mock_response.raise_for_status = MagicMock()
 
     with patch("app.catalog_handler.httpx.AsyncClient") as MockClient:
@@ -121,8 +136,8 @@ async def test_search_catalog_parses_response():
 
     assert len(result) == 2
     assert result[0].title == "Beloved"
-    assert result[0].call_number == "813.54 MOR"
-    assert result[1].call_number is None
+    assert result[0].isbn == "123"
+    assert result[1].title == "Song of Solomon"
 
 
 # ---------------------------------------------------------------------------
@@ -260,18 +275,13 @@ async def test_handle_catalog_query_no_results():
 
 @pytest.mark.asyncio
 async def test_handle_catalog_query_with_results():
-    """Catalog results found → LLM formats them."""
+    """Catalog results found → formatted response returned."""
     records = [CatalogRecord(title="Beloved", author="Toni Morrison", call_number="813.54 MOR")]
 
-    # First call: extract params, second call: format results
-    client = MagicMock()
-    client.chat.side_effect = [
-        '{"title": "Beloved"}',
-        "I found Beloved by Toni Morrison (813.54 MOR).",
-    ]
+    client = _make_groq_client('{"title": "Beloved"}')
 
-    with patch("app.catalog_handler.search_catalog", new_callable=AsyncMock) as mock_search:
-        mock_search.return_value = records
+    with patch("app.catalog_handler.search_catalog_raw", new_callable=AsyncMock) as mock_raw:
+        mock_raw.return_value = records
 
         result = await handle_catalog_query(client, "Beloved", "http://koha.test", [])
 
@@ -339,6 +349,7 @@ def test_property_search_param_extraction_valid_structure(message):
     # Mock the GroqClient to return a JSON with title = message
     mock_client = MagicMock()
     mock_client.chat.return_value = json.dumps({"title": message})
+    mock_client.chat_with_system.return_value = json.dumps({"title": message})
 
     result = asyncio.run(extract_search_params(mock_client, message, []))
 

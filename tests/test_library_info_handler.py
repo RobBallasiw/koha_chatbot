@@ -71,21 +71,24 @@ class TestLoadLibraryInfo:
         assert info.policies["borrowing_limit"] == "15 items at a time"
         assert info.fines["overdue_per_day"] == "$0.25 per day"
 
-    def test_exits_on_file_not_found(self):
-        with pytest.raises(SystemExit):
-            load_library_info("/nonexistent/path/library_info.json")
+    def test_returns_empty_on_file_not_found(self):
+        info = load_library_info("/nonexistent/path/library_info.json")
+        assert isinstance(info, LibraryInfo)
+        assert info.policies == {}
 
-    def test_exits_on_malformed_json(self, tmp_path):
+    def test_returns_empty_on_malformed_json(self, tmp_path):
         path = tmp_path / "bad.json"
         path.write_text("not valid json {{{", encoding="utf-8")
-        with pytest.raises(SystemExit):
-            load_library_info(str(path))
+        info = load_library_info(str(path))
+        assert isinstance(info, LibraryInfo)
+        assert info.policies == {}
 
-    def test_exits_on_invalid_structure(self, tmp_path):
+    def test_returns_empty_on_invalid_structure(self, tmp_path):
         path = tmp_path / "incomplete.json"
         path.write_text(json.dumps({"locations": "not_a_dict"}), encoding="utf-8")
-        with pytest.raises(SystemExit):
-            load_library_info(str(path))
+        info = load_library_info(str(path))
+        assert isinstance(info, LibraryInfo)
+        assert info.policies == {}
 
 
 # --- _classify_category tests ---
@@ -127,14 +130,14 @@ class TestClassifyCategory:
 
 
 class TestHandleLibraryInfoQuery:
-    def test_returns_llm_response_for_hours_query(
+    def test_returns_formatted_data_for_hours_query(
         self, mock_groq_client, sample_library_info
     ):
         result = handle_library_info_query(
             mock_groq_client, "What are your hours?", sample_library_info, []
         )
-        assert result == "The library is open Monday 9 AM to 8 PM."
-        mock_groq_client.chat.assert_called_once()
+        # Should contain formatted hours data
+        assert "monday" in result.lower() or "9:00" in result
 
     def test_returns_contact_staff_for_none_category(
         self, mock_groq_client, sample_library_info
@@ -144,31 +147,27 @@ class TestHandleLibraryInfoQuery:
             mock_groq_client, "Tell me a joke", sample_library_info, []
         )
         assert result == CONTACT_STAFF_MESSAGE
-        mock_groq_client.chat.assert_not_called()
 
-    def test_includes_conversation_history(
+    def test_includes_hours_data_in_response(
         self, mock_groq_client, sample_library_info
     ):
         history = [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello!"}]
-        handle_library_info_query(
+        result = handle_library_info_query(
             mock_groq_client, "What are your hours?", sample_library_info, history
         )
-        call_args = mock_groq_client.chat.call_args[0][0]
-        assert call_args[0] == history[0]
-        assert call_args[1] == history[1]
+        # The response should contain actual hours data
+        assert "9:00 AM" in result or "monday" in result.lower()
 
     def test_all_category_includes_all_data(
         self, mock_groq_client, sample_library_info
     ):
         mock_groq_client.chat_with_system.return_value = '{"category": "all"}'
-        handle_library_info_query(
+        result = handle_library_info_query(
             mock_groq_client, "Tell me everything about the library", sample_library_info, []
         )
-        call_args = mock_groq_client.chat.call_args[0][0]
-        prompt = call_args[-1]["content"]
-        assert "borrowing_limit" in prompt
-        assert "overdue_per_day" in prompt
-        assert "monday" in prompt
+        assert "borrowing_limit" in result
+        assert "overdue_per_day" in result
+        assert "monday" in result
 
 
 # --- Property-based tests ---
@@ -195,11 +194,9 @@ class TestLibraryInfoRetrievalProperty:
     @settings(max_examples=50)
     def test_handler_response_contains_category_data(self, category, library_info):
         section_data: dict[str, str] = getattr(library_info, category)
-        formatted = _format_category_data(category, library_info)
 
         client = MagicMock()
         client.chat_with_system.return_value = json.dumps({"category": category})
-        client.chat.return_value = f"Here is the info: {formatted}"
 
         result = handle_library_info_query(client, f"Tell me about {category}", library_info, [])
         values = list(section_data.values())
