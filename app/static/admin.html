@@ -70,7 +70,7 @@
     <!-- Dashboard (hidden until login) -->
     <div id="dashboard-view" class="hidden">
       <div id="error-container" class="error-msg hidden" role="alert" aria-live="polite"></div>
-      <div id="loading-indicator" class="loading hidden" role="status" aria-live="polite">Loading…</div>
+      <div id="loading-indicator" class="loading hidden" role="status" aria-live="polite"><div class="spinner"></div><div class="spinner-text">Loading…</div></div>
 
       <nav class="tab-nav" aria-label="Dashboard tabs">
         <button class="tab-btn active" data-tab="sessions-tab" type="button">Sessions</button>
@@ -555,7 +555,19 @@
     .message .msg-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 4px; }
     .message-user { background: #dbeafe; align-self: flex-start; border: 1px solid #bfdbfe; }
     .message-assistant { background: #f0fdf4; align-self: flex-end; border: 1px solid #bbf7d0; }
-    .loading { text-align: center; padding: 32px; color: #7f8c8d; font-size: 0.95rem; }
+    .loading {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(244,246,249,0.85); backdrop-filter: blur(2px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999; transition: opacity 0.3s ease;
+    }
+    .loading .spinner {
+      width: 36px; height: 36px; border: 3px solid #ecf0f1;
+      border-top-color: #2c3e50; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    .loading .spinner-text { margin-top: 12px; font-size: 0.9rem; color: #7f8c8d; }
+    @keyframes spin { to { transform: rotate(360deg); } }
     .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
     .hidden { display: none; }
 
@@ -799,8 +811,15 @@
         errorContainer.textContent = "";
         errorContainer.classList.add("hidden");
       }
-      function showLoading() { loadingIndicator.classList.remove("hidden"); }
-      function hideLoading() { loadingIndicator.classList.add("hidden"); }
+      function showLoading() {
+        loadingIndicator.style.opacity = "0";
+        loadingIndicator.classList.remove("hidden");
+        requestAnimationFrame(function() { loadingIndicator.style.opacity = "1"; });
+      }
+      function hideLoading() {
+        loadingIndicator.style.opacity = "0";
+        setTimeout(function() { loadingIndicator.classList.add("hidden"); }, 300);
+      }
       function formatTime(ts) {
         if (!ts) return "—";
         return new Date(ts * 1000).toLocaleString();
