@@ -2274,9 +2274,20 @@
             headers: { "X-Admin-Key": getKey() }
           });
           var data = await resp.json();
-          renderQueue(data.sessions || []);
+          var sessions = data.sessions || [];
+          renderQueue(sessions);
+          // If the active chat session is no longer in the queue, patron left
+          if (activeHandoffSid) {
+            var stillInQueue = sessions.some(function(s) { return s.session_id === activeHandoffSid; });
+            if (!stillInQueue) {
+              stopHandoffPoll();
+              handoffChatHeader.innerHTML = '<span>⚠️ Patron has left the chat</span>';
+              handoffInputBar.style.display = "none";
+              activeHandoffSid = null;
+            }
+          }
           // Update badge
-          var count = (data.sessions || []).length;
+          var count = sessions.length;
           var existing = handoffTabBtn.querySelector(".handoff-badge");
           if (count > 0) {
             if (!existing) {
@@ -2404,6 +2415,13 @@
           var data = await resp.json();
           if (data.messages) {
             renderHandoffMessages(data.messages);
+          }
+          // Detect if patron closed the page (session expired or handoff deactivated)
+          if (data.status === "expired") {
+            stopHandoffPoll();
+            handoffChatHeader.innerHTML = '<span>⚠️ Patron has left the chat (session expired)</span>';
+            handoffInputBar.style.display = "none";
+            loadHandoffQueue();
           }
         } catch (e) { console.error("Failed to poll handoff messages", e); }
       }

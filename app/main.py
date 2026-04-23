@@ -365,6 +365,9 @@ async def close_session(request: ChatRequest):
         return JSONResponse(status_code=400, content={"error": "Session identifier is required"})
     if session_store is not None:
         try:
+            # Deactivate any active handoff so it disappears from the live chat queue
+            if session_store.is_handoff_active(request.session_id):
+                session_store.deactivate_handoff(request.session_id)
             session_store.close_session(request.session_id)
         except Exception:
             logger.exception("Failed to close session %s", request.session_id)
