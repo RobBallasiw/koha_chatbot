@@ -124,28 +124,65 @@ def _classify_category(client: GroqClient, message: str) -> str | None:
         return None
 
 
+def _group_hours(hours: dict[str, str]) -> str:
+    """Group days with the same hours into ranges like 'Mon–Fri: 8:00 AM - 5:00 PM'."""
+    day_order = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    day_short = {"monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu",
+                 "friday": "Fri", "saturday": "Sat", "sunday": "Sun"}
+
+    # Build ordered list of (day, time) pairs
+    ordered = []
+    for day in day_order:
+        for key, val in hours.items():
+            if key.lower() == day:
+                ordered.append((day, val.strip()))
+                break
+
+    if not ordered:
+        # Fallback: just list whatever keys exist
+        return "\n".join(f"  📅 {k}: {v}" for k, v in hours.items())
+
+    # Group consecutive days with the same time
+    groups: list[tuple[list[str], str]] = []
+    for day, time_val in ordered:
+        if groups and groups[-1][1].lower() == time_val.lower():
+            groups[-1][0].append(day)
+        else:
+            groups.append(([day], time_val))
+
+    lines = []
+    for days, time_val in groups:
+        if len(days) == 1:
+            label = day_short[days[0]]
+        elif len(days) == 2:
+            label = f"{day_short[days[0]]} & {day_short[days[-1]]}"
+        else:
+            label = f"{day_short[days[0]]}–{day_short[days[-1]]}"
+        lines.append(f"  📅 {label}: {time_val}")
+
+    return "\n".join(lines)
+
+
 def _format_category_data(category: str, library_info: LibraryInfo) -> str:
     """Format the data for a matched category across all locations."""
     if category == "hours":
-        # Hours are per-location
         locations = library_info.get_all_locations()
         if not locations:
             return "(No location data available)"
         parts: list[str] = []
         for loc_name, loc_info in locations.items():
             if loc_info.hours:
-                header = loc_name
+                header = f"📍 {loc_name}"
                 if loc_info.address:
                     header += f" ({loc_info.address})"
-                lines = "\n".join(f"  - {key}: {value}" for key, value in loc_info.hours.items())
-                parts.append(f"{header}:\n{lines}")
+                grouped = _group_hours(loc_info.hours)
+                parts.append(f"{header}\n{grouped}")
         return "\n\n".join(parts) if parts else "(No hours data available)"
     else:
-        # Policies and fines are shared
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
             return "(No data available)"
-        return "\n".join(f"- {key}: {value}" for key, value in section.items())
+        return "\n".join(f"• {key}: {value}" for key, value in section.items())
 
 
 def handle_library_info_query(

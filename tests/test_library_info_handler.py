@@ -167,7 +167,7 @@ class TestHandleLibraryInfoQuery:
         )
         assert "borrowing_limit" in result
         assert "overdue_per_day" in result
-        assert "monday" in result
+        assert "Mon" in result
 
 
 # --- Property-based tests ---
