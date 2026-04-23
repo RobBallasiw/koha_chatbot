@@ -195,6 +195,18 @@
     chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts); });
   }
 
+  // Check if the existing session has expired — auto-reset to new chat
+  if (chatHistory.length > 0 && sid) {
+    fetch(CHATBOT_API + "/api/session-status/" + encodeURIComponent(sid))
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === "expired" || d.status === "not_found") {
+          resetToNewChat();
+        }
+      })
+      .catch(function() {});
+  }
+
   // Toggle — restore previous state
   var open = wasOpen;
   if (open) {
@@ -445,15 +457,8 @@
   });
 
   // New Chat button
-  document.getElementById("lc-new").addEventListener("click", function () {
-    // Close the old session on the server
-    if (sid) {
-      var blob = new Blob(
-        [JSON.stringify({ message: "", session_id: sid })],
-        { type: "application/json" }
-      );
-      navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
-    }
+  function resetToNewChat() {
+    stopPolling();
     chatHistory.length = 0;
     sid = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -471,7 +476,24 @@
       '<button class="lc-faq" data-q="How do I get a library membership?">&#127380; Membership</button>' +
       '<button class="lc-faq" data-q="What happens if I lose a book?">&#128269; Lost book</button>' +
       '</div>';
+    inp.disabled = false;
+    inp.placeholder = "Type your message…";
+    btn.disabled = false;
+    libBtn.style.opacity = "1";
+    libBtn.style.cursor = "pointer";
     saveState();
+  }
+
+  document.getElementById("lc-new").addEventListener("click", function () {
+    // Close the old session on the server
+    if (sid) {
+      var blob = new Blob(
+        [JSON.stringify({ message: "", session_id: sid })],
+        { type: "application/json" }
+      );
+      navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
+    }
+    resetToNewChat();
     inp.focus();
   });
 

@@ -202,6 +202,20 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/session-status/{session_id}")
+async def session_status(session_id: str):
+    """Check if a session is still active or has expired."""
+    if session_store is None:
+        return {"status": "unknown"}
+    try:
+        detail = session_store.get_session(session_id)
+        if detail is None:
+            return {"status": "not_found"}
+        return {"status": detail.status}
+    except Exception:
+        return {"status": "unknown"}
+
+
 @app.get("/")
 async def root():
     """Root endpoint — confirms the API is running."""
