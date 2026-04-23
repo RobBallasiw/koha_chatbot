@@ -1054,24 +1054,18 @@
         stopAutoRefresh();
         refreshTimer = setInterval(async function () {
           isBackgroundPoll = true;
-          // Poll stats
+          // Poll stats — reload page if data changed
           var statsData = await apiFetch("/admin/api/stats");
           if (statsData) {
             var sj = JSON.stringify(statsData);
-            if (sj !== lastStatsJson) {
+            if (lastStatsJson && sj !== lastStatsJson) {
               lastStatsJson = sj;
-              var ids = ["stat-total", "stat-messages", "stat-active", "stat-expired"];
-              var vals = [statsData.total_sessions, statsData.total_messages, statsData.active_sessions, statsData.expired_sessions];
-              for (var i = 0; i < ids.length; i++) {
-                var el = document.getElementById(ids[i]);
-                if (el.textContent !== String(vals[i])) {
-                  el.textContent = vals[i];
-                  triggerFade(el);
-                }
-              }
+              location.reload();
+              return;
             }
+            lastStatsJson = sj;
           }
-          // Poll session list only if on list view
+          // Poll session list — reload page if data changed
           if (!listView.classList.contains("hidden")) {
             var params = new URLSearchParams();
             params.set("page", currentPage);
@@ -1083,12 +1077,12 @@
             var sessData = await apiFetch("/admin/api/sessions?" + params.toString());
             if (sessData) {
               var ssj = JSON.stringify(sessData);
-              if (ssj !== lastSessionsJson) {
+              if (lastSessionsJson && ssj !== lastSessionsJson) {
                 lastSessionsJson = ssj;
-                renderSessionTable(sessData.sessions);
-                updatePagination(sessData.total);
-                triggerFade(sessionTbody);
+                location.reload();
+                return;
               }
+              lastSessionsJson = ssj;
             }
           }
           isBackgroundPoll = false;
