@@ -241,14 +241,18 @@ async def chat(request: ChatRequest):
 
     # --- Check if handoff is active (librarian takeover) ---
     if session_store is not None and session_store.is_handoff_active(request.session_id):
-        # Patron is in handoff mode — save their message silently, no bot reply
+        # Patron is in handoff mode — save their message to the live chat session
         session_mgr.add_message(request.session_id, "user", request.message)
         _store = session_store
         _sid = request.session_id
         _msg = request.message
         async def _persist_handoff():
             try:
-                _store.save_message(_sid, "user", _msg, intent="handoff")
+                live_chat = _store.get_active_live_chat(_sid)
+                if live_chat:
+                    _store.save_live_chat_message(live_chat["id"], "user", _msg)
+                else:
+                    _store.save_message(_sid, "user", _msg, intent="handoff")
             except Exception:
                 logger.exception("Failed to persist handoff message for session %s", _sid)
         asyncio.create_task(_persist_handoff())
@@ -286,6 +290,9 @@ async def chat(request: ChatRequest):
                 session_store.save_message(request.session_id, "user", request.message, intent="talk_to_librarian")
                 session_store.save_message(request.session_id, "assistant", reply)
                 session_store.activate_handoff(request.session_id)
+                # Create a separate live chat session
+                live_chat_id = session_store.create_live_chat(request.session_id)
+                logger.info("Created live chat %s for session %s", live_chat_id, request.session_id)
             except Exception:
                 logger.exception("Failed to activate handoff for session %s", request.session_id)
         # Send notification in background (ntfy push or email)
@@ -365,7 +372,11 @@ async def close_session(request: ChatRequest):
         return JSONResponse(status_code=400, content={"error": "Session identifier is required"})
     if session_store is not None:
         try:
-            # Deactivate any active handoff so it disappears from the live chat queue
+            # End any active live chat
+            live_chat = session_store.get_active_live_chat(request.session_id)
+            if live_chat:
+                session_store.end_live_chat(live_chat["id"])
+            # Deactivate any active handoff
             if session_store.is_handoff_active(request.session_id):
                 session_store.deactivate_handoff(request.session_id)
             session_store.close_session(request.session_id)
@@ -382,11 +393,12 @@ async def cancel_handoff(request: ChatRequest):
     if session_store is None:
         return JSONResponse(status_code=500, content={"error": "Store not available"})
     try:
-        # Only allow cancel if no staff has claimed it yet
-        claimed_by = session_store.get_handoff_claim(request.session_id)
-        if claimed_by:
+        live_chat = session_store.get_active_live_chat(request.session_id)
+        if not live_chat:
+            return JSONResponse(status_code=404, content={"error": "No active handoff"})
+        if live_chat["staff_username"]:
             return JSONResponse(status_code=409, content={"error": "A librarian has already joined. Cannot cancel."})
-        session_store.deactivate_handoff(request.session_id)
+        session_store.cancel_live_chat(live_chat["id"])
         session_store.save_message(
             request.session_id, "assistant",
             "Librarian request cancelled. I'm Hero, back to help! 👋 What else can I do for you?"
@@ -429,7 +441,7 @@ async def rate_handoff(request: HandoffRatingRequest):
         return JSONResponse(status_code=400, content={"error": "Rating must be 1 or -1"})
     if session_store is None:
         return JSONResponse(status_code=500, content={"error": "Store not available"})
-    # Look up who handled this session
+    # Look up who handled this session — check live chat first, fall back to old claim
     claimed_by = session_store.get_handoff_claim(request.session_id)
     if not claimed_by:
         return JSONResponse(status_code=400, content={"error": "No staff handler found for this session"})
@@ -452,15 +464,28 @@ async def get_messenger_link():
 async def poll_messages(session_id: str, since: float = 0):
     """Patron polls for new messages (librarian replies) since a timestamp."""
     if session_store is None:
-        return {"messages": [], "handoff_active": False, "handled_by": None}
+        return {"messages": [], "handoff_active": False, "handled_by": None, "live_chat_id": None}
     try:
-        msgs = session_store.get_new_messages_since(session_id, since)
         handoff = session_store.is_handoff_active(session_id)
-        claimed = session_store.get_handoff_claim(session_id)
-        return {"messages": msgs, "handoff_active": handoff, "handled_by": claimed}
+        live_chat = session_store.get_active_live_chat(session_id) if handoff else None
+        live_chat_id = live_chat["id"] if live_chat else None
+        handled_by = live_chat["staff_username"] if live_chat else None
+
+        # Get messages from the live chat session if it exists
+        if live_chat_id:
+            msgs = session_store.get_live_chat_messages(live_chat_id, since)
+        else:
+            msgs = session_store.get_new_messages_since(session_id, since)
+
+        return {
+            "messages": msgs,
+            "handoff_active": handoff,
+            "handled_by": handled_by,
+            "live_chat_id": live_chat_id,
+        }
     except Exception:
         logger.exception("Failed to poll messages for session %s", session_id)
-        return {"messages": [], "handoff_active": False, "handled_by": None}
+        return {"messages": [], "handoff_active": False, "handled_by": None, "live_chat_id": None}
 
 
 # Serve admin dashboard HTML at /admin/.

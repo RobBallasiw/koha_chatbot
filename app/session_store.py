@@ -250,6 +250,33 @@ class SessionStore:
             if "handoff_count" not in sess_cols:
                 conn.execute("ALTER TABLE sessions ADD COLUMN handoff_count INTEGER NOT NULL DEFAULT 0")
                 conn.commit()
+
+            # Create live_chat_sessions table for separate live chat tracking
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS live_chat_sessions (
+                    id TEXT PRIMARY KEY,
+                    parent_session_id TEXT NOT NULL,
+                    staff_username TEXT,
+                    status TEXT NOT NULL DEFAULT 'waiting',
+                    created_at REAL NOT NULL,
+                    claimed_at REAL,
+                    ended_at REAL,
+                    FOREIGN KEY (parent_session_id) REFERENCES sessions(session_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_lcs_parent ON live_chat_sessions(parent_session_id);
+                CREATE INDEX IF NOT EXISTS idx_lcs_status ON live_chat_sessions(status);
+
+                CREATE TABLE IF NOT EXISTS live_chat_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    live_chat_id TEXT NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp REAL NOT NULL,
+                    FOREIGN KEY (live_chat_id) REFERENCES live_chat_sessions(id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_lcm_chat ON live_chat_messages(live_chat_id);
+            """)
+            conn.commit()
         finally:
             conn.close()
 
@@ -506,6 +533,270 @@ class SessionStore:
                 {"role": r["role"], "content": r["content"], "timestamp": r["timestamp"]}
                 for r in rows
             ]
+        finally:
+            conn.close()
+
+    # ------------------------------------------------------------------
+    # Live chat session operations
+    # ------------------------------------------------------------------
+
+    def create_live_chat(self, parent_session_id: str) -> str:
+        """Create a new live chat session linked to a parent bot session.
+
+        Returns the new live chat session ID.
+        """
+        import uuid
+        live_chat_id = str(uuid.uuid4())
+        now = time.time()
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """INSERT INTO live_chat_sessions (id, parent_session_id, status, created_at)
+                   VALUES (?, ?, 'waiting', ?)""",
+                (live_chat_id, parent_session_id, now),
+            )
+            conn.commit()
+            return live_chat_id
+        except Exception:
+            logger.exception("Failed to create live chat for session %s", parent_session_id)
+            raise
+        finally:
+            conn.close()
+
+    def get_active_live_chat(self, parent_session_id: str) -> dict | None:
+        """Return the active live chat session for a parent session, or None."""
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                """SELECT id, parent_session_id, staff_username, status, created_at, claimed_at, ended_at
+                   FROM live_chat_sessions
+                   WHERE parent_session_id = ? AND status IN ('waiting', 'active')
+                   ORDER BY created_at DESC LIMIT 1""",
+                (parent_session_id,),
+            ).fetchone()
+            if not row:
+                return None
+            return {
+                "id": row["id"],
+                "parent_session_id": row["parent_session_id"],
+                "staff_username": row["staff_username"],
+                "status": row["status"],
+                "created_at": row["created_at"],
+                "claimed_at": row["claimed_at"],
+                "ended_at": row["ended_at"],
+            }
+        finally:
+            conn.close()
+
+    def claim_live_chat(self, live_chat_id: str, username: str) -> dict:
+        """Claim a live chat session. Returns ok/error dict."""
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT staff_username, status FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if not row:
+                return {"ok": False, "error": "Live chat not found"}
+            if row["status"] == "ended":
+                return {"ok": False, "error": "Live chat already ended"}
+            if row["staff_username"] and row["staff_username"] != username:
+                return {"ok": False, "claimed_by": row["staff_username"]}
+            conn.execute(
+                """UPDATE live_chat_sessions
+                   SET staff_username = ?, status = 'active', claimed_at = ?
+                   WHERE id = ?""",
+                (username, time.time(), live_chat_id),
+            )
+            # Also update the parent session's handoff_claimed_by for backward compat
+            parent = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if parent:
+                conn.execute(
+                    "UPDATE sessions SET handoff_claimed_by = ? WHERE session_id = ?",
+                    (username, parent["parent_session_id"]),
+                )
+            conn.commit()
+            return {"ok": True}
+        except Exception:
+            logger.exception("Failed to claim live chat %s", live_chat_id)
+            raise
+        finally:
+            conn.close()
+
+    def release_live_chat(self, live_chat_id: str) -> None:
+        """Release a claimed live chat so another staff can pick it up."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "UPDATE live_chat_sessions SET staff_username = NULL, status = 'waiting', claimed_at = NULL WHERE id = ?",
+                (live_chat_id,),
+            )
+            parent = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if parent:
+                conn.execute(
+                    "UPDATE sessions SET handoff_claimed_by = NULL WHERE session_id = ?",
+                    (parent["parent_session_id"],),
+                )
+            conn.commit()
+        except Exception:
+            logger.exception("Failed to release live chat %s", live_chat_id)
+            raise
+        finally:
+            conn.close()
+
+    def end_live_chat(self, live_chat_id: str) -> None:
+        """End a live chat session."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "UPDATE live_chat_sessions SET status = 'ended', ended_at = ? WHERE id = ?",
+                (time.time(), live_chat_id),
+            )
+            # Deactivate handoff on parent session
+            parent = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if parent:
+                conn.execute(
+                    "UPDATE sessions SET handoff_active = 0 WHERE session_id = ?",
+                    (parent["parent_session_id"],),
+                )
+            conn.commit()
+        except Exception:
+            logger.exception("Failed to end live chat %s", live_chat_id)
+            raise
+        finally:
+            conn.close()
+
+    def cancel_live_chat(self, live_chat_id: str) -> bool:
+        """Cancel a live chat (only if not yet claimed). Returns True if cancelled."""
+        conn = self._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT staff_username, status FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if not row or row["status"] == "ended":
+                return False
+            if row["staff_username"]:
+                return False  # Already claimed
+            conn.execute(
+                "UPDATE live_chat_sessions SET status = 'ended', ended_at = ? WHERE id = ?",
+                (time.time(), live_chat_id),
+            )
+            parent = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if parent:
+                conn.execute(
+                    "UPDATE sessions SET handoff_active = 0 WHERE session_id = ?",
+                    (parent["parent_session_id"],),
+                )
+            conn.commit()
+            return True
+        except Exception:
+            logger.exception("Failed to cancel live chat %s", live_chat_id)
+            raise
+        finally:
+            conn.close()
+
+    def save_live_chat_message(self, live_chat_id: str, role: str, content: str) -> None:
+        """Save a message to a live chat session."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO live_chat_messages (live_chat_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+                (live_chat_id, role, content, time.time()),
+            )
+            # Also update parent session's last_activity to keep it alive
+            parent = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if parent:
+                conn.execute(
+                    "UPDATE sessions SET last_activity = ? WHERE session_id = ?",
+                    (time.time(), parent["parent_session_id"]),
+                )
+            conn.commit()
+        except Exception:
+            logger.exception("Failed to save live chat message for %s", live_chat_id)
+            raise
+        finally:
+            conn.close()
+
+    def get_live_chat_messages(self, live_chat_id: str, since: float = 0) -> list[dict]:
+        """Return messages for a live chat session, optionally since a timestamp."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                """SELECT role, content, timestamp FROM live_chat_messages
+                   WHERE live_chat_id = ? AND timestamp > ?
+                   ORDER BY timestamp ASC, id ASC""",
+                (live_chat_id, since),
+            ).fetchall()
+            return [{"role": r["role"], "content": r["content"], "timestamp": r["timestamp"]} for r in rows]
+        finally:
+            conn.close()
+
+    def get_all_live_chat_messages(self, live_chat_id: str) -> list[dict]:
+        """Return all messages for a live chat session."""
+        return self.get_live_chat_messages(live_chat_id, since=0)
+
+    def get_waiting_live_chats(self, page: int = 1, page_size: int = 50) -> dict:
+        """Return live chat sessions waiting for or active with a librarian."""
+        page = max(1, page)
+        page_size = max(1, page_size)
+        cutoff = time.time() - SESSION_TIMEOUT
+        conn = self._get_connection()
+        try:
+            # Auto-end live chats whose parent session expired
+            conn.execute(
+                """UPDATE live_chat_sessions SET status = 'ended', ended_at = ?
+                   WHERE status IN ('waiting', 'active')
+                   AND parent_session_id IN (
+                       SELECT session_id FROM sessions WHERE last_activity < ?
+                   )""",
+                (time.time(), cutoff),
+            )
+            conn.commit()
+
+            total = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM live_chat_sessions WHERE status IN ('waiting', 'active')"
+            ).fetchone()["cnt"]
+            rows = conn.execute(
+                """SELECT lc.id, lc.parent_session_id, lc.staff_username, lc.status,
+                          lc.created_at, lc.claimed_at,
+                          s.message_count, s.last_activity
+                   FROM live_chat_sessions lc
+                   JOIN sessions s ON s.session_id = lc.parent_session_id
+                   WHERE lc.status IN ('waiting', 'active')
+                   ORDER BY lc.created_at DESC
+                   LIMIT ? OFFSET ?""",
+                (page_size, (page - 1) * page_size),
+            ).fetchall()
+            sessions = [
+                {
+                    "live_chat_id": r["id"],
+                    "session_id": r["parent_session_id"],
+                    "staff_username": r["staff_username"],
+                    "status": r["status"],
+                    "created_at": r["created_at"],
+                    "claimed_at": r["claimed_at"],
+                    "message_count": r["message_count"],
+                    "last_activity": r["last_activity"],
+                }
+                for r in rows
+            ]
+            return {"sessions": sessions, "total": total, "page": page, "page_size": page_size}
         finally:
             conn.close()
 

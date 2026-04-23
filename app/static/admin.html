@@ -2297,7 +2297,7 @@
           renderQueue(sessions);
           // If the active chat session is no longer in the queue, patron left
           if (activeHandoffSid) {
-            var stillInQueue = sessions.some(function(s) { return s.session_id === activeHandoffSid; });
+            var stillInQueue = sessions.some(function(s) { return s.live_chat_id === activeHandoffSid; });
             if (!stillInQueue) {
               stopHandoffPoll();
               handoffChatHeader.innerHTML = '<span>⚠️ Patron has left the chat</span>';
@@ -2332,51 +2332,54 @@
         var me = getMyUsername();
         sessions.forEach(function (s) {
           var div = document.createElement("div");
-          var isActive = s.session_id === activeHandoffSid;
-          var claimedByMe = s.claimed_by && s.claimed_by === me;
-          var claimedByOther = s.claimed_by && s.claimed_by !== me;
+          var lcId = s.live_chat_id;
+          var isActive = lcId === activeHandoffSid;
+          var claimedBy = s.staff_username;
+          var claimedByMe = claimedBy && claimedBy === me;
+          var claimedByOther = claimedBy && claimedBy !== me;
           div.className = "handoff-item" + (isActive ? " active" : "") + (claimedByOther ? " claimed-other" : "");
           var claimTag = "";
-          if (s.claimed_by) {
+          if (claimedBy) {
             claimTag = claimedByMe
               ? ' <span class="hi-claim hi-claim-me">You</span>'
-              : ' <span class="hi-claim hi-claim-other">' + escapeHtml(s.claimed_by) + '</span>';
+              : ' <span class="hi-claim hi-claim-other">' + escapeHtml(claimedBy) + '</span>';
           } else {
             claimTag = ' <span class="hi-claim hi-claim-open">Open</span>';
           }
           div.innerHTML =
             '<div class="hi-sid">' + s.session_id.substring(0, 16) + "…" + claimTag + "</div>" +
             '<div class="hi-meta">' + s.message_count + " msgs · " + fmtDate(s.last_activity) + "</div>";
-          div.addEventListener("click", function () { openHandoffChat(s.session_id, s.claimed_by); });
+          div.addEventListener("click", function () { openHandoffChat(lcId, s.session_id, claimedBy); });
           handoffList.appendChild(div);
         });
       }
 
-      async function openHandoffChat(sid, claimedBy) {
+      var activeParentSid = null; // track parent session_id for display
+
+      async function openHandoffChat(liveChatId, parentSid, claimedBy) {
         var me = getMyUsername();
         // If claimed by someone else, show a warning
         if (claimedBy && claimedBy !== me) {
           if (!confirm(claimedBy + " is already handling this session. Open anyway (read-only)?")) return;
           // Open read-only
-          activeHandoffSid = sid;
+          activeHandoffSid = liveChatId;
+          activeParentSid = parentSid;
           lastHandoffTs = 0;
           handoffChatHeader.innerHTML =
-            '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(claimedBy) + '</span></span>';
+            '<span>Session: ' + parentSid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(claimedBy) + '</span></span>';
           handoffInputBar.style.display = "none";
           handoffMessages.innerHTML = "";
-          handoffList.querySelectorAll(".handoff-item").forEach(function (el) {
-            el.classList.toggle("active", el.querySelector(".hi-sid").textContent.startsWith(sid.substring(0, 16)));
-          });
           await pollHandoffMessages();
           startHandoffPoll();
           return;
         }
 
-        // Claim the session
-        activeHandoffSid = sid;
+        // Claim the live chat session
+        activeHandoffSid = liveChatId;
+        activeParentSid = parentSid;
         lastHandoffTs = 0;
         try {
-          var claimResp = await fetch("/admin/api/sessions/" + encodeURIComponent(sid) + "/claim", {
+          var claimResp = await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/claim", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
             body: JSON.stringify({ username: me })
@@ -2386,25 +2389,27 @@
             var other = claimData.claimed_by || "someone";
             if (!confirm(other + " just claimed this session. Open read-only?")) {
               activeHandoffSid = null;
+              activeParentSid = null;
               return;
             }
             handoffChatHeader.innerHTML =
-              '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(other) + '</span></span>';
+              '<span>Session: ' + parentSid.substring(0, 20) + '… — <span style="color:#e67e22">Handled by ' + escapeHtml(other) + '</span></span>';
             handoffInputBar.style.display = "none";
           } else {
             handoffChatHeader.innerHTML =
-              '<span>Session: ' + sid.substring(0, 20) + '… — <span style="color:#27ae60">You are handling this</span></span>' +
+              '<span>Session: ' + parentSid.substring(0, 20) + '… — <span style="color:#27ae60">You are handling this</span></span>' +
               ' <button id="handoff-release-btn" type="button" style="font-size:0.75rem;padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;margin-left:8px">Release</button>';
             handoffInputBar.style.display = "flex";
             var releaseBtn = document.getElementById("handoff-release-btn");
             if (releaseBtn) {
               releaseBtn.addEventListener("click", async function () {
-                await fetch("/admin/api/sessions/" + encodeURIComponent(sid) + "/release", {
+                await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/release", {
                   method: "POST", headers: { "X-Admin-Key": getKey() }
                 });
                 handoffChatHeader.innerHTML = "<span>Released. Select a session from the queue.</span>";
                 handoffInputBar.style.display = "none";
                 activeHandoffSid = null;
+                activeParentSid = null;
                 stopHandoffPoll();
                 await loadHandoffQueue();
               });
@@ -2412,14 +2417,11 @@
           }
         } catch (e) {
           console.error("Failed to claim session", e);
-          handoffChatHeader.innerHTML = '<span>Session: ' + sid.substring(0, 20) + '…</span>';
+          handoffChatHeader.innerHTML = '<span>Session: ' + parentSid.substring(0, 20) + '…</span>';
           handoffInputBar.style.display = "flex";
         }
 
         handoffMessages.innerHTML = "";
-        handoffList.querySelectorAll(".handoff-item").forEach(function (el) {
-          el.classList.toggle("active", el.querySelector(".hi-sid").textContent.startsWith(sid.substring(0, 16)));
-        });
         await pollHandoffMessages();
         startHandoffPoll();
         if (handoffInputBar.style.display !== "none") handoffReplyInput.focus();
@@ -2428,17 +2430,17 @@
       async function pollHandoffMessages() {
         if (!activeHandoffSid) return;
         try {
-          var resp = await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid), {
+          var resp = await fetch("/admin/api/live-chat/" + encodeURIComponent(activeHandoffSid) + "/messages", {
             headers: { "X-Admin-Key": getKey() }
           });
           var data = await resp.json();
           if (data.messages) {
             renderHandoffMessages(data.messages);
           }
-          // Detect if patron closed the page (session expired or handoff deactivated)
-          if (data.status === "expired") {
+          // Detect if live chat has ended
+          if (data.status === "ended") {
             stopHandoffPoll();
-            handoffChatHeader.innerHTML = '<span>⚠️ Patron has left the chat (session expired)</span>';
+            handoffChatHeader.innerHTML = '<span>⚠️ Live chat has ended</span>';
             handoffInputBar.style.display = "none";
             loadHandoffQueue();
           }
@@ -2481,7 +2483,7 @@
         if (!text || !activeHandoffSid) return;
         handoffReplyInput.value = "";
         try {
-          await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid) + "/reply", {
+          await fetch("/admin/api/live-chat/" + encodeURIComponent(activeHandoffSid) + "/reply", {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
             body: JSON.stringify({ message: text, sender_name: getMyUsername() })
@@ -2495,12 +2497,13 @@
         if (!activeHandoffSid) return;
         if (!confirm("End this chat? The patron will be returned to the bot.")) return;
         try {
-          await fetch("/admin/api/sessions/" + encodeURIComponent(activeHandoffSid) + "/end-handoff", {
+          await fetch("/admin/api/live-chat/" + encodeURIComponent(activeHandoffSid) + "/end", {
             method: "POST",
             headers: { "X-Admin-Key": getKey() }
           });
           stopHandoffPoll();
           activeHandoffSid = null;
+          activeParentSid = null;
           handoffMessages.innerHTML = "";
           handoffChatHeader.innerHTML = "<span>Chat ended. Select another session.</span>";
           handoffInputBar.style.display = "none";

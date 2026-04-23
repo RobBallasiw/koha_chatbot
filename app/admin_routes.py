@@ -425,23 +425,42 @@ async def get_handoff_sessions(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ):
-    """Return sessions with active librarian handoff requests."""
+    """Return live chat sessions waiting for or active with a librarian."""
     store = _get_store()
     try:
-        return store.get_handoff_sessions(page=page, page_size=page_size)
+        return store.get_waiting_live_chats(page=page, page_size=page_size)
     except Exception:
         logger.exception("Failed to retrieve handoff sessions")
         return JSONResponse(status_code=500, content={"error": "Failed to retrieve handoff sessions"})
 
 
-@router.post("/sessions/{session_id}/reply")
-async def admin_reply(session_id: str, request: AdminReplyRequest):
-    """Send a librarian reply to a patron's chat session."""
+@router.post("/live-chat/{live_chat_id}/reply")
+async def live_chat_reply(live_chat_id: str, request: AdminReplyRequest):
+    """Send a librarian reply to a live chat session."""
     store = _get_store()
     if not request.message or not request.message.strip():
         return JSONResponse(status_code=400, content={"error": "Message is required"})
     try:
-        store.save_message(session_id, "librarian", request.message.strip())
+        store.save_live_chat_message(live_chat_id, "librarian", request.message.strip())
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to save reply for live chat %s", live_chat_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to send reply"})
+
+
+@router.post("/sessions/{session_id}/reply")
+async def admin_reply(session_id: str, request: AdminReplyRequest):
+    """Send a librarian reply — routes to live chat if one exists."""
+    store = _get_store()
+    if not request.message or not request.message.strip():
+        return JSONResponse(status_code=400, content={"error": "Message is required"})
+    try:
+        # Check for active live chat and route there
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            store.save_live_chat_message(live_chat["id"], "librarian", request.message.strip())
+        else:
+            store.save_message(session_id, "librarian", request.message.strip())
         return {"status": "ok"}
     except Exception:
         logger.exception("Failed to save admin reply for session %s", session_id)
@@ -452,14 +471,34 @@ class ClaimRequest(BaseModel):
     username: str
 
 
-@router.post("/sessions/{session_id}/claim")
-async def claim_handoff(session_id: str, request: ClaimRequest):
-    """Claim a handoff session so other staff can see who's handling it."""
+@router.post("/live-chat/{live_chat_id}/claim")
+async def claim_live_chat(live_chat_id: str, request: ClaimRequest):
+    """Claim a live chat session."""
     store = _get_store()
     if not request.username or not request.username.strip():
         return JSONResponse(status_code=400, content={"error": "Username is required"})
     try:
-        result = store.claim_handoff(session_id, request.username.strip())
+        result = store.claim_live_chat(live_chat_id, request.username.strip())
+        if not result["ok"]:
+            return JSONResponse(status_code=409, content=result)
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to claim live chat %s", live_chat_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to claim session"})
+
+
+@router.post("/sessions/{session_id}/claim")
+async def claim_handoff(session_id: str, request: ClaimRequest):
+    """Claim a handoff session — routes to live chat if one exists."""
+    store = _get_store()
+    if not request.username or not request.username.strip():
+        return JSONResponse(status_code=400, content={"error": "Username is required"})
+    try:
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            result = store.claim_live_chat(live_chat["id"], request.username.strip())
+        else:
+            result = store.claim_handoff(session_id, request.username.strip())
         if not result["ok"]:
             return JSONResponse(status_code=409, content=result)
         return {"status": "ok"}
@@ -468,24 +507,90 @@ async def claim_handoff(session_id: str, request: ClaimRequest):
         return JSONResponse(status_code=500, content={"error": "Failed to claim session"})
 
 
+@router.post("/live-chat/{live_chat_id}/release")
+async def release_live_chat(live_chat_id: str):
+    """Release a claimed live chat session."""
+    store = _get_store()
+    try:
+        store.release_live_chat(live_chat_id)
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to release live chat %s", live_chat_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to release session"})
+
+
 @router.post("/sessions/{session_id}/release")
 async def release_handoff(session_id: str):
     """Release a claimed handoff session."""
     store = _get_store()
     try:
-        store.release_handoff(session_id)
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            store.release_live_chat(live_chat["id"])
+        else:
+            store.release_handoff(session_id)
         return {"status": "ok"}
     except Exception:
         logger.exception("Failed to release handoff for session %s", session_id)
         return JSONResponse(status_code=500, content={"error": "Failed to release session"})
 
 
-@router.post("/sessions/{session_id}/end-handoff")
-async def end_handoff(session_id: str):
-    """End the librarian handoff and return the session to bot mode."""
+@router.post("/live-chat/{live_chat_id}/end")
+async def end_live_chat(live_chat_id: str):
+    """End a live chat session."""
     store = _get_store()
     try:
-        store.deactivate_handoff(session_id)
+        store.end_live_chat(live_chat_id)
+        # Save a "Hero is back" message on the parent session
+        conn = store._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT parent_session_id FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            if row:
+                store.save_message(row["parent_session_id"], "assistant",
+                    "The librarian has ended the chat. I'm Hero, back to help! 👋 What else can I do for you?")
+        finally:
+            conn.close()
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to end live chat %s", live_chat_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to end live chat"})
+
+
+@router.get("/live-chat/{live_chat_id}/messages")
+async def get_live_chat_messages(live_chat_id: str):
+    """Return all messages and status for a live chat session."""
+    store = _get_store()
+    try:
+        messages = store.get_all_live_chat_messages(live_chat_id)
+        # Get status
+        conn = store._get_connection()
+        try:
+            row = conn.execute(
+                "SELECT status FROM live_chat_sessions WHERE id = ?",
+                (live_chat_id,),
+            ).fetchone()
+            status = row["status"] if row else "ended"
+        finally:
+            conn.close()
+        return {"messages": messages, "status": status}
+    except Exception:
+        logger.exception("Failed to get messages for live chat %s", live_chat_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to get messages"})
+
+
+@router.post("/sessions/{session_id}/end-handoff")
+async def end_handoff(session_id: str):
+    """End the librarian handoff — routes to live chat if one exists."""
+    store = _get_store()
+    try:
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            store.end_live_chat(live_chat["id"])
+        else:
+            store.deactivate_handoff(session_id)
         store.save_message(session_id, "assistant",
             "The librarian has ended the chat. I'm Hero, back to help! 👋 What else can I do for you?")
         return {"status": "ok"}
