@@ -7,7 +7,7 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f4f6f9; color: #333; line-height: 1.5; }
-    header { background: #2c3e50; color: #fff; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+    header { background: #2c3e50; color: #fff; padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; transition: box-shadow 0.3s; }
     header h1 { font-size: 1.2rem; font-weight: 600; }
     .logout-btn { padding: 4px 12px; border: 1px solid #7f8c8d; border-radius: 4px; background: transparent; color: #fff; cursor: pointer; font-size: 0.85rem; }
     .logout-btn:hover { background: #34495e; }
@@ -19,7 +19,7 @@
 
     /* Login form */
     .login-overlay { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
-    .login-card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); width: 340px; }
+    .login-card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); width: 340px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%); }
     .login-card h2 { font-size: 1.2rem; color: #2c3e50; margin-bottom: 20px; text-align: center; }
     .login-card label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 4px; }
     .login-card input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; margin-bottom: 14px; }
@@ -29,19 +29,21 @@
 
     /* Stats panel */
     .stats-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: #fff; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .stat-card { background: #fff; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #3498db; position: relative; }
+    .stat-card .stat-icon { font-size: 1.4rem; margin-bottom: 4px; }
     .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; transition: opacity 0.3s ease; }
     .stat-card .stat-label { font-size: 0.85rem; color: #7f8c8d; margin-top: 4px; }
     .fade-update { animation: fadeIn 0.4s ease; }
     @keyframes fadeIn { from { opacity: 0.3; } to { opacity: 1; } }
 
     /* Tab navigation */
-    .tab-nav { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #ecf0f1; }
+    .tab-nav { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 2px solid #ecf0f1; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-nav::-webkit-scrollbar { height: 0; }
     .tab-btn { padding: 10px 20px; border: none; background: transparent; cursor: pointer; font-size: 0.9rem; color: #7f8c8d; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
     .tab-btn:hover { color: #2c3e50; }
     .tab-btn.active { color: #2c3e50; border-bottom-color: #2c3e50; font-weight: 600; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
+    .tab-content { display: none; opacity: 0; transition: opacity 0.2s ease; }
+    .tab-content.active { display: block; opacity: 1; }
 </style>
 </head>
 <body>
@@ -49,6 +51,7 @@
     <h1>Koha Chatbot Admin</h1>
     <div class="header-right">
       <span id="user-info" class="user-info hidden"></span>
+      <button id="dark-mode-btn" type="button" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem" aria-label="Toggle dark mode">🌙</button>
       <button class="logout-btn hidden" id="logout-btn" type="button" aria-label="Log out">Logout</button>
     </div>
   </header>
@@ -57,7 +60,7 @@
     <!-- Login Form -->
     <div id="login-view" class="login-overlay">
       <form class="login-card" id="login-form" aria-label="Admin login">
-        <h2>Admin Login</h2>
+        <h2>📚 Admin Login</h2>
         <div id="login-error" class="login-error hidden" role="alert"></div>
         <label for="login-username">Username</label>
         <input type="text" id="login-username" placeholder="Username" aria-label="Username" required>
@@ -86,19 +89,23 @@
 
       <div id="sessions-tab" class="tab-content active">
         <section id="stats-panel" class="stats-panel" aria-label="Session statistics">
-        <div class="stat-card">
+        <div class="stat-card" id="stat-card-total">
+          <div class="stat-icon">📊</div>
           <div class="stat-value" id="stat-total">—</div>
           <div class="stat-label">Total Sessions</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="stat-card-messages">
+          <div class="stat-icon">💬</div>
           <div class="stat-value" id="stat-messages">—</div>
           <div class="stat-label">Total Messages</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="stat-card-active">
+          <div class="stat-icon">🟢</div>
           <div class="stat-value" id="stat-active">—</div>
           <div class="stat-label">Active Sessions</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" id="stat-card-expired">
+          <div class="stat-icon">⏱️</div>
           <div class="stat-value" id="stat-expired">—</div>
           <div class="stat-label">Expired Sessions</div>
         </div>
@@ -587,7 +594,7 @@
     .session-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .session-table th, .session-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; }
     .session-table th { background: #ecf0f1; font-weight: 600; color: #2c3e50; }
-    .session-table tr:hover { background: #f9fafb; cursor: pointer; }
+    .session-table tr:hover { background: #f9fafb; cursor: pointer; border-left: 3px solid #2c3e50; }
     .session-table tr { transition: opacity 0.3s ease; }
     .session-table .status-active { color: #27ae60; font-weight: 600; }
     .session-table .status-expired { color: #95a5a6; font-weight: 600; }
@@ -821,6 +828,61 @@
     .settings-field-row { display: flex; align-items: center; gap: 12px; }
     .settings-field-row label { width: 200px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
     .settings-field-row input { width: 100px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+
+    /* Toast notifications */
+    .toast { padding: 12px 20px; border-radius: 6px; color: #fff; font-size: 0.88rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; max-width: 340px; }
+    .toast-success { background: #27ae60; }
+    .toast-error { background: #e74c3c; }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
+
+    /* Session badge */
+    .session-badge { background: #3498db; color: #fff; font-size: 0.65rem; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 40px 20px; color: #7f8c8d; }
+    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
+    .empty-state .empty-text { font-size: 0.9rem; }
+
+    /* Dark mode */
+    :root { --bg: #f4f6f9; --card-bg: #fff; --text: #333; --text-muted: #7f8c8d; --border: #ecf0f1; --header-bg: #2c3e50; }
+    body.dark-mode { --bg: #1a1a2e; --card-bg: #16213e; --text: #e0e0e0; --text-muted: #8899aa; --border: #2a2a4a; --header-bg: #0f3460; }
+    body.dark-mode { background: var(--bg); color: var(--text); }
+    body.dark-mode header { background: var(--header-bg); }
+    body.dark-mode .stat-card,
+    body.dark-mode .analytics-card,
+    body.dark-mode .detail-view,
+    body.dark-mode .login-card,
+    body.dark-mode .session-table,
+    body.dark-mode .handoff-queue,
+    body.dark-mode .handoff-chat,
+    body.dark-mode .staff-wrap,
+    body.dark-mode .settings-wrap,
+    body.dark-mode .li-editor-wrap,
+    body.dark-mode .archive-wrap { background: var(--card-bg); color: var(--text); }
+    body.dark-mode .login-card { background: linear-gradient(135deg, var(--card-bg) 0%, #1a1a3e 100%); }
+    body.dark-mode .login-card h2,
+    body.dark-mode .login-card label { color: var(--text); }
+    body.dark-mode .login-card input { background: var(--bg); color: var(--text); border-color: var(--border); }
+    body.dark-mode .session-table th { background: #1e2d4a; color: var(--text); }
+    body.dark-mode .session-table td { border-bottom-color: var(--border); color: var(--text); }
+    body.dark-mode .session-table tr:hover { background: #1e2d4a; }
+    body.dark-mode .tab-btn { color: var(--text-muted); }
+    body.dark-mode .tab-btn.active { color: #fff; border-bottom-color: #3498db; }
+    body.dark-mode .tab-nav { border-bottom-color: var(--border); }
+    body.dark-mode .controls input,
+    body.dark-mode .controls select,
+    body.dark-mode .analytics-controls select { background: var(--bg); color: var(--text); border-color: var(--border); }
+    body.dark-mode .quality-item,
+    body.dark-mode .li-shared-section,
+    body.dark-mode .settings-section,
+    body.dark-mode .staff-form,
+    body.dark-mode .staff-ratings-section { background: #1a1a3e; border-color: var(--border); color: var(--text); }
+
+    /* Mobile: 2-column stat cards */
+    @media (max-width: 768px) {
+      .tab-btn { white-space: nowrap; flex-shrink: 0; }
+    }
   </style>
 
   <script>
@@ -855,6 +917,51 @@
       const detailMessages = document.getElementById("detail-messages");
 
       // --- Helpers ---
+
+      // Toast notification system
+      function showToast(msg, type) {
+        var container = document.getElementById("toast-container");
+        var toast = document.createElement("div");
+        toast.className = "toast toast-" + (type === "error" ? "error" : "success");
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(function() { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 3000);
+      }
+
+      // Dark mode toggle
+      (function initDarkMode() {
+        var btn = document.getElementById("dark-mode-btn");
+        if (localStorage.getItem("darkMode") === "true") {
+          document.body.classList.add("dark-mode");
+          btn.textContent = "☀️";
+        }
+        btn.addEventListener("click", function() {
+          document.body.classList.toggle("dark-mode");
+          var isDark = document.body.classList.contains("dark-mode");
+          localStorage.setItem("darkMode", isDark);
+          btn.textContent = isDark ? "☀️" : "🌙";
+        });
+      })();
+
+      // Header shadow on scroll
+      window.addEventListener("scroll", function() {
+        var header = document.querySelector("header");
+        if (window.scrollY > 0) {
+          header.style.boxShadow = "0 2px 8px rgba(0,0,0,0.15)";
+        } else {
+          header.style.boxShadow = "none";
+        }
+      });
+
+      // Stat card accent colors
+      (function initStatCardColors() {
+        var colors = { "stat-card-total": "#3498db", "stat-card-messages": "#27ae60", "stat-card-active": "#f39c12", "stat-card-expired": "#95a5a6" };
+        for (var id in colors) {
+          var el = document.getElementById(id);
+          if (el) el.style.borderLeftColor = colors[id];
+        }
+      })();
+
       function showError(msg) {
         errorContainer.textContent = msg;
         errorContainer.classList.remove("hidden");
@@ -1001,6 +1108,17 @@
         document.getElementById("stat-messages").textContent = data.total_messages;
         document.getElementById("stat-active").textContent = data.active_sessions;
         document.getElementById("stat-expired").textContent = data.expired_sessions;
+        // Update session count badge on Sessions tab
+        var sessionsTabBtn = document.querySelector('[data-tab="sessions-tab"]');
+        if (sessionsTabBtn) {
+          var badge = sessionsTabBtn.querySelector(".session-badge");
+          if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "session-badge";
+            sessionsTabBtn.appendChild(badge);
+          }
+          badge.textContent = data.total_sessions;
+        }
       }
 
       // --- Session List ---
@@ -2763,5 +2881,6 @@
       }
     })();
   </script>
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:8px"></div>
 </body>
 </html>
