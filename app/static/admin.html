@@ -1073,12 +1073,10 @@
       });
 
       // --- API fetch ---
-      let isBackgroundPoll = false;
 
       async function apiFetch(path) {
         if (!apiKey) { showError("Not authenticated."); return null; }
         clearError();
-        if (!isBackgroundPoll) showLoading();
         try {
           const resp = await fetch(path, { headers: { "X-Admin-Key": apiKey } });
           if (resp.status === 401) {
@@ -1095,7 +1093,7 @@
         } catch (err) {
           showError("Network error: " + err.message);
           return null;
-        } finally { if (!isBackgroundPoll) hideLoading(); }
+        }
       }
 
       // --- Stats ---
@@ -1251,7 +1249,6 @@
       function startAutoRefresh() {
         stopAutoRefresh();
         refreshTimer = setInterval(async function () {
-          isBackgroundPoll = true;
           // Poll stats — update in-place if data changed
           var statsData = await apiFetch("/admin/api/stats");
           if (statsData) {
@@ -1289,7 +1286,6 @@
               }
             }
           }
-          isBackgroundPoll = false;
         }, REFRESH_INTERVAL);
       }
 
