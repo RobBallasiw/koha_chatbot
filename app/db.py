@@ -72,13 +72,24 @@ class TursoResultSet:
         return next(self._iter)
 
 
+# Shared httpx client for Turso connections (avoids creating new TCP connections per request)
+_turso_client: httpx.Client | None = None
+
+
+def _get_turso_client() -> httpx.Client:
+    global _turso_client
+    if _turso_client is None:
+        _turso_client = httpx.Client(timeout=30.0)
+    return _turso_client
+
+
 class TursoConnection:
     """SQLite-compatible connection wrapper that talks to Turso via HTTP API."""
 
     def __init__(self, base_url: str, auth_token: str):
         self._base_url = base_url
         self._auth_token = auth_token
-        self._client = httpx.Client(timeout=30.0)
+        self._client = _get_turso_client()
         self.row_factory = None  # compatibility
 
     def _execute_batch(self, statements: list[dict]) -> list[dict]:
