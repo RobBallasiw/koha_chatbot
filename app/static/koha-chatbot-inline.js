@@ -589,6 +589,7 @@
       .then(function(d) {
         if (d.handled_by && d.handled_by !== handoffHandler) {
           handoffHandler = d.handled_by;
+          _origAddMsg("A librarian (" + d.handled_by + ") has joined the chat! 👋", "b");
         }
         // Process new messages first
         if (d.messages && d.messages.length > 0) {
