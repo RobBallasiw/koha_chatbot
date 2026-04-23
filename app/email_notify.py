@@ -34,7 +34,7 @@ def send_handoff_email(
             💬 Join Live Chat
           </a>
         </div>
-        <p style="color:#bdc3c7;font-size:0.78rem;text-align:center;margin:16px 0 0">— Hero (Library Chatbot)</p>
+        <p style="color:#bdc3c7;font-size:0.78rem;text-align:center;margin:16px 0 0">— Lorma Library Chatbot</p>
       </div>
     </div>
     """
@@ -43,11 +43,11 @@ def send_handoff_email(
         f"A patron has requested to speak with a librarian.\n\n"
         f"Session: {session_id[:16]}…\n\n"
         f"Join the live chat:\n{chat_link}\n\n"
-        f"— Hero (Library Chatbot)"
+        f"— Lorma Library Chatbot"
     )
 
     msg = MIMEMultipart("alternative")
-    msg["From"] = smtp_email
+    msg["From"] = f"Lorma Library Chatbot <{smtp_email}>"
     msg["To"] = librarian_email
     msg["Subject"] = subject
     msg.attach(MIMEText(plain_body, "plain"))
