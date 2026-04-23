@@ -572,6 +572,10 @@
     handoffActive = true;
     libBtn.style.opacity = "0.5";
     libBtn.style.cursor = "default";
+    // Disable input while waiting for librarian
+    inp.disabled = true;
+    inp.placeholder = "Waiting for a librarian…";
+    btn.disabled = true;
     // Show cancel button while waiting
     showCancelButton();
     pollTimer = setInterval(pollForMessages, 3000);
@@ -582,6 +586,10 @@
     handoffHandler = null;
     libBtn.style.opacity = "1";
     libBtn.style.cursor = "pointer";
+    // Re-enable input
+    inp.disabled = false;
+    inp.placeholder = "Type your message…";
+    btn.disabled = false;
     removeCancelButton();
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   }
@@ -632,6 +640,10 @@
         if (d.handled_by && d.handled_by !== handoffHandler) {
           handoffHandler = d.handled_by;
           removeCancelButton();
+          // Re-enable input now that a librarian is here
+          inp.disabled = false;
+          inp.placeholder = "Type your message…";
+          btn.disabled = false;
           _origAddMsg("A librarian has joined the chat! 👋", "b");
         }
         // Process new messages first
