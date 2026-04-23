@@ -811,14 +811,23 @@
         errorContainer.textContent = "";
         errorContainer.classList.add("hidden");
       }
+      var _loadingCount = 0;
       function showLoading() {
-        loadingIndicator.style.opacity = "0";
-        loadingIndicator.classList.remove("hidden");
-        requestAnimationFrame(function() { loadingIndicator.style.opacity = "1"; });
+        _loadingCount++;
+        if (_loadingCount === 1) {
+          loadingIndicator.style.opacity = "0";
+          loadingIndicator.classList.remove("hidden");
+          requestAnimationFrame(function() { loadingIndicator.style.opacity = "1"; });
+        }
       }
       function hideLoading() {
-        loadingIndicator.style.opacity = "0";
-        setTimeout(function() { loadingIndicator.classList.add("hidden"); }, 300);
+        _loadingCount = Math.max(0, _loadingCount - 1);
+        if (_loadingCount === 0) {
+          loadingIndicator.style.opacity = "0";
+          setTimeout(function() {
+            if (_loadingCount === 0) loadingIndicator.classList.add("hidden");
+          }, 200);
+        }
       }
       function formatTime(ts) {
         if (!ts) return "—";
