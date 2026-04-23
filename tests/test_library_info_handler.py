@@ -130,14 +130,15 @@ class TestClassifyCategory:
 
 
 class TestHandleLibraryInfoQuery:
-    def test_returns_formatted_data_for_hours_query(
+    def test_returns_llm_response_for_hours_query(
         self, mock_groq_client, sample_library_info
     ):
         result = handle_library_info_query(
             mock_groq_client, "What are your hours?", sample_library_info, []
         )
-        # Should contain formatted hours data
-        assert "monday" in result.lower() or "9:00" in result
+        # LLM generates the response using the data
+        assert "library" in result.lower() or "9 AM" in result
+        mock_groq_client.chat.assert_called_once()
 
     def test_returns_contact_staff_for_none_category(
         self, mock_groq_client, sample_library_info
@@ -148,26 +149,28 @@ class TestHandleLibraryInfoQuery:
         )
         assert result == CONTACT_STAFF_MESSAGE
 
-    def test_includes_hours_data_in_response(
+    def test_includes_conversation_history(
         self, mock_groq_client, sample_library_info
     ):
         history = [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello!"}]
-        result = handle_library_info_query(
+        handle_library_info_query(
             mock_groq_client, "What are your hours?", sample_library_info, history
         )
-        # The response should contain actual hours data
-        assert "9:00 AM" in result or "monday" in result.lower()
+        # History should be passed to the LLM
+        call_args = mock_groq_client.chat.call_args[0][0]
+        assert call_args[0] == history[0]
+        assert call_args[1] == history[1]
 
-    def test_all_category_includes_all_data(
+    def test_all_category_uses_llm(
         self, mock_groq_client, sample_library_info
     ):
         mock_groq_client.chat_with_system.return_value = '{"category": "all"}'
+        mock_groq_client.chat.return_value = "Here's everything about the library: hours, policies, and fines."
         result = handle_library_info_query(
             mock_groq_client, "Tell me everything about the library", sample_library_info, []
         )
-        assert "borrowing_limit" in result
-        assert "overdue_per_day" in result
-        assert "Mon" in result
+        assert "library" in result.lower()
+        mock_groq_client.chat.assert_called_once()
 
 
 # --- Property-based tests ---
@@ -194,9 +197,12 @@ class TestLibraryInfoRetrievalProperty:
     @settings(max_examples=50)
     def test_handler_response_contains_category_data(self, category, library_info):
         section_data: dict[str, str] = getattr(library_info, category)
+        formatted = _format_category_data(category, library_info)
 
         client = MagicMock()
         client.chat_with_system.return_value = json.dumps({"category": category})
+        # LLM returns a response that includes the formatted data
+        client.chat.return_value = f"Here is the info: {formatted}"
 
         result = handle_library_info_query(client, f"Tell me about {category}", library_info, [])
         values = list(section_data.values())

@@ -60,11 +60,12 @@ class TestChatWorksWhenDBUnavailable:
         with (
             patch("app.main.classify_query", return_value=classification),
             patch("app.main.session_manager") as mock_sm,
-            patch("app.main.groq_client"),
+            patch("app.main.groq_client") as mock_groq,
             patch("app.main.settings"),
             patch("app.main.session_store", None),
         ):
             mock_sm.get_history.return_value = []
+            mock_groq.chat.return_value = "Hey there! 👋 How can I help you today?"
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(

@@ -362,10 +362,31 @@ async def chat(request: ChatRequest):
             client, request.message, library_info, history
         )
     elif classification.intent == "greeting":
-        reply = GREETING_MESSAGE
+        # Use LLM for a natural greeting response
+        if client:
+            try:
+                messages: list[dict] = []
+                if history:
+                    messages.extend(history)
+                messages.append({"role": "user", "content": request.message})
+                reply = client.chat(messages)
+            except Exception:
+                reply = GREETING_MESSAGE
+        else:
+            reply = GREETING_MESSAGE
     else:
-        # "unclear" intent — ask for clarification
-        reply = CLARIFYING_MESSAGE
+        # "unclear" or unmatched intent — let the LLM try to help
+        if client:
+            try:
+                messages = []
+                if history:
+                    messages.extend(history)
+                messages.append({"role": "user", "content": request.message})
+                reply = client.chat(messages)
+            except Exception:
+                reply = CLARIFYING_MESSAGE
+        else:
+            reply = CLARIFYING_MESSAGE
 
     # --- Store conversation turn ---
     session_mgr.add_message(request.session_id, "user", request.message)
