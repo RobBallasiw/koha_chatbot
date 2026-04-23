@@ -747,3 +747,38 @@ async def delete_all_handoff_records(
     except Exception:
         logger.exception("Failed to delete handoff records")
         return JSONResponse(status_code=500, content={"error": "Failed to delete records"})
+
+
+# ------------------------------------------------------------------
+# Live Chat History
+# ------------------------------------------------------------------
+
+
+@router.get("/live-chat-history")
+async def get_live_chat_history(
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    staff: str | None = Query(default=None),
+    days: int = Query(default=30, ge=1, le=365),
+):
+    """Return completed live chat sessions."""
+    store = _get_store()
+    try:
+        return store.get_live_chat_history(page=page, page_size=page_size, staff=staff, days=days)
+    except Exception:
+        logger.exception("Failed to retrieve live chat history")
+        return JSONResponse(status_code=500, content={"error": "Failed to retrieve live chat history"})
+
+
+@router.delete("/live-chat-history")
+async def delete_live_chat_history(
+    days: int = Query(default=0, ge=0, le=365),
+):
+    """Delete ended live chat sessions. If days > 0, only older than that."""
+    store = _get_store()
+    try:
+        result = store.delete_live_chat_history(days=days)
+        return result
+    except Exception:
+        logger.exception("Failed to delete live chat history")
+        return JSONResponse(status_code=500, content={"error": "Failed to delete live chat history"})

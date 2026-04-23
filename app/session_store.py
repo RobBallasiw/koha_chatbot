@@ -1025,6 +1025,90 @@ class SessionStore:
             conn.close()
 
     # ------------------------------------------------------------------
+    # Live chat history
+    # ------------------------------------------------------------------
+
+    def get_live_chat_history(
+        self, page: int = 1, page_size: int = 20, staff: str | None = None, days: int = 30,
+    ) -> dict:
+        """Return completed live chat sessions with message counts and ratings."""
+        page = max(1, page)
+        page_size = max(1, page_size)
+        cutoff = time.time() - (days * 86400)
+        conn = self._get_connection()
+        try:
+            where = "WHERE lc.status = 'ended' AND lc.created_at >= ?"
+            params: list = [cutoff]
+            if staff:
+                where += " AND lc.staff_username = ?"
+                params.append(staff)
+
+            total = conn.execute(
+                f"SELECT COUNT(*) AS cnt FROM live_chat_sessions lc {where}", params,
+            ).fetchone()["cnt"]
+
+            rows = conn.execute(
+                f"""SELECT lc.id, lc.parent_session_id, lc.staff_username, lc.status,
+                           lc.created_at, lc.claimed_at, lc.ended_at,
+                           s.display_name,
+                           (SELECT COUNT(*) FROM live_chat_messages WHERE live_chat_id = lc.id) AS msg_count,
+                           sr.rating
+                    FROM live_chat_sessions lc
+                    LEFT JOIN sessions s ON s.session_id = lc.parent_session_id
+                    LEFT JOIN staff_ratings sr ON sr.session_id = lc.parent_session_id
+                    {where}
+                    ORDER BY lc.ended_at DESC
+                    LIMIT ? OFFSET ?""",
+                params + [page_size, (page - 1) * page_size],
+            ).fetchall()
+
+            entries = [
+                {
+                    "live_chat_id": r["id"],
+                    "session_id": r["parent_session_id"],
+                    "display_name": r["display_name"] or "",
+                    "handled_by": r["staff_username"] or "—",
+                    "created_at": r["created_at"],
+                    "claimed_at": r["claimed_at"],
+                    "ended_at": r["ended_at"],
+                    "msg_count": r["msg_count"],
+                    "rating": r["rating"],
+                }
+                for r in rows
+            ]
+            return {"sessions": entries, "total": total, "page": page, "page_size": page_size}
+        finally:
+            conn.close()
+
+    def delete_live_chat_history(self, days: int = 0) -> dict:
+        """Delete ended live chat sessions and their messages."""
+        conn = self._get_connection()
+        try:
+            where = "WHERE status = 'ended'"
+            params: list = []
+            if days > 0:
+                cutoff = time.time() - (days * 86400)
+                where += " AND ended_at < ?"
+                params.append(cutoff)
+
+            ids = [r["id"] for r in conn.execute(
+                f"SELECT id FROM live_chat_sessions {where}", params,
+            ).fetchall()]
+            if not ids:
+                return {"deleted": 0}
+
+            ph = ",".join("?" for _ in ids)
+            conn.execute(f"DELETE FROM live_chat_messages WHERE live_chat_id IN ({ph})", ids)
+            conn.execute(f"DELETE FROM live_chat_sessions WHERE id IN ({ph})", ids)
+            conn.commit()
+            return {"deleted": len(ids)}
+        except Exception:
+            logger.exception("Failed to delete live chat history")
+            raise
+        finally:
+            conn.close()
+
+    # ------------------------------------------------------------------
     # Read operations
     # ------------------------------------------------------------------
 

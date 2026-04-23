@@ -520,6 +520,58 @@
             <div class="messages" id="archive-detail-messages" aria-label="Archived message transcript"></div>
           </div>
         </div>
+
+        <div style="margin-top:28px;padding-top:20px;border-top:2px solid #ecf0f1">
+          <div class="archive-header">
+            <h3>💬 Live Chat History</h3>
+            <div class="analytics-controls" style="margin:0">
+              <label for="lch-days">Time range:</label>
+              <select id="lch-days" aria-label="Live chat history time range">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+              <label for="lch-staff-filter">Staff:</label>
+              <select id="lch-staff-filter" aria-label="Filter by staff">
+                <option value="">All staff</option>
+              </select>
+              <button id="lch-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
+            </div>
+          </div>
+          <table class="session-table" id="lch-table" aria-label="Live chat history">
+            <thead>
+              <tr>
+                <th scope="col">Patron</th>
+                <th scope="col">Handled By</th>
+                <th scope="col">Started</th>
+                <th scope="col">Ended</th>
+                <th scope="col">Messages</th>
+                <th scope="col">Rating</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="lch-tbody"></tbody>
+          </table>
+          <nav class="pagination" aria-label="Live chat history pagination">
+            <button id="lch-prev-btn" type="button" disabled>← Prev</button>
+            <span id="lch-page-info">Page 1</span>
+            <button id="lch-next-btn" type="button" disabled>Next →</button>
+          </nav>
+          <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+            <button id="lch-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All History</button>
+            <span id="lch-delete-status" class="li-status"></span>
+          </div>
+        </div>
+
+        <div id="lch-detail" class="hidden" style="margin-top:20px">
+          <div class="detail-view">
+            <div class="detail-header">
+              <dl class="detail-meta" id="lch-detail-meta"></dl>
+              <button class="back-btn" id="lch-back-btn" type="button">← Back to history</button>
+            </div>
+            <div class="messages" id="lch-detail-messages" aria-label="Live chat transcript"></div>
+          </div>
+        </div>
       </div><!-- end archive-tab -->
 
     </div>
@@ -2277,8 +2329,148 @@
           if (btn.dataset.tab === "archive-tab") {
             populateStaffFilter();
             loadArchive();
+            loadLiveChatHistory();
           }
         });
+      });
+
+      // --- Live Chat History ---
+      var lchPage = 1;
+      var lchTbody = document.getElementById("lch-tbody");
+      var lchDays = document.getElementById("lch-days");
+      var lchStaffFilter = document.getElementById("lch-staff-filter");
+      var lchDetail = document.getElementById("lch-detail");
+      var lchTable = document.getElementById("lch-table");
+
+      document.getElementById("lch-refresh-btn").addEventListener("click", function() { lchPage = 1; loadLiveChatHistory(); });
+      lchDays.addEventListener("change", function() { lchPage = 1; loadLiveChatHistory(); });
+      lchStaffFilter.addEventListener("change", function() { lchPage = 1; loadLiveChatHistory(); });
+      document.getElementById("lch-prev-btn").addEventListener("click", function() { if (lchPage > 1) { lchPage--; loadLiveChatHistory(); } });
+      document.getElementById("lch-next-btn").addEventListener("click", function() { lchPage++; loadLiveChatHistory(); });
+
+      async function loadLiveChatHistory() {
+        // Populate staff filter
+        try {
+          var staffResp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
+          var staffList = await staffResp.json();
+          var sel = lchStaffFilter;
+          while (sel.options.length > 1) sel.remove(1);
+          staffList.forEach(function(s) {
+            var opt = document.createElement("option");
+            opt.value = s.username;
+            opt.textContent = s.display_name || s.username;
+            sel.appendChild(opt);
+          });
+        } catch(e) {}
+
+        var params = new URLSearchParams();
+        params.set("page", lchPage);
+        params.set("page_size", "20");
+        params.set("days", lchDays.value);
+        var staff = lchStaffFilter.value;
+        if (staff) params.set("staff", staff);
+        try {
+          var resp = await fetch("/admin/api/live-chat-history?" + params.toString(), {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          renderLiveChatHistory(data.sessions || []);
+          var totalPages = Math.max(1, Math.ceil((data.total || 0) / 20));
+          document.getElementById("lch-prev-btn").disabled = lchPage <= 1;
+          document.getElementById("lch-next-btn").disabled = lchPage >= totalPages;
+          document.getElementById("lch-page-info").textContent = "Page " + lchPage + " of " + totalPages;
+        } catch(e) { console.error("Failed to load live chat history", e); }
+      }
+
+      function renderLiveChatHistory(sessions) {
+        lchTbody.innerHTML = "";
+        if (!sessions.length) {
+          lchTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#7f8c8d">No live chat history found.</td></tr>';
+          return;
+        }
+        sessions.forEach(function(s) {
+          var tr = document.createElement("tr");
+          var ratingHtml;
+          if (s.rating === 1) ratingHtml = '<span class="rating-badge rating-positive">👍</span>';
+          else if (s.rating === -1) ratingHtml = '<span class="rating-badge rating-negative">👎</span>';
+          else ratingHtml = '<span class="rating-badge rating-none">—</span>';
+          tr.innerHTML =
+            "<td>" + esc(s.display_name || s.session_id.substring(0, 12)) + "</td>" +
+            "<td>" + esc(s.handled_by) + "</td>" +
+            "<td>" + fmtDate(s.created_at) + "</td>" +
+            "<td>" + fmtDate(s.ended_at) + "</td>" +
+            "<td>" + s.msg_count + "</td>" +
+            "<td>" + ratingHtml + "</td>" +
+            '<td><button class="back-btn" style="padding:3px 10px;font-size:0.78rem">View</button></td>';
+          tr.querySelector("button").addEventListener("click", function() {
+            openLiveChatDetail(s.live_chat_id, s.display_name || s.session_id.substring(0, 12), s.handled_by);
+          });
+          lchTbody.appendChild(tr);
+        });
+      }
+
+      async function openLiveChatDetail(liveChatId, name, handledBy) {
+        lchTable.classList.add("hidden");
+        lchTable.parentElement.querySelector(".pagination").classList.add("hidden");
+        lchDetail.classList.remove("hidden");
+        document.getElementById("lch-detail-meta").innerHTML =
+          "<dt>Patron</dt><dd>" + esc(name) + "</dd>" +
+          "<dt>Handled By</dt><dd>" + esc(handledBy || "—") + "</dd>";
+        var msgContainer = document.getElementById("lch-detail-messages");
+        msgContainer.innerHTML = '<p style="color:#7f8c8d">Loading…</p>';
+        try {
+          var resp = await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/messages", {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          msgContainer.innerHTML = "";
+          if (!data.messages || !data.messages.length) {
+            msgContainer.innerHTML = '<p style="color:#7f8c8d">No messages.</p>';
+            return;
+          }
+          data.messages.forEach(function(m) {
+            var div = document.createElement("article");
+            var cls = "message ";
+            if (m.role === "user") cls += "message-user";
+            else if (m.role === "librarian") cls += "message-librarian";
+            else cls += "message-assistant";
+            div.className = cls;
+            var label = m.role === "user" ? "👤 Patron" : m.role === "librarian" ? "👩‍💼 Librarian" : "🤖 Hero";
+            div.innerHTML = '<div class="msg-meta">' + label + " — " + fmtDate(m.timestamp) + "</div><div>" + esc(m.content) + "</div>";
+            msgContainer.appendChild(div);
+          });
+        } catch(e) {
+          msgContainer.innerHTML = '<p style="color:#e74c3c">Failed to load messages.</p>';
+        }
+      }
+
+      document.getElementById("lch-back-btn").addEventListener("click", function() {
+        lchDetail.classList.add("hidden");
+        lchTable.classList.remove("hidden");
+        lchTable.parentElement.querySelector(".pagination").classList.remove("hidden");
+      });
+
+      document.getElementById("lch-delete-all-btn").addEventListener("click", async function() {
+        if (!confirm("Delete all live chat history? This cannot be undone.")) return;
+        var statusEl = document.getElementById("lch-delete-status");
+        try {
+          var resp = await fetch("/admin/api/live-chat-history", {
+            method: "DELETE", headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            statusEl.textContent = "✓ Deleted " + (data.deleted || 0) + " records";
+            statusEl.style.color = "#27ae60";
+            loadLiveChatHistory();
+          } else {
+            statusEl.textContent = "✗ " + (data.error || "Failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch(e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function() { statusEl.textContent = ""; }, 5000);
       });
     })();
 
