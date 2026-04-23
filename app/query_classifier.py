@@ -120,8 +120,27 @@ def classify_query(
                     return ClassificationResult(intent="catalog_search", confidence=0.95)
                 break
 
-    # Step 3: Default to catalog_search for unmatched messages
-    # (avoids slow LLM call — catalog handler handles vague queries gracefully)
+    # Step 3: Try LLM classification if available
+    import os
+    llm_available = bool(os.environ.get("OPENROUTER_API_KEY") or
+                         "openrouter" in os.environ.get("OLLAMA_URL", "").lower() or
+                         "groq" in os.environ.get("OLLAMA_URL", "").lower())
+
+    if client and llm_available:
+        try:
+            prompt = CLASSIFICATION_PROMPT.format(message=message)
+            messages: list[dict] = []
+            if conversation_history:
+                messages.extend(conversation_history[-4:])
+            messages.append({"role": "user", "content": prompt})
+            raw = client.chat_with_system(CLASSIFICATION_SYSTEM_PROMPT, messages)
+            result = _parse_classification(raw)
+            logger.info("LLM-classified as %s (%.2f): %s", result.intent, result.confidence, message[:50])
+            return result
+        except Exception:
+            logger.info("LLM classification failed, defaulting to catalog_search")
+
+    # Step 4: Default to catalog_search for unmatched messages
     logger.info("Default-classified as catalog_search: %s", message[:50])
     return ClassificationResult(intent="catalog_search", confidence=0.7)
 

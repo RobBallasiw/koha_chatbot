@@ -362,10 +362,39 @@ async def chat(request: ChatRequest):
             client, request.message, library_info, history
         )
     elif classification.intent == "greeting":
-        reply = GREETING_MESSAGE
+        # Use LLM for a friendly greeting if available
+        if client and os.environ.get("OPENROUTER_API_KEY"):
+            try:
+                messages_for_llm: list[dict] = []
+                if history:
+                    messages_for_llm.extend(history[-4:])
+                messages_for_llm.append({"role": "user", "content": request.message})
+                llm_reply = client.chat(messages_for_llm)
+                if llm_reply and "trouble" not in llm_reply.lower():
+                    reply = llm_reply
+                else:
+                    reply = GREETING_MESSAGE
+            except Exception:
+                reply = GREETING_MESSAGE
+        else:
+            reply = GREETING_MESSAGE
     else:
-        # "unclear" intent — ask for clarification
-        reply = CLARIFYING_MESSAGE
+        # "unclear" intent — use LLM if available, otherwise static message
+        if client and os.environ.get("OPENROUTER_API_KEY"):
+            try:
+                messages_for_llm = []
+                if history:
+                    messages_for_llm.extend(history[-4:])
+                messages_for_llm.append({"role": "user", "content": request.message})
+                llm_reply = client.chat(messages_for_llm)
+                if llm_reply and "trouble" not in llm_reply.lower():
+                    reply = llm_reply
+                else:
+                    reply = CLARIFYING_MESSAGE
+            except Exception:
+                reply = CLARIFYING_MESSAGE
+        else:
+            reply = CLARIFYING_MESSAGE
 
     # --- Store conversation turn ---
     session_mgr.add_message(request.session_id, "user", request.message)

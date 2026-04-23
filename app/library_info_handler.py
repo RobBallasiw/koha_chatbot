@@ -185,37 +185,27 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
         return "\n".join(f"• {key}: {value}" for key, value in section.items())
 
 
+def _is_llm_available(client: GroqClient) -> bool:
+    """Check if the LLM client is configured with a real API (not local Ollama fallback)."""
+    import os
+    return bool(os.environ.get("OPENROUTER_API_KEY") or
+                "openrouter" in os.environ.get("OLLAMA_URL", "").lower() or
+                "groq" in os.environ.get("OLLAMA_URL", "").lower())
+
+
 def handle_library_info_query(
     client: GroqClient,
     message: str,
     library_info: LibraryInfo,
     conversation_history: list[dict],
 ) -> str:
-    """Handle a library information query from a patron.
-
-    Parameters
-    ----------
-    client:
-        A configured :class:`GroqClient` instance.
-    message:
-        The patron's latest message text.
-    library_info:
-        The loaded :class:`LibraryInfo` data.
-    conversation_history:
-        Prior conversation turns as ``{"role": ..., "content": ...}`` dicts.
-
-    Returns
-    -------
-    str
-        A natural language response, or a "contact staff" message when
-        no relevant info category is found.
-    """
+    """Handle a library information query from a patron."""
     category = _classify_category(client, message)
 
     if category is None:
         return CONTACT_STAFF_MESSAGE
 
-    # Build data string — either a single category or all categories
+    # Build data string
     if category == "all":
         parts = []
         for cat in ("hours", "policies", "fines"):
@@ -226,5 +216,19 @@ def handle_library_info_query(
     else:
         data_str = _format_category_data(category, library_info)
 
-    # Return the data directly — avoids a slow LLM call for straightforward info
+    # Try LLM for a conversational reply
+    if client and _is_llm_available(client):
+        try:
+            prompt = INFO_RESPONSE_PROMPT.format(message=message, data=data_str)
+            messages: list[dict] = []
+            if conversation_history:
+                messages.extend(conversation_history[-4:])  # Last 2 turns for context
+            messages.append({"role": "user", "content": prompt})
+            reply = client.chat(messages)
+            if reply and "trouble" not in reply.lower() and "moment" not in reply.lower():
+                return reply
+        except Exception:
+            logger.info("LLM unavailable for library info, using formatted data")
+
+    # Fallback: return formatted data directly
     return f"Here's what I found 📚:\n\n{data_str}"
