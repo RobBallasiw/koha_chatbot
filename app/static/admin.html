@@ -1148,20 +1148,29 @@
 
       // --- Auto-login from cached session ---
       if (apiKey) {
-        // Verify the account still exists before restoring session
+        // Show loading overlay while verifying
+        loginView.classList.add("hidden");
+        dashboardView.classList.remove("hidden");
+        logoutBtn.classList.remove("hidden");
+        showLoading();
+
         (async function() {
           var username = sessionStorage.getItem("admin_username") || "";
           try {
             var resp = await fetch("/admin/api/verify-staff/" + encodeURIComponent(username), {
               headers: { "X-Admin-Key": apiKey }
             });
-            if (resp.status === 401) { logoutBtn.click(); return; }
-            var data = await resp.json();
-            if (!data.valid) { logoutBtn.click(); return; }
-          } catch(e) { logoutBtn.click(); return; }
-          loginView.classList.add("hidden");
-          dashboardView.classList.remove("hidden");
-          logoutBtn.classList.remove("hidden");
+            if (resp.status === 401 || !(await resp.json()).valid) {
+              hideLoading();
+              logoutBtn.click();
+              return;
+            }
+          } catch(e) {
+            hideLoading();
+            logoutBtn.click();
+            return;
+          }
+          hideLoading();
           showUserInfo();
           applyRoleVisibility();
           loadStats();
