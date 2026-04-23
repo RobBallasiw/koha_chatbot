@@ -574,6 +574,7 @@
   function startPolling() {
     if (pollTimer) return;
     handoffActive = true;
+    handoffHandler = null;
     libBtn.style.opacity = "0.5";
     libBtn.style.cursor = "default";
     // Disable input while waiting for librarian
@@ -587,7 +588,7 @@
 
   function stopPolling() {
     handoffActive = false;
-    handoffHandler = null;
+    // Don't reset handoffHandler — prevents duplicate "joined" messages
     libBtn.style.opacity = "1";
     libBtn.style.cursor = "pointer";
     // Re-enable input
@@ -650,13 +651,19 @@
           btn.disabled = false;
           _origAddMsg("A librarian has joined the chat! 👋", "b");
         }
-        // Process new messages first
+        // Process new messages
         if (d.messages && d.messages.length > 0) {
           d.messages.forEach(function(m) {
-            if (m.role === "librarian" && m.timestamp > lastPollTs) {
+            if (m.timestamp <= lastPollTs) return;
+            if (m.role === "librarian") {
               _origAddMsg("👩‍💼 Librarian: " + m.content, "b", m.timestamp);
-            } else if (m.role === "assistant" && m.timestamp > lastPollTs) {
-              _origAddMsg(m.content, "b", m.timestamp);
+            } else if (m.role === "assistant") {
+              // Skip the "Hero is back" end-handoff message — we show our own UI for that
+              if (m.content && m.content.indexOf("Hero, back to help") !== -1) {
+                // don't display
+              } else {
+                _origAddMsg(m.content, "b", m.timestamp);
+              }
             }
             if (m.timestamp > lastPollTs) lastPollTs = m.timestamp;
           });
