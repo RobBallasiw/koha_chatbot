@@ -348,7 +348,6 @@
         if (rec.url) {
           var btn = document.createElement("a"); btn.className = "lc-card-btn";
           btn.href = rec.url; btn.textContent = "View in catalog";
-          btn.target = "_blank"; btn.rel = "noopener";
           btn.addEventListener("click", function(e) { e.stopPropagation(); });
           card.appendChild(btn);
         }
