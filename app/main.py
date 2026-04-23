@@ -211,7 +211,15 @@ async def format_results(request: dict):
 @app.get("/health")
 async def health():
     """Simple health-check endpoint."""
-    return {"status": "ok"}
+    has_key = bool(os.environ.get("OPENROUTER_API_KEY"))
+    llm_url = os.environ.get("OLLAMA_URL", "not set")
+    llm_model = os.environ.get("OLLAMA_MODEL", "not set")
+    return {
+        "status": "ok",
+        "llm_enabled": has_key,
+        "llm_url": llm_url,
+        "llm_model": llm_model,
+    }
 
 
 @app.get("/api/session-status/{session_id}")
