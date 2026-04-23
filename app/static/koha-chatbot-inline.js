@@ -574,7 +574,6 @@
   function startPolling() {
     if (pollTimer) return;
     handoffActive = true;
-    handoffHandler = null;
     libBtn.style.opacity = "0.5";
     libBtn.style.cursor = "default";
     // Disable input while waiting for librarian
@@ -707,7 +706,8 @@
   addMsg = function(t, c, ts) {
     _origAddMsg(t, c, ts);
     if (c === "b" && t && t.indexOf("notified a librarian") !== -1) {
-      // Set poll timestamp to NOW so we don't re-fetch the notification message
+      // Fresh handoff request — reset handler and start polling
+      handoffHandler = null;
       lastPollTs = Date.now() / 1000;
       startPolling();
     }
@@ -721,7 +721,19 @@
       .then(function(d) {
         if (d.handoff_active) {
           lastPollTs = Date.now() / 1000;
+          // If a librarian already claimed, set handoffHandler so we don't
+          // show the "joined" message again on reload
+          if (d.handled_by) {
+            handoffHandler = d.handled_by;
+          }
           startPolling();
+          // If librarian already joined, re-enable input (startPolling disables it)
+          if (d.handled_by) {
+            inp.disabled = false;
+            inp.placeholder = "Type your message…";
+            btn.disabled = false;
+            removeCancelButton();
+          }
         }
       })
       .catch(function() {});
