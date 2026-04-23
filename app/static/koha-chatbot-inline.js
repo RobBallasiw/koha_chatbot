@@ -149,7 +149,6 @@
     '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
     '<button class="lc-faq" data-q="How do I renew a book?">&#128260; Renew a book</button>' +
     '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
-    '<button class="lc-faq" data-q="How do I get a library membership?">&#127380; Membership</button>' +
     '<button class="lc-faq" data-q="What happens if I lose a book?">&#128269; Lost book</button>' +
     '</div>' +
     '</div>' +
@@ -474,7 +473,6 @@
       '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
       '<button class="lc-faq" data-q="How do I renew a book?">&#128260; Renew a book</button>' +
       '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
-      '<button class="lc-faq" data-q="How do I get a library membership?">&#127380; Membership</button>' +
       '<button class="lc-faq" data-q="What happens if I lose a book?">&#128269; Lost book</button>' +
       '</div>';
     inp.disabled = false;
