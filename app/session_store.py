@@ -174,6 +174,10 @@ class SessionStore:
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_messages_intent ON messages(intent)"
             )
+            # Composite index for analytics queries
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_messages_analytics ON messages(role, timestamp)"
+            )
             conn.commit()
 
             # Ensure feedback table exists (for databases created before this feature).
@@ -1285,113 +1289,73 @@ class SessionStore:
             conn.close()
 
     def get_analytics(self, days: int = 30) -> AnalyticsResponse:
-        """Return analytics data for the admin dashboard.
-
-        Parameters
-        ----------
-        days:
-            Number of days to look back for analytics data.
-        """
-        import datetime
-
+        """Return analytics data for the admin dashboard."""
         cutoff = time.time() - (days * 86400)
         conn = self._get_connection()
         try:
-            # Intent breakdown (user messages only)
-            intent_rows = conn.execute(
+            # Single query: get all user messages in period with their metadata
+            rows = conn.execute(
                 """
-                SELECT COALESCE(intent, 'unknown') AS intent, COUNT(*) AS cnt
+                SELECT COALESCE(intent, 'unknown') AS intent,
+                       CAST(strftime('%H', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS hour,
+                       CAST(strftime('%w', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS dow
                 FROM messages
                 WHERE role = 'user' AND timestamp >= ?
-                GROUP BY intent
-                ORDER BY cnt DESC
                 """,
                 (cutoff,),
             ).fetchall()
-            intent_breakdown = [
-                IntentCount(intent=r["intent"], count=r["cnt"])
-                for r in intent_rows
-            ]
 
-            # Hourly activity (all messages)
-            hour_rows = conn.execute(
+            # Process in Python (single pass)
+            intent_counts: dict[str, int] = {}
+            hour_counts: dict[int, int] = {}
+            dow_counts: dict[int, int] = {}
+            failed = 0
+            total_user = len(rows)
+
+            for r in rows:
+                intent = r["intent"]
+                intent_counts[intent] = intent_counts.get(intent, 0) + 1
+                hour_counts[r["hour"]] = hour_counts.get(r["hour"], 0) + 1
+                dow_counts[r["dow"]] = dow_counts.get(r["dow"], 0) + 1
+                if intent in ("unclear", "catalog_vague"):
+                    failed += 1
+
+            # Also count non-user messages for hourly/daily (quick second query)
+            other_rows = conn.execute(
                 """
                 SELECT CAST(strftime('%H', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS hour,
-                       COUNT(*) AS cnt
+                       CAST(strftime('%w', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS dow
                 FROM messages
-                WHERE timestamp >= ?
-                GROUP BY hour
-                ORDER BY hour
+                WHERE role != 'user' AND timestamp >= ?
                 """,
                 (cutoff,),
             ).fetchall()
-            # Fill all 24 hours
-            hour_map = {r["hour"]: r["cnt"] for r in hour_rows}
-            hourly_activity = [
-                HourlyActivity(hour=h, count=hour_map.get(h, 0))
-                for h in range(24)
-            ]
+            for r in other_rows:
+                hour_counts[r["hour"]] = hour_counts.get(r["hour"], 0) + 1
+                dow_counts[r["dow"]] = dow_counts.get(r["dow"], 0) + 1
 
-            # Daily activity (all messages)
-            day_rows = conn.execute(
-                """
-                SELECT CAST(strftime('%w', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS dow,
-                       COUNT(*) AS cnt
-                FROM messages
-                WHERE timestamp >= ?
-                GROUP BY dow
-                ORDER BY dow
-                """,
-                (cutoff,),
-            ).fetchall()
+            intent_breakdown = sorted(
+                [IntentCount(intent=k, count=v) for k, v in intent_counts.items()],
+                key=lambda x: x.count, reverse=True,
+            )
+            hourly_activity = [HourlyActivity(hour=h, count=hour_counts.get(h, 0)) for h in range(24)]
             day_names = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-            dow_map = {r["dow"]: r["cnt"] for r in day_rows}
-            daily_activity = [
-                DailyActivity(day=day_names[d], count=dow_map.get(d, 0))
-                for d in range(7)
-            ]
+            daily_activity = [DailyActivity(day=day_names[d], count=dow_counts.get(d, 0)) for d in range(7)]
 
             # Average messages per session
             avg_row = conn.execute(
-                """
-                SELECT AVG(message_count) AS avg_msgs
-                FROM sessions
-                WHERE created_at >= ?
-                """,
+                "SELECT AVG(message_count) AS avg_msgs FROM sessions WHERE created_at >= ?",
                 (cutoff,),
             ).fetchone()
             avg_messages = round(avg_row["avg_msgs"] or 0.0, 1)
-
-            # Failed queries (unclear + catalog_vague)
-            failed_row = conn.execute(
-                """
-                SELECT COUNT(*) AS cnt
-                FROM messages
-                WHERE role = 'user' AND timestamp >= ?
-                  AND intent IN ('unclear', 'catalog_vague')
-                """,
-                (cutoff,),
-            ).fetchone()
-            failed_queries = failed_row["cnt"]
-
-            # Total user messages in period
-            total_row = conn.execute(
-                """
-                SELECT COUNT(*) AS cnt
-                FROM messages
-                WHERE role = 'user' AND timestamp >= ?
-                """,
-                (cutoff,),
-            ).fetchone()
-            total_user_messages = total_row["cnt"]
 
             return AnalyticsResponse(
                 intent_breakdown=intent_breakdown,
                 hourly_activity=hourly_activity,
                 daily_activity=daily_activity,
                 avg_messages_per_session=avg_messages,
-                failed_queries=failed_queries,
-                total_user_messages=total_user_messages,
+                failed_queries=failed,
+                total_user_messages=total_user,
             )
         finally:
             conn.close()
