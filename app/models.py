@@ -124,6 +124,7 @@ class SessionSummary(BaseModel):
     last_activity: float
     message_count: int
     status: str  # "active" or "expired"
+    display_name: str = ""
 
 
 class SessionDetail(BaseModel):
@@ -134,6 +135,7 @@ class SessionDetail(BaseModel):
     last_activity: float
     message_count: int
     status: str
+    display_name: str = ""
     messages: list[MessageRecord]
 
 

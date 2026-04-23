@@ -1,6 +1,7 @@
 """Turso/SQLite-backed persistent storage for chat sessions and messages."""
 
 import logging
+import random
 import time
 from pathlib import Path
 
@@ -28,6 +29,25 @@ from app.session_manager import SESSION_TIMEOUT
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB_PATH = "/tmp/sessions.db"
+
+_ADJECTIVES = [
+    "Blue", "Red", "Green", "Gold", "Silver", "Bright", "Calm", "Swift",
+    "Warm", "Cool", "Happy", "Brave", "Quiet", "Bold", "Gentle", "Wise",
+    "Lucky", "Sunny", "Misty", "Coral", "Amber", "Ivory", "Jade", "Ruby",
+]
+_NOUNS = [
+    "Owl", "Fox", "Bear", "Deer", "Wolf", "Hawk", "Dove", "Lynx",
+    "Panda", "Otter", "Robin", "Crane", "Finch", "Heron", "Koala", "Raven",
+    "Tiger", "Eagle", "Whale", "Seal", "Lark", "Swan", "Wren", "Jay",
+]
+
+
+def _generate_display_name() -> str:
+    """Generate a random friendly name like 'Blue Owl 42'."""
+    adj = random.choice(_ADJECTIVES)
+    noun = random.choice(_NOUNS)
+    num = random.randint(10, 99)
+    return f"{adj} {noun} {num}"
 
 
 class SessionStore:
@@ -251,6 +271,11 @@ class SessionStore:
                 conn.execute("ALTER TABLE sessions ADD COLUMN handoff_count INTEGER NOT NULL DEFAULT 0")
                 conn.commit()
 
+            # Add display_name column for friendly session names
+            if "display_name" not in sess_cols:
+                conn.execute("ALTER TABLE sessions ADD COLUMN display_name TEXT DEFAULT ''")
+                conn.commit()
+
             # Create live_chat_sessions table for separate live chat tracking
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS live_chat_sessions (
@@ -307,16 +332,17 @@ class SessionStore:
         conn = self._get_connection()
         try:
             cur = conn.cursor()
-            # Upsert session row
+            # Upsert session row — generate display_name for new sessions
+            name = _generate_display_name()
             cur.execute(
                 """
-                INSERT INTO sessions (session_id, created_at, last_activity, message_count)
-                VALUES (?, ?, ?, 1)
+                INSERT INTO sessions (session_id, created_at, last_activity, message_count, display_name)
+                VALUES (?, ?, ?, 1, ?)
                 ON CONFLICT(session_id) DO UPDATE SET
                     last_activity = MAX(sessions.last_activity, excluded.last_activity),
                     message_count = sessions.message_count + 1
                 """,
-                (session_id, ts, ts),
+                (session_id, ts, ts, name),
             )
             cur.execute(
                 """
@@ -775,7 +801,7 @@ class SessionStore:
             rows = conn.execute(
                 """SELECT lc.id, lc.parent_session_id, lc.staff_username, lc.status,
                           lc.created_at, lc.claimed_at,
-                          s.message_count, s.last_activity
+                          s.message_count, s.last_activity, s.display_name
                    FROM live_chat_sessions lc
                    JOIN sessions s ON s.session_id = lc.parent_session_id
                    WHERE lc.status IN ('waiting', 'active')
@@ -793,6 +819,7 @@ class SessionStore:
                     "claimed_at": r["claimed_at"],
                     "message_count": r["message_count"],
                     "last_activity": r["last_activity"],
+                    "display_name": r["display_name"] or "",
                 }
                 for r in rows
             ]
@@ -1035,7 +1062,7 @@ class SessionStore:
 
             # Fetch all matching sessions (we need to compute status in Python).
             rows = conn.execute(
-                f"SELECT s.session_id, s.created_at, s.last_activity, s.message_count {base} ORDER BY s.last_activity DESC",
+                f"SELECT s.session_id, s.created_at, s.last_activity, s.message_count, s.display_name {base} ORDER BY s.last_activity DESC",
                 params,
             ).fetchall()
 
@@ -1047,6 +1074,7 @@ class SessionStore:
                     last_activity=r["last_activity"],
                     message_count=r["message_count"],
                     status=self._session_status(r["last_activity"]),
+                    display_name=r["display_name"] or "",
                 )
                 for r in rows
             ]
@@ -1072,7 +1100,7 @@ class SessionStore:
         conn = self._get_connection()
         try:
             row = conn.execute(
-                "SELECT session_id, created_at, last_activity, message_count FROM sessions WHERE session_id = ?",
+                "SELECT session_id, created_at, last_activity, message_count, display_name FROM sessions WHERE session_id = ?",
                 (session_id,),
             ).fetchone()
             if row is None:
@@ -1094,6 +1122,7 @@ class SessionStore:
                 last_activity=row["last_activity"],
                 message_count=row["message_count"],
                 status=self._session_status(row["last_activity"]),
+                display_name=row["display_name"] or "",
                 messages=messages,
             )
         finally:

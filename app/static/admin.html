@@ -118,7 +118,7 @@
         <table class="session-table" aria-label="Chat sessions">
           <thead>
             <tr>
-              <th scope="col">Session ID</th>
+              <th scope="col">Name</th>
               <th scope="col">Started</th>
               <th scope="col">Last Activity</th>
               <th scope="col">Messages</th>
@@ -973,7 +973,7 @@
           tr.setAttribute("aria-label", "View session " + s.session_id);
           const statusClass = s.status === "active" ? "status-active" : "status-expired";
           tr.innerHTML =
-            "<td>" + escapeHtml(s.session_id) + "</td>" +
+            "<td>" + escapeHtml(s.display_name || s.session_id.substring(0, 12) + "…") + "</td>" +
             "<td>" + formatTime(s.created_at) + "</td>" +
             "<td>" + formatTime(s.last_activity) + "</td>" +
             "<td>" + s.message_count + "</td>" +
@@ -1001,6 +1001,7 @@
         if (!data) return;
         const statusClass = data.status === "active" ? "status-active" : "status-expired";
         detailMeta.innerHTML =
+          "<dt>Name</dt><dd>" + escapeHtml(data.display_name || "—") + "</dd>" +
           "<dt>Session ID</dt><dd>" + escapeHtml(data.session_id) + "</dd>" +
           "<dt>Created</dt><dd>" + formatTime(data.created_at) + "</dd>" +
           "<dt>Last Activity</dt><dd>" + formatTime(data.last_activity) + "</dd>" +
@@ -2347,7 +2348,7 @@
             claimTag = ' <span class="hi-claim hi-claim-open">Open</span>';
           }
           div.innerHTML =
-            '<div class="hi-sid">' + s.session_id.substring(0, 16) + "…" + claimTag + "</div>" +
+            '<div class="hi-sid">' + escapeHtml(s.display_name || s.session_id.substring(0, 16)) + claimTag + "</div>" +
             '<div class="hi-meta">' + s.message_count + " msgs · " + fmtDate(s.last_activity) + "</div>";
           div.addEventListener("click", function () { openHandoffChat(lcId, s.session_id, claimedBy); });
           handoffList.appendChild(div);
