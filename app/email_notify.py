@@ -18,20 +18,40 @@ def send_handoff_email(
     admin_url: str,
 ) -> bool:
     """Send an email notification via Gmail SMTP. Requires an App Password."""
+    chat_link = f"{admin_url}/admin/#handoff-tab"
     subject = "📚 A patron wants to talk to a librarian"
-    body = (
+
+    html_body = f"""
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:480px;margin:0 auto;padding:20px">
+      <div style="background:#2c3e50;color:#fff;padding:16px 20px;border-radius:8px 8px 0 0;text-align:center">
+        <h2 style="margin:0;font-size:1.1rem">📚 Librarian Needed</h2>
+      </div>
+      <div style="background:#fff;border:1px solid #ecf0f1;border-top:none;padding:24px 20px;border-radius:0 0 8px 8px">
+        <p style="color:#333;font-size:0.95rem;margin:0 0 16px">A patron is waiting to chat with a librarian.</p>
+        <p style="color:#7f8c8d;font-size:0.85rem;margin:0 0 20px">Session: {session_id[:16]}…</p>
+        <div style="text-align:center;margin:20px 0">
+          <a href="{chat_link}" style="display:inline-block;background:#2c3e50;color:#fff;text-decoration:none;padding:12px 28px;border-radius:6px;font-size:0.95rem;font-weight:600">
+            💬 Join Live Chat
+          </a>
+        </div>
+        <p style="color:#bdc3c7;font-size:0.78rem;text-align:center;margin:16px 0 0">— Hero (Library Chatbot)</p>
+      </div>
+    </div>
+    """
+
+    plain_body = (
         f"A patron has requested to speak with a librarian.\n\n"
-        f"Session ID: {session_id}\n\n"
-        f"Open the admin dashboard to respond:\n"
-        f"{admin_url}/admin/\n\n"
+        f"Session: {session_id[:16]}…\n\n"
+        f"Join the live chat:\n{chat_link}\n\n"
         f"— Hero (Library Chatbot)"
     )
 
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("alternative")
     msg["From"] = smtp_email
     msg["To"] = librarian_email
     msg["Subject"] = subject
-    msg.attach(MIMEText(body, "plain"))
+    msg.attach(MIMEText(plain_body, "plain"))
+    msg.attach(MIMEText(html_body, "html"))
 
     try:
         with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
@@ -50,20 +70,17 @@ def send_ntfy_notification(
     session_id: str,
     admin_url: str,
 ) -> bool:
-    """Send a push notification via ntfy.sh (free, no signup needed).
-
-    The librarian subscribes to the topic at https://ntfy.sh/<topic>
-    or via the ntfy app on their phone.
-    """
+    """Send a push notification via ntfy.sh."""
+    chat_link = f"{admin_url}/admin/#handoff-tab"
     try:
         httpx.post(
             f"https://ntfy.sh/{ntfy_topic}",
             headers={
                 "Title": "📚 Patron wants to talk to a librarian",
-                "Click": f"{admin_url}/admin/",
+                "Click": chat_link,
                 "Tags": "books,speech_balloon",
             },
-            content=f"A patron is waiting for help.\nSession: {session_id}\nOpen the admin dashboard to respond.",
+            content=f"A patron is waiting for help.\nSession: {session_id[:16]}…\nTap to join the live chat.",
             timeout=10.0,
         )
         logger.info("ntfy notification sent for session %s", session_id)

@@ -1398,6 +1398,15 @@
         });
       });
 
+      // Auto-switch to tab from URL hash (e.g. #handoff-tab from email link)
+      (function checkHashTab() {
+        var hash = window.location.hash.replace("#", "");
+        if (hash) {
+          var targetBtn = document.querySelector('[data-tab="' + hash + '"]');
+          if (targetBtn) targetBtn.click();
+        }
+      })();
+
       // --- Analytics ---
       var analyticsDays = document.getElementById("analytics-days");
       var analyticsRefreshBtn = document.getElementById("analytics-refresh-btn");

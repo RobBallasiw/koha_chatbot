@@ -378,7 +378,7 @@ async def chat(request: ChatRequest):
                     messages_for_llm.extend(history[-4:])
                 messages_for_llm.append({"role": "user", "content": request.message})
                 llm_reply = client.chat(messages_for_llm)
-                if llm_reply and "trouble" not in llm_reply.lower():
+                if isinstance(llm_reply, str) and llm_reply and "trouble" not in llm_reply.lower():
                     reply = llm_reply
                 else:
                     reply = GREETING_MESSAGE
@@ -395,7 +395,7 @@ async def chat(request: ChatRequest):
                     messages_for_llm.extend(history[-4:])
                 messages_for_llm.append({"role": "user", "content": request.message})
                 llm_reply = client.chat(messages_for_llm)
-                if llm_reply and "trouble" not in llm_reply.lower():
+                if isinstance(llm_reply, str) and llm_reply and "trouble" not in llm_reply.lower():
                     reply = llm_reply
                 else:
                     reply = CLARIFYING_MESSAGE

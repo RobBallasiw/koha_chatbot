@@ -225,7 +225,7 @@ def handle_library_info_query(
                 messages.extend(conversation_history[-4:])  # Last 2 turns for context
             messages.append({"role": "user", "content": prompt})
             reply = client.chat(messages)
-            if reply and "trouble" not in reply.lower() and "moment" not in reply.lower():
+            if isinstance(reply, str) and reply and "trouble" not in reply.lower() and "moment" not in reply.lower():
                 return reply
         except Exception:
             logger.info("LLM unavailable for library info, using formatted data")
