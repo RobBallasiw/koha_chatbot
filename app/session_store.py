@@ -482,18 +482,29 @@ class SessionStore:
     def is_handoff_active(self, session_id: str) -> bool:
         """Check if a session has an active librarian handoff.
 
-        Returns False if the session is expired (timed out).
+        Returns False if the session has no active handoff or live chat.
         """
         conn = self._get_connection()
         try:
             row = conn.execute(
-                "SELECT handoff_active, last_activity FROM sessions WHERE session_id = ?",
+                "SELECT handoff_active FROM sessions WHERE session_id = ?",
                 (session_id,),
             ).fetchone()
             if not row or not row["handoff_active"]:
                 return False
-            # Expired sessions don't have active handoffs
-            if self._session_status(row["last_activity"]) == "expired":
+            # Check if there's an active live chat — if so, handoff is active regardless of parent expiry
+            lc = conn.execute(
+                "SELECT id FROM live_chat_sessions WHERE parent_session_id = ? AND status IN ('waiting', 'active') LIMIT 1",
+                (session_id,),
+            ).fetchone()
+            if lc:
+                return True
+            # No live chat — check parent session expiry
+            ts_row = conn.execute(
+                "SELECT last_activity FROM sessions WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()
+            if ts_row and self._session_status(ts_row["last_activity"]) == "expired":
                 return False
             return True
         finally:
@@ -784,10 +795,11 @@ class SessionStore:
         cutoff = time.time() - SESSION_TIMEOUT
         conn = self._get_connection()
         try:
-            # Auto-end live chats whose parent session expired
+            # Auto-end live chats that are still waiting and whose parent session expired
+            # Don't auto-end active chats (staff is handling them)
             conn.execute(
                 """UPDATE live_chat_sessions SET status = 'ended', ended_at = ?
-                   WHERE status IN ('waiting', 'active')
+                   WHERE status = 'waiting'
                    AND parent_session_id IN (
                        SELECT session_id FROM sessions WHERE last_activity < ?
                    )""",
