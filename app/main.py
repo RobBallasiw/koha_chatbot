@@ -65,8 +65,7 @@ GREETING_MESSAGE = (
 )
 
 HANDOFF_ACTIVATED_MESSAGE = (
-    "I've notified a librarian — they'll join this chat shortly! 📨\n"
-    "Feel free to keep typing your question here and they'll see it."
+    "I've notified a librarian — they'll join this chat shortly! 📨"
 )
 
 HANDOFF_ACTIVE_NOTE = (
