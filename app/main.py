@@ -334,14 +334,31 @@ async def chat(request: ChatRequest):
             _cfg = settings
             _sid = request.session_id
             async def _send_notification():
+                import json as _json
                 from app.email_notify import send_ntfy_notification, send_handoff_email
                 if _cfg.ntfy_topic:
                     send_ntfy_notification(_cfg.ntfy_topic, _sid, _cfg.chatbot_public_url)
-                elif _cfg.smtp_email and _cfg.smtp_password and _cfg.librarian_email:
-                    send_handoff_email(
-                        _cfg.smtp_email, _cfg.smtp_password, _cfg.librarian_email,
-                        _sid, _cfg.chatbot_public_url,
-                    )
+                if _cfg.smtp_email and _cfg.smtp_password:
+                    # Get notification emails from database, fall back to env var
+                    emails = []
+                    try:
+                        from app.staff_routes import staff_store as _ss
+                        if _ss:
+                            raw = _ss.get_setting("notification_emails")
+                            if raw:
+                                emails = _json.loads(raw)
+                    except Exception:
+                        pass
+                    if not emails and _cfg.librarian_email:
+                        emails = [_cfg.librarian_email]
+                    for email in emails:
+                        try:
+                            send_handoff_email(
+                                _cfg.smtp_email, _cfg.smtp_password, email.strip(),
+                                _sid, _cfg.chatbot_public_url,
+                            )
+                        except Exception:
+                            logger.exception("Failed to send notification to %s", email)
             asyncio.create_task(_send_notification())
         session_mgr.add_message(request.session_id, "user", request.message)
         session_mgr.add_message(request.session_id, "assistant", reply)

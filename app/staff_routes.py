@@ -195,3 +195,44 @@ async def update_staff_settings(staff_id: int, request: UpdateSettingsRequest):
     except Exception:
         logger.exception("Failed to update staff settings for %s", staff_id)
         return JSONResponse(status_code=500, content={"error": "Failed to update settings"})
+
+
+# ------------------------------------------------------------------
+# Notification email management
+# ------------------------------------------------------------------
+
+
+@router.get("/notification-emails")
+async def get_notification_emails():
+    """Return the list of notification emails."""
+    import json
+    store = _get_store()
+    raw = store.get_setting("notification_emails")
+    if raw:
+        try:
+            return {"emails": json.loads(raw)}
+        except Exception:
+            pass
+    # Fall back to env var
+    import os
+    env_email = os.environ.get("LIBRARIAN_EMAIL", "")
+    return {"emails": [env_email] if env_email else []}
+
+
+class NotificationEmailsRequest(BaseModel):
+    emails: list[str]
+
+
+@router.put("/notification-emails")
+async def update_notification_emails(request: NotificationEmailsRequest):
+    """Update the list of notification emails."""
+    import json
+    store = _get_store()
+    # Filter out empty strings and strip whitespace
+    cleaned = [e.strip() for e in request.emails if e.strip()]
+    try:
+        store.update_settings({"notification_emails": json.dumps(cleaned)})
+        return {"status": "ok", "emails": cleaned}
+    except Exception:
+        logger.exception("Failed to update notification emails")
+        return JSONResponse(status_code=500, content={"error": "Failed to update emails"})

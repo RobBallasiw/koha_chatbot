@@ -442,6 +442,17 @@
               </div>
             </div>
           </section>
+
+          <section class="settings-section" id="notification-emails-section">
+            <h4>📧 Notification Emails</h4>
+            <p class="quality-desc">Staff will receive an email when a patron requests to talk to a librarian. Add multiple emails below.</p>
+            <div id="notif-emails-list" class="li-fields"></div>
+            <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+              <button id="notif-add-email-btn" type="button" class="li-add-btn">+ Add email</button>
+              <button id="notif-save-emails-btn" type="button" class="btn-primary" style="font-size:0.82rem;padding:6px 14px">Save Emails</button>
+              <span id="notif-emails-status" class="li-status"></span>
+            </div>
+          </section>
         </div>
       </div><!-- end settings-tab -->
 
@@ -2234,6 +2245,67 @@
         setTimeout(function () {
           if (sessionStorage.getItem("admin_api_key")) loadSettings();
         }, 1000);
+      });
+
+      // --- Notification Emails ---
+      var notifList = document.getElementById("notif-emails-list");
+      var notifAddBtn = document.getElementById("notif-add-email-btn");
+      var notifSaveBtn = document.getElementById("notif-save-emails-btn");
+      var notifStatus = document.getElementById("notif-emails-status");
+
+      function addNotifEmailRow(email) {
+        var row = document.createElement("div");
+        row.className = "li-row";
+        row.innerHTML =
+          '<input type="email" class="li-val" value="' + (email || "") + '" placeholder="email@example.com" style="flex:1" aria-label="Notification email">' +
+          '<button class="li-del" type="button" aria-label="Remove email">×</button>';
+        row.querySelector(".li-del").addEventListener("click", function() { row.remove(); });
+        notifList.appendChild(row);
+      }
+
+      notifAddBtn.addEventListener("click", function() {
+        addNotifEmailRow("");
+        notifList.lastChild.querySelector("input").focus();
+      });
+
+      async function loadNotifEmails() {
+        try {
+          var resp = await fetch("/admin/api/notification-emails", { headers: { "X-Admin-Key": getKey() } });
+          var data = await resp.json();
+          notifList.innerHTML = "";
+          (data.emails || []).forEach(function(e) { addNotifEmailRow(e); });
+          if (!data.emails || data.emails.length === 0) addNotifEmailRow("");
+        } catch(e) { console.error("Failed to load notification emails", e); }
+      }
+
+      notifSaveBtn.addEventListener("click", async function() {
+        var emails = [];
+        notifList.querySelectorAll("input").forEach(function(inp) {
+          var v = inp.value.trim();
+          if (v) emails.push(v);
+        });
+        try {
+          var resp = await fetch("/admin/api/notification-emails", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ emails: emails })
+          });
+          if (resp.ok) {
+            notifStatus.textContent = "✓ Saved"; notifStatus.style.color = "#27ae60";
+          } else {
+            notifStatus.textContent = "✗ Failed"; notifStatus.style.color = "#e74c3c";
+          }
+        } catch(e) {
+          notifStatus.textContent = "✗ Network error"; notifStatus.style.color = "#e74c3c";
+        }
+        setTimeout(function() { notifStatus.textContent = ""; }, 3000);
+      });
+
+      // Load emails when settings tab is shown
+      document.querySelectorAll(".tab-btn").forEach(function(btn) {
+        btn.addEventListener("click", function() {
+          if (btn.dataset.tab === "settings-tab") loadNotifEmails();
+        });
       });
     })();
 
