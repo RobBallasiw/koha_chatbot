@@ -59,11 +59,13 @@ class GroqClient:
         temperature: float = DEFAULT_TEMPERATURE,
         base_url: str = DEFAULT_OLLAMA_URL,
     ) -> None:
+        import os
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
-        # Ollama doesn't need a real API key but the OpenAI client requires one.
-        self._client = OpenAI(base_url=base_url, api_key=api_key or "ollama")
+        # Use OpenRouter/Groq API key if set, otherwise fall back to provided key or "ollama"
+        resolved_key = os.environ.get("OPENROUTER_API_KEY") or api_key or "ollama"
+        self._client = OpenAI(base_url=base_url, api_key=resolved_key)
 
     def chat(self, messages: list[dict]) -> str:
         """Send *messages* to Ollama and return the assistant reply.

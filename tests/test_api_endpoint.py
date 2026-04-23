@@ -107,11 +107,10 @@ class TestProperty16ValidResponsesContainRequiredJSONFields:
         with (
             patch("app.main.classify_query", return_value=classification),
             patch("app.main.session_manager") as mock_sm,
-            patch("app.main.groq_client") as mock_groq,
+            patch("app.main.groq_client"),
             patch("app.main.settings"),
         ):
             mock_sm.get_history.return_value = []
-            mock_groq.chat.return_value = "I can help with books, hours, and policies!"
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(
@@ -167,7 +166,6 @@ class TestProperty10LLMCallsIncludeConversationHistory:
             patch("app.main.settings"),
         ):
             mock_sm.get_history.return_value = list(history)
-            mock_groq.chat.return_value = "I can help with that!"
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(

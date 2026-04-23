@@ -226,19 +226,5 @@ def handle_library_info_query(
     else:
         data_str = _format_category_data(category, library_info)
 
-    # Use LLM to generate a natural conversational response
-    if client:
-        try:
-            prompt = INFO_RESPONSE_PROMPT.format(message=message, data=data_str)
-            messages: list[dict] = []
-            if conversation_history:
-                messages.extend(conversation_history)
-            messages.append({"role": "user", "content": prompt})
-            reply = client.chat(messages)
-            if reply and len(reply) > 10:
-                return reply
-        except Exception:
-            logger.warning("LLM failed for library info, falling back to formatted data")
-
-    # Fallback: return formatted data directly
+    # Return the data directly — avoids a slow LLM call for straightforward info
     return f"Here's what I found 📚:\n\n{data_str}"

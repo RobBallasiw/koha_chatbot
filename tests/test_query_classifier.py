@@ -306,9 +306,9 @@ class TestProperty8RoutingMatchesClassificationIntent:
 
     @given(message=_non_empty_text)
     @hyp_settings(max_examples=100)
-    def test_unclear_intent_uses_llm(self, message: str):
-        """When classify_query returns unclear, the LLM generates a response
-        (neither catalog nor info handler is called)."""
+    def test_unclear_intent_returns_clarifying_message(self, message: str):
+        """When classify_query returns unclear, the response is the
+        clarifying message (neither handler is called)."""
         classification = ClassificationResult(intent="unclear", confidence=0.3)
 
         with (
@@ -316,14 +316,13 @@ class TestProperty8RoutingMatchesClassificationIntent:
             patch("app.main.handle_catalog_query") as mock_catalog,
             patch("app.main.handle_library_info_query") as mock_info,
             patch("app.main.session_manager") as mock_sm,
-            patch("app.main.groq_client") as mock_groq,
+            patch("app.main.groq_client"),
             patch("app.main.settings"),
         ):
             mock_sm.get_history.return_value = []
-            mock_groq.chat.return_value = "I can help with books, hours, and policies!"
 
             from starlette.testclient import TestClient
-            from app.main import app
+            from app.main import app, CLARIFYING_MESSAGE
 
             client = TestClient(app, raise_server_exceptions=False)
             resp = client.post(
@@ -332,7 +331,6 @@ class TestProperty8RoutingMatchesClassificationIntent:
             )
 
             assert resp.status_code == 200
-            assert isinstance(resp.json()["reply"], str)
-            assert len(resp.json()["reply"]) > 0
+            assert resp.json()["reply"] == CLARIFYING_MESSAGE
             mock_catalog.assert_not_called()
             mock_info.assert_not_called()
