@@ -33,13 +33,16 @@ CONTACT_STAFF_MESSAGE = (
 )
 
 INFO_RESPONSE_PROMPT = (
-    "You are Hero, a helpful school library assistant. A patron asked the following question:\n\n"
-    '"{message}"\n\n'
+    "A patron asked: \"{message}\"\n\n"
     "Here is the relevant library information:\n"
     "{data}\n\n"
-    "Using ONLY the data above, provide a friendly, concise answer to the patron's question. "
-    "If there are multiple locations listed, include info for each location. "
-    "Do not make up information that is not in the data."
+    "Rules:\n"
+    "- Answer in a friendly, concise way using ONLY the data above.\n"
+    "- Do NOT start with 'I'm Hero' or introduce yourself — just answer the question directly.\n"
+    "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
+    "- Use natural sentences, not bullet points or lists.\n"
+    "- Keep it short — 2-3 sentences max.\n"
+    "- Use 1 emoji at the end."
 )
 
 
@@ -182,7 +185,9 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
             return "(No data available)"
-        return "\n".join(f"• {key}: {value}" for key, value in section.items())
+        label = "Fines" if category == "fines" else "Policies"
+        lines = "\n".join(f"• {key}: {value}" for key, value in section.items())
+        return f"{label} (applies to all locations):\n{lines}"
 
 
 def _is_llm_available(client: GroqClient) -> bool:
