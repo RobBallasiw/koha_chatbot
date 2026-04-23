@@ -572,6 +572,8 @@
     handoffActive = true;
     libBtn.style.opacity = "0.5";
     libBtn.style.cursor = "default";
+    // Show cancel button while waiting
+    showCancelButton();
     pollTimer = setInterval(pollForMessages, 3000);
   }
 
@@ -580,7 +582,47 @@
     handoffHandler = null;
     libBtn.style.opacity = "1";
     libBtn.style.cursor = "pointer";
+    removeCancelButton();
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  }
+
+  function showCancelButton() {
+    removeCancelButton();
+    var cancelDiv = document.createElement("div");
+    cancelDiv.id = "lc-cancel-handoff";
+    cancelDiv.className = "lc-m b";
+    cancelDiv.style.cssText = "text-align:center;max-width:90%;padding:10px 14px";
+    cancelDiv.innerHTML =
+      '<button style="background:none;border:1px solid #c0392b;color:#c0392b;border-radius:14px;' +
+      'padding:6px 16px;font-size:.82rem;cursor:pointer;transition:all .15s" ' +
+      'aria-label="Cancel librarian request">Cancel request</button>';
+    cancelDiv.querySelector("button").addEventListener("click", cancelHandoff);
+    msgs.appendChild(cancelDiv);
+    scroll();
+  }
+
+  function removeCancelButton() {
+    var el = document.getElementById("lc-cancel-handoff");
+    if (el) el.remove();
+  }
+
+  function cancelHandoff() {
+    fetch(CHATBOT_API + "/api/cancel-handoff", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: "", session_id: sid })
+    })
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.status === "ok") {
+          stopPolling();
+          _origAddMsg("Librarian request cancelled. I'm Hero, back to help! 👋 What else can I do for you?", "b");
+        } else if (d.error) {
+          // Staff already claimed — remove cancel button, keep polling
+          removeCancelButton();
+        }
+      })
+      .catch(function() {});
   }
 
   function pollForMessages() {
@@ -589,6 +631,7 @@
       .then(function(d) {
         if (d.handled_by && d.handled_by !== handoffHandler) {
           handoffHandler = d.handled_by;
+          removeCancelButton();
           _origAddMsg("A librarian (" + d.handled_by + ") has joined the chat! 👋", "b");
         }
         // Process new messages first

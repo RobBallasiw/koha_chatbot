@@ -371,6 +371,29 @@ async def close_session(request: ChatRequest):
     return {"status": "ok"}
 
 
+@app.post("/api/cancel-handoff")
+async def cancel_handoff(request: ChatRequest):
+    """Allow a patron to cancel their librarian handoff request."""
+    if not request.session_id or not request.session_id.strip():
+        return JSONResponse(status_code=400, content={"error": "Session identifier is required"})
+    if session_store is None:
+        return JSONResponse(status_code=500, content={"error": "Store not available"})
+    try:
+        # Only allow cancel if no staff has claimed it yet
+        claimed_by = session_store.get_handoff_claim(request.session_id)
+        if claimed_by:
+            return JSONResponse(status_code=409, content={"error": "A librarian has already joined. Cannot cancel."})
+        session_store.deactivate_handoff(request.session_id)
+        session_store.save_message(
+            request.session_id, "assistant",
+            "Librarian request cancelled. I'm Hero, back to help! 👋 What else can I do for you?"
+        )
+        return {"status": "ok"}
+    except Exception:
+        logger.exception("Failed to cancel handoff for session %s", request.session_id)
+        return JSONResponse(status_code=500, content={"error": "Failed to cancel handoff"})
+
+
 @app.post("/api/feedback")
 async def submit_feedback(request: FeedbackRequest):
     """Accept patron feedback (thumbs up/down) on a bot response."""
