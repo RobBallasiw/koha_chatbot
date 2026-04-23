@@ -1657,6 +1657,17 @@ class SessionStore:
                 session_ids,
             ).fetchone()["cnt"]
 
+            # Delete live chat data first (foreign key order)
+            lc_ids = [r["id"] for r in conn.execute(
+                f"SELECT id FROM live_chat_sessions WHERE parent_session_id IN ({placeholders})",
+                session_ids,
+            ).fetchall()]
+            if lc_ids:
+                lc_ph = ",".join("?" for _ in lc_ids)
+                conn.execute(f"DELETE FROM live_chat_messages WHERE live_chat_id IN ({lc_ph})", lc_ids)
+                conn.execute(f"DELETE FROM live_chat_sessions WHERE id IN ({lc_ph})", lc_ids)
+
+            conn.execute(f"DELETE FROM staff_ratings WHERE session_id IN ({placeholders})", session_ids)
             conn.execute(f"DELETE FROM feedback WHERE session_id IN ({placeholders})", session_ids)
             conn.execute(f"DELETE FROM session_flags WHERE session_id IN ({placeholders})", session_ids)
             conn.execute(f"DELETE FROM messages WHERE session_id IN ({placeholders})", session_ids)
@@ -1676,6 +1687,10 @@ class SessionStore:
         try:
             msg_count = conn.execute("SELECT COUNT(*) AS cnt FROM messages").fetchone()["cnt"]
             sess_count = conn.execute("SELECT COUNT(*) AS cnt FROM sessions").fetchone()["cnt"]
+            # Delete in foreign key order
+            conn.execute("DELETE FROM live_chat_messages")
+            conn.execute("DELETE FROM live_chat_sessions")
+            conn.execute("DELETE FROM staff_ratings")
             conn.execute("DELETE FROM feedback")
             conn.execute("DELETE FROM session_flags")
             conn.execute("DELETE FROM messages")
