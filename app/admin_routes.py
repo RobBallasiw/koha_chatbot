@@ -277,7 +277,17 @@ async def get_unanswered_queries(
 
 @router.get("/library-info")
 async def get_library_info():
-    """Return the current library_info.json contents."""
+    """Return the current library info contents (from DB or file)."""
+    # Try database first (works on Vercel)
+    from app.staff_routes import staff_store as _staff_store
+    if _staff_store is not None:
+        db_val = _staff_store.get_setting("library_info_json")
+        if db_val:
+            try:
+                return json.loads(db_val)
+            except Exception:
+                pass
+    # Fall back to file
     if not library_info_path:
         return JSONResponse(status_code=500, content={"error": "Library info path not configured"})
     try:
@@ -291,11 +301,8 @@ async def get_library_info():
 
 @router.put("/library-info")
 async def update_library_info(payload: dict):
-    """Update library_info.json and reload it in the running app."""
-    if not library_info_path:
-        return JSONResponse(status_code=500, content={"error": "Library info path not configured"})
-
-    # Validate structure: locations (dict of {name: {hours: {}}}), policies (dict), fines (dict)
+    """Update library info and reload it in the running app."""
+    # Validate structure
     if "locations" not in payload or not isinstance(payload["locations"], dict):
         return JSONResponse(status_code=400, content={"error": "Missing or invalid 'locations'."})
     for loc_name, loc_data in payload["locations"].items():
@@ -307,19 +314,30 @@ async def update_library_info(payload: dict):
         if key not in payload or not isinstance(payload[key], dict):
             return JSONResponse(status_code=400, content={"error": f"Missing or invalid '{key}' section."})
 
-    try:
-        with open(library_info_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=2, ensure_ascii=False)
-            f.write("\n")
-    except Exception:
-        logger.exception("Failed to write library info")
-        return JSONResponse(status_code=500, content={"error": "Failed to save library info"})
+    # Save to database (works on Vercel and locally)
+    from app.staff_routes import staff_store as _staff_store
+    if _staff_store is not None:
+        try:
+            _staff_store.update_settings({"library_info_json": json.dumps(payload, ensure_ascii=False)})
+        except Exception:
+            logger.exception("Failed to save library info to database")
+            return JSONResponse(status_code=500, content={"error": "Failed to save library info"})
+
+    # Also try to write to file (works locally, fails silently on Vercel)
+    if library_info_path:
+        try:
+            with open(library_info_path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, indent=2, ensure_ascii=False)
+                f.write("\n")
+        except Exception:
+            logger.info("Could not write library_info.json to disk (read-only filesystem)")
 
     # Reload in the running app
     try:
         import app.main as main_module
         from app.library_info_handler import load_library_info
-        main_module.library_info = load_library_info(library_info_path)
+        from app.models import LibraryInfo
+        main_module.library_info = LibraryInfo(**payload)
     except Exception:
         logger.exception("Failed to reload library info into running app")
 

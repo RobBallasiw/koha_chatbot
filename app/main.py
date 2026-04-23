@@ -130,6 +130,18 @@ async def startup() -> None:
     except Exception:
         logger.warning("Failed to initialise staff store")
 
+    # Try loading library info from database (overrides file if present)
+    try:
+        from app.staff_routes import staff_store as _ss
+        if _ss is not None:
+            db_val = _ss.get_setting("library_info_json")
+            if db_val:
+                import json as _json
+                library_info = LibraryInfo(**_json.loads(db_val))
+                logger.info("Loaded library info from database")
+    except Exception:
+        logger.info("No library info in database, using file")
+
     # Background task that purges expired sessions every 5 minutes.
     asyncio.create_task(_periodic_cleanup(session_manager))
 
