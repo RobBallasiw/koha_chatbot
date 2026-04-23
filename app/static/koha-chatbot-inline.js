@@ -558,7 +558,11 @@
         addMsg(err.message || "Something went wrong.", "e");
       }
     })
-    .finally(function () { inp.disabled = false; inp.focus(); btn.disabled = !inp.value.trim(); });
+    .finally(function () {
+      if (!handoffActive || handoffHandler) {
+        inp.disabled = false; inp.focus(); btn.disabled = !inp.value.trim();
+      }
+    });
   }
 
   // --- Librarian handoff polling ---
