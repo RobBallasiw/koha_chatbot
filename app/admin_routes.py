@@ -650,36 +650,6 @@ async def notify_staff(request: NotifyStaffRequest):
         return JSONResponse(status_code=500, content={"error": "Failed to send email"})
 
 
-class TestEmailRequest(BaseModel):
-    email: str
-
-
-@router.post("/test-email")
-async def test_email(request: TestEmailRequest):
-    """Send a test email to verify SMTP configuration works."""
-    if not request.email or not request.email.strip():
-        return JSONResponse(status_code=400, content={"error": "Email is required"})
-    smtp_email = os.environ.get("SMTP_EMAIL", "")
-    smtp_password = os.environ.get("SMTP_PASSWORD", "")
-    chatbot_url = os.environ.get("CHATBOT_PUBLIC_URL", "http://localhost:8000")
-    from app.email_notify import send_staff_notify_email
-    try:
-        ok = send_staff_notify_email(
-            smtp_email=smtp_email,
-            smtp_password=smtp_password,
-            recipient_email=request.email.strip(),
-            staff_name="Test",
-            session_id="test-session-123",
-            admin_url=chatbot_url,
-        )
-        if ok:
-            return {"status": "ok", "message": f"Test email sent to {request.email}"}
-        return JSONResponse(status_code=500, content={"error": "Email send failed — check SMTP_EMAIL and SMTP_PASSWORD"})
-    except Exception as e:
-        logger.exception("Test email failed")
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-
 # ------------------------------------------------------------------
 # Staff Ratings
 # ------------------------------------------------------------------

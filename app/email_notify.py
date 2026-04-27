@@ -96,26 +96,11 @@ def _send_via_smtp(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> b
 def _send_email(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool:
     """Send email — tries service account first, falls back to SMTP."""
     if _use_service_account():
-        ok = _send_via_service_account(msg)
-        if ok:
-            return True
-        logger.warning("Service account failed, falling back to SMTP")
+        return _send_via_service_account(msg)
     if smtp_email and smtp_password:
         return _send_via_smtp(smtp_email, smtp_password, msg)
     logger.warning("No email credentials configured (neither service account nor SMTP)")
     return False
-
-
-def _build_chat_link(admin_url: str, session_id: str = "", staff_name: str = "") -> str:
-    """Build a /chat/ link with embedded API key and optional params."""
-    api_key = os.environ.get("ADMIN_API_KEY", "")
-    parts = [f"{admin_url}/chat/?key={api_key}"]
-    if session_id:
-        parts.append(f"session={session_id}")
-    if staff_name:
-        from urllib.parse import quote
-        parts.append(f"name={quote(staff_name)}")
-    return "&".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -130,7 +115,7 @@ def send_handoff_email(
     admin_url: str,
 ) -> bool:
     """Send a handoff notification email."""
-    chat_link = _build_chat_link(admin_url, session_id=session_id)
+    chat_link = f"{admin_url}/chat/?session={session_id}"
     subject = "📚 A patron wants to talk to a librarian"
 
     html_body = f"""
@@ -181,7 +166,7 @@ def send_staff_notify_email(
     admin_url: str,
 ) -> bool:
     """Send a personalized notification email to a specific librarian."""
-    chat_link = _build_chat_link(admin_url, session_id=session_id, staff_name=staff_name)
+    chat_link = f"{admin_url}/chat/?session={session_id}" if session_id else f"{admin_url}/chat/"
     subject = f"📚 {staff_name}, a patron needs your help"
 
     session_note = ""
@@ -231,7 +216,7 @@ def send_ntfy_notification(
     admin_url: str,
 ) -> bool:
     """Send a push notification via ntfy.sh."""
-    chat_link = _build_chat_link(admin_url, session_id=session_id)
+    chat_link = f"{admin_url}/chat/?session={session_id}"
     try:
         httpx.post(
             f"https://ntfy.sh/{ntfy_topic}",
