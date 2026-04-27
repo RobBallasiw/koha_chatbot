@@ -127,7 +127,7 @@ async def startup() -> None:
         staff_store_instance = StaffStore(db_path=db_path)
         set_staff_store(staff_store_instance)
     except Exception:
-        logger.warning("Failed to initialise staff store")
+        logger.warning("Failed to initialise settings store")
 
     # Try loading library info from database (overrides file if present)
     try:

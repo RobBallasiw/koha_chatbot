@@ -81,7 +81,6 @@
         <button class="tab-btn" data-tab="quality-tab" type="button">Quality</button>
         <button class="tab-btn" data-tab="library-info-tab" type="button">Library Info</button>
         <button class="tab-btn" data-tab="management-tab" type="button">Management</button>
-        <button class="tab-btn" data-tab="staff-tab" type="button">👥 Staff</button>
         <button class="tab-btn" data-tab="settings-tab" type="button">⚙️ Settings</button>
         <button class="tab-btn" data-tab="handoff-tab" type="button" id="handoff-tab-btn">💬 Live Chat</button>
         <button class="tab-btn" data-tab="archive-tab" type="button">📋 Staff Performance</button>
@@ -348,55 +347,6 @@
         </div>
       </div><!-- end management-tab -->
 
-      <div id="staff-tab" class="tab-content">
-        <div class="staff-wrap">
-          <div class="staff-header">
-            <h3>👥 Staff Accounts</h3>
-            <button id="staff-add-btn" type="button" class="btn-primary">+ Add Staff</button>
-          </div>
-          <p class="quality-desc">Create and manage staff accounts that can access the admin dashboard.</p>
-          <div id="staff-add-form" class="staff-form hidden">
-            <div class="staff-form-row">
-              <label>Username</label>
-              <input type="text" id="staff-new-username" placeholder="username" aria-label="New staff username">
-            </div>
-            <div class="staff-form-row">
-              <label>Display Name</label>
-              <input type="text" id="staff-new-display" placeholder="Display Name" aria-label="New staff display name">
-            </div>
-            <div class="staff-form-row">
-              <label>Password</label>
-              <input type="password" id="staff-new-password" placeholder="Password (min 4 chars)" aria-label="New staff password">
-            </div>
-            <div class="staff-form-row">
-              <label>Role</label>
-              <select id="staff-new-role" aria-label="New staff role">
-                <option value="staff">Staff</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div class="staff-form-actions">
-              <button id="staff-save-btn" type="button" class="btn-primary">Create Account</button>
-              <button id="staff-cancel-btn" type="button" class="back-btn">Cancel</button>
-              <span id="staff-form-status" class="li-status"></span>
-            </div>
-          </div>
-          <table class="session-table" id="staff-table" aria-label="Staff accounts">
-            <thead>
-              <tr>
-                <th scope="col">Username</th>
-                <th scope="col">Display Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Status</th>
-                <th scope="col">Created</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="staff-tbody"></tbody>
-          </table>
-        </div>
-      </div><!-- end staff-tab -->
-
       <div id="settings-tab" class="tab-content">
         <div class="settings-wrap">
           <div class="settings-header">
@@ -407,15 +357,7 @@
             </div>
           </div>
 
-          <!-- Staff selector (admin only) -->
-          <div id="settings-staff-selector" class="hidden" style="margin-bottom:16px;">
-            <label for="settings-staff-select" style="font-size:.85rem;color:#555;margin-right:8px;">Editing settings for:</label>
-            <select id="settings-staff-select" style="padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:.85rem;">
-              <option value="">Global (default for all staff)</option>
-            </select>
-          </div>
-
-          <p class="quality-desc" id="settings-desc">Toggle dashboard features on or off for staff accounts. Disabled features will be hidden from staff users. Admins always see all tabs.</p>
+          <p class="quality-desc" id="settings-desc">Toggle dashboard features on or off.</p>
 
           <section class="settings-section">
             <h4>Feature Toggles</h4>
@@ -445,7 +387,7 @@
 
           <section class="settings-section" id="notification-emails-section">
             <h4>📧 Notification Emails</h4>
-            <p class="quality-desc">Staff will receive an email when a patron requests to talk to a librarian. Add multiple emails below.</p>
+            <p class="quality-desc">Receive an email when a patron requests to talk to a librarian. Add multiple emails below.</p>
             <div id="notif-emails-list" class="li-fields"></div>
             <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
               <button id="notif-add-email-btn" type="button" class="li-add-btn">+ Add email</button>
@@ -1045,18 +987,13 @@
           const data = await resp.json();
           apiKey = data.api_key;
           sessionStorage.setItem("admin_api_key", apiKey);
-          sessionStorage.setItem("admin_role", data.role || "admin");
-          sessionStorage.setItem("admin_display_name", data.display_name || "");
           sessionStorage.setItem("admin_username", document.getElementById("login-username").value.trim());
-          sessionStorage.setItem("admin_staff_id", data.staff_id || "");
           loginView.classList.add("hidden");
           dashboardView.classList.remove("hidden");
           logoutBtn.classList.remove("hidden");
           showUserInfo();
-          applyRoleVisibility();
           Promise.all([loadStats(), loadSessions()]);
           startAutoRefresh();
-          startStaffSettingsPoll();
         } catch (err) {
           loginError.textContent = "Network error: " + err.message;
           loginError.classList.remove("hidden");
@@ -1067,12 +1004,8 @@
       logoutBtn.addEventListener("click", function () {
         apiKey = "";
         sessionStorage.removeItem("admin_api_key");
-        sessionStorage.removeItem("admin_role");
-        sessionStorage.removeItem("admin_display_name");
         sessionStorage.removeItem("admin_username");
-        sessionStorage.removeItem("admin_staff_id");
         stopAutoRefresh();
-        stopStaffSettingsPoll();
         dashboardView.classList.add("hidden");
         detailView.classList.add("hidden");
         listView.classList.remove("hidden");
@@ -1304,48 +1237,19 @@
         if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
       }
 
-      // Lightweight settings poll for staff — detects admin changes to their dashboard
-      var staffSettingsTimer = null;
-      var lastStaffSettingsJson = "";
-      function startStaffSettingsPoll() {
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        if (role === "admin") return; // admins don't need this
-        var staffId = sessionStorage.getItem("admin_staff_id") || "";
-        if (!staffId) return;
-        if (staffSettingsTimer) return; // already running
-        staffSettingsTimer = setInterval(async function() {
-          try {
-            var resp = await fetch("/admin/api/staff/" + staffId + "/settings", { headers: { "X-Admin-Key": getKey() } });
-            if (!resp.ok) return;
-            var data = await resp.json();
-            var json = JSON.stringify(data);
-            if (lastStaffSettingsJson && json !== lastStaffSettingsJson) {
-              applyFeatureToggles(data);
-            }
-            lastStaffSettingsJson = json;
-          } catch(e) {}
-        }, 10000); // every 10 seconds
-      }
-      function stopStaffSettingsPoll() {
-        if (staffSettingsTimer) { clearInterval(staffSettingsTimer); staffSettingsTimer = null; }
-        lastStaffSettingsJson = "";
-      }
-
       // --- Auto-login from cached session ---
       if (apiKey) {
-        // Show loading overlay while verifying
         loginView.classList.add("hidden");
         dashboardView.classList.remove("hidden");
         logoutBtn.classList.remove("hidden");
         showLoading();
 
         (async function() {
-          var username = sessionStorage.getItem("admin_username") || "";
           try {
-            var resp = await fetch("/admin/api/verify-staff/" + encodeURIComponent(username), {
+            var resp = await fetch("/admin/api/verify", {
               headers: { "X-Admin-Key": apiKey }
             });
-            if (resp.status === 401 || !(await resp.json()).valid) {
+            if (resp.status === 401) {
               hideLoading();
               logoutBtn.click();
               return;
@@ -1357,32 +1261,17 @@
           }
           hideLoading();
           showUserInfo();
-          applyRoleVisibility();
-          // Load stats and sessions in parallel
           Promise.all([loadStats(), loadSessions()]);
           startAutoRefresh();
-          startStaffSettingsPoll();
         })();
       }
 
       // --- Show logged-in user info in header ---
       function showUserInfo() {
         var el = document.getElementById("user-info");
-        var displayName = sessionStorage.getItem("admin_display_name") || sessionStorage.getItem("admin_username") || "Admin";
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        el.innerHTML = '<span class="user-name">' + escapeHtml(displayName) + '</span><span class="user-role">' + escapeHtml(role) + '</span>';
+        var username = sessionStorage.getItem("admin_username") || "Admin";
+        el.innerHTML = '<span class="user-name">' + escapeHtml(username) + '</span>';
         el.classList.remove("hidden");
-      }
-
-      // --- Role-based visibility ---
-      function applyRoleVisibility() {
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        var isAdmin = role === "admin";
-        // Staff & Settings tabs — admin only
-        var staffTabBtn = document.querySelector('[data-tab="staff-tab"]');
-        var settingsTabBtn = document.querySelector('[data-tab="settings-tab"]');
-        if (staffTabBtn) staffTabBtn.style.display = isAdmin ? "" : "none";
-        if (settingsTabBtn) settingsTabBtn.style.display = isAdmin ? "" : "none";
       }
 
       // --- Tab navigation ---
@@ -1964,136 +1853,6 @@
     })();
 
     // =====================================================================
-    // Staff Accounts Tab
-    // =====================================================================
-    (function () {
-      var addBtn = document.getElementById("staff-add-btn");
-      var addForm = document.getElementById("staff-add-form");
-      var cancelBtn = document.getElementById("staff-cancel-btn");
-      var saveBtn = document.getElementById("staff-save-btn");
-      var formStatus = document.getElementById("staff-form-status");
-      var tbody = document.getElementById("staff-tbody");
-
-      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
-      function fmtTime(ts) { return ts ? new Date(ts * 1000).toLocaleDateString() : "—"; }
-      function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
-
-      addBtn.addEventListener("click", function () {
-        addForm.classList.toggle("hidden");
-        if (!addForm.classList.contains("hidden")) document.getElementById("staff-new-username").focus();
-      });
-      cancelBtn.addEventListener("click", function () { addForm.classList.add("hidden"); clearForm(); });
-
-      function clearForm() {
-        document.getElementById("staff-new-username").value = "";
-        document.getElementById("staff-new-display").value = "";
-        document.getElementById("staff-new-password").value = "";
-        document.getElementById("staff-new-role").value = "staff";
-        formStatus.textContent = "";
-      }
-
-      saveBtn.addEventListener("click", async function () {
-        var username = document.getElementById("staff-new-username").value.trim();
-        var display = document.getElementById("staff-new-display").value.trim();
-        var password = document.getElementById("staff-new-password").value;
-        var role = document.getElementById("staff-new-role").value;
-        if (!username) { formStatus.textContent = "Username required"; formStatus.style.color = "#e74c3c"; return; }
-        if (!password || password.length < 4) { formStatus.textContent = "Password min 4 chars"; formStatus.style.color = "#e74c3c"; return; }
-        try {
-          var resp = await fetch("/admin/api/staff", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
-            body: JSON.stringify({ username: username, password: password, display_name: display, role: role })
-          });
-          var data = await resp.json();
-          if (resp.ok) {
-            formStatus.textContent = "✓ Created"; formStatus.style.color = "#27ae60";
-            clearForm(); addForm.classList.add("hidden"); loadStaff(); loadSettingsStaffList();
-          } else {
-            formStatus.textContent = "✗ " + (data.error || "Failed"); formStatus.style.color = "#e74c3c";
-          }
-        } catch (e) { formStatus.textContent = "✗ Network error"; formStatus.style.color = "#e74c3c"; }
-        setTimeout(function () { formStatus.textContent = ""; }, 3000);
-      });
-
-      async function loadStaff() {
-        try {
-          var resp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
-          var data = await resp.json();
-          renderStaff(data);
-        } catch (e) { console.error("Failed to load staff", e); }
-      }
-
-      function renderStaff(accounts) {
-        tbody.innerHTML = "";
-        if (!accounts || accounts.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#7f8c8d">No staff accounts yet.</td></tr>';
-          return;
-        }
-        accounts.forEach(function (a) {
-          var tr = document.createElement("tr");
-          var statusCls = a.is_active ? "status-active" : "status-expired";
-          var statusText = a.is_active ? "Active" : "Inactive";
-          var toggleBtn = a.is_active
-            ? '<button class="btn-deactivate" data-action="deactivate">Deactivate</button>'
-            : '<button class="btn-activate" data-action="activate">Activate</button>';
-          tr.innerHTML =
-            "<td>" + esc(a.username) + "</td>" +
-            "<td>" + esc(a.display_name || "—") + "</td>" +
-            "<td>" + esc(a.role) + "</td>" +
-            '<td class="' + statusCls + '">' + statusText + "</td>" +
-            "<td>" + fmtTime(a.created_at) + "</td>" +
-            '<td class="staff-actions-cell">' +
-              '<button data-action="reset-pw">Reset PW</button>' +
-              toggleBtn +
-              '<button class="btn-delete" data-action="delete">Delete</button>' +
-            "</td>";
-          tr.querySelectorAll("button").forEach(function (btn) {
-            btn.addEventListener("click", function () { handleAction(a.id, btn.dataset.action, a.username); });
-          });
-          tbody.appendChild(tr);
-        });
-      }
-
-      async function handleAction(id, action, username) {
-        var key = getKey();
-        if (action === "reset-pw") {
-          var pw = prompt("New password for " + username + " (min 4 chars):");
-          if (!pw || pw.length < 4) return;
-          await fetch("/admin/api/staff/" + id + "/reset-password", {
-            method: "POST", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
-            body: JSON.stringify({ new_password: pw })
-          });
-        } else if (action === "deactivate") {
-          if (!confirm("Deactivate " + username + "?")) return;
-          await fetch("/admin/api/staff/" + id, {
-            method: "PUT", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
-            body: JSON.stringify({ is_active: false })
-          });
-        } else if (action === "activate") {
-          await fetch("/admin/api/staff/" + id, {
-            method: "PUT", headers: { "Content-Type": "application/json", "X-Admin-Key": key },
-            body: JSON.stringify({ is_active: true })
-          });
-        } else if (action === "delete") {
-          if (!confirm("Permanently delete " + username + "? This cannot be undone.")) return;
-          await fetch("/admin/api/staff/" + id, {
-            method: "DELETE", headers: { "X-Admin-Key": key }
-          });
-        }
-        loadStaff();
-        loadSettingsStaffList();
-      }
-
-      // Load when tab is shown
-      document.querySelectorAll(".tab-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          if (btn.dataset.tab === "staff-tab") loadStaff();
-        });
-      });
-    })();
-
-    // =====================================================================
     // Dashboard Settings Tab
     // =====================================================================
     (function () {
@@ -2111,49 +1870,9 @@
         feature_staff_performance: "archive-tab",
       };
 
-      var settingsStaffSelect = document.getElementById("settings-staff-select");
-      var settingsStaffSelector = document.getElementById("settings-staff-selector");
-      var settingsDesc = document.getElementById("settings-desc");
-
-      // Populate staff dropdown for admins
-      async function loadSettingsStaffList() {
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        if (role !== "admin") {
-          settingsStaffSelector.classList.add("hidden");
-          settingsDesc.textContent = "Customize your dashboard — toggle features on or off.";
-          return;
-        }
-        settingsStaffSelector.classList.remove("hidden");
-        try {
-          var resp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
-          var staffList = await resp.json();
-          // Keep "Global" option, add staff
-          settingsStaffSelect.innerHTML = '<option value="">Global (default for all staff)</option>';
-          staffList.forEach(function(s) {
-            var opt = document.createElement("option");
-            opt.value = s.id;
-            opt.textContent = (s.display_name || s.username) + " (" + s.role + ")";
-            settingsStaffSelect.appendChild(opt);
-          });
-        } catch(e) { console.error("Failed to load staff list for settings", e); }
-      }
-
-      settingsStaffSelect.addEventListener("change", function() { loadSettings(); });
-
       async function loadSettings() {
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        var isAdmin = role === "admin";
-        var staffId = "";
-
-        if (isAdmin) {
-          staffId = settingsStaffSelect.value; // "" = global, or a staff_id
-        } else {
-          staffId = sessionStorage.getItem("admin_staff_id") || "";
-        }
-
-        var url = staffId ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
         try {
-          var resp = await fetch(url, { headers: { "X-Admin-Key": getKey() } });
+          var resp = await fetch("/admin/api/settings", { headers: { "X-Admin-Key": getKey() } });
           var data = await resp.json();
           // Populate checkboxes
           document.querySelectorAll(".settings-toggles input[type=checkbox]").forEach(function (cb) {
@@ -2165,25 +1884,17 @@
             var key = inp.dataset.key;
             if (key && data[key] !== undefined) inp.value = data[key];
           });
-          if (isAdmin && !staffId) applyFeatureToggles(data);
-          if (!isAdmin) applyFeatureToggles(data);
+          applyFeatureToggles(data);
         } catch (e) { console.error("Failed to load settings", e); }
       }
 
       function applyFeatureToggles(settings) {
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        var isAdmin = role === "admin";
         Object.entries(featureToTabMap).forEach(function (pair) {
           var key = pair[0], tabId = pair[1];
           var enabled = settings[key] !== "false";
           var tabBtn = document.querySelector('[data-tab="' + tabId + '"]');
           if (tabBtn) {
-            // Admins always see all feature tabs; staff respects the toggle
-            if (isAdmin) {
-              tabBtn.style.display = "";
-            } else {
-              tabBtn.style.display = enabled ? "" : "none";
-            }
+            tabBtn.style.display = enabled ? "" : "none";
           }
         });
       }
@@ -2197,27 +1908,15 @@
           if (inp.dataset.key) payload[inp.dataset.key] = inp.value;
         });
 
-        var role = sessionStorage.getItem("admin_role") || "admin";
-        var isAdmin = role === "admin";
-        var staffId = "";
-        if (isAdmin) {
-          staffId = settingsStaffSelect.value;
-        } else {
-          staffId = sessionStorage.getItem("admin_staff_id") || "";
-        }
-
-        var url = staffId ? "/admin/api/staff/" + staffId + "/settings" : "/admin/api/settings";
         try {
-          var resp = await fetch(url, {
+          var resp = await fetch("/admin/api/settings", {
             method: "PUT",
             headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
             body: JSON.stringify({ settings: payload })
           });
           if (resp.ok) {
             statusEl.textContent = "✓ Saved"; statusEl.style.color = "#27ae60";
-            // Reload settings to apply changes across all tabs
             loadSettings();
-            loadSettingsStaffList();
           } else {
             statusEl.textContent = "✗ Save failed"; statusEl.style.color = "#e74c3c";
           }
@@ -2230,7 +1929,7 @@
       // Load when tab is shown
       document.querySelectorAll(".tab-btn").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          if (btn.dataset.tab === "settings-tab") { loadSettingsStaffList(); loadSettings(); }
+          if (btn.dataset.tab === "settings-tab") { loadSettings(); }
         });
       });
 
@@ -2543,20 +2242,6 @@
       document.getElementById("lch-next-btn").addEventListener("click", function() { lchPage++; loadLiveChatHistory(); });
 
       async function loadLiveChatHistory() {
-        // Populate staff filter
-        try {
-          var staffResp = await fetch("/admin/api/staff", { headers: { "X-Admin-Key": getKey() } });
-          var staffList = await staffResp.json();
-          var sel = lchStaffFilter;
-          while (sel.options.length > 1) sel.remove(1);
-          staffList.forEach(function(s) {
-            var opt = document.createElement("option");
-            opt.value = s.username;
-            opt.textContent = s.display_name || s.username;
-            sel.appendChild(opt);
-          });
-        } catch(e) {}
-
         var params = new URLSearchParams();
         params.set("page", lchPage);
         params.set("page_size", "20");
@@ -2687,8 +2372,7 @@
 
       function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
       function getMyUsername() {
-        return sessionStorage.getItem("admin_display_name")
-          || sessionStorage.getItem("admin_username")
+        return sessionStorage.getItem("admin_username")
           || "admin";
       }
 

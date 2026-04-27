@@ -33,9 +33,6 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     api_key: str
-    role: str = "admin"
-    display_name: str = ""
-    staff_id: int | None = None
 
 
 def set_session_store(store: SessionStore) -> None:
@@ -52,35 +49,15 @@ def set_library_info_path(path: str) -> None:
 
 @login_router.post("/login", response_model=LoginResponse)
 async def admin_login(request: LoginRequest):
-    """Validate credentials and return the API key + role.
-
-    Checks the env-based admin account first, then falls back to
-    staff accounts stored in SQLite.
-    """
+    """Validate credentials and return the API key."""
     expected_user = os.environ.get("ADMIN_USERNAME", "admin")
     expected_pass = os.environ.get("ADMIN_PASSWORD", "admin")
 
-    # Check env-based admin account
     if request.username == expected_user and request.password == expected_pass:
         api_key = os.environ.get("ADMIN_API_KEY", "")
         if not api_key:
             raise HTTPException(status_code=500, detail={"error": "Admin API key not configured"})
-        return LoginResponse(api_key=api_key, role="admin", display_name="Admin", staff_id=None)
-
-    # Check staff accounts in the database
-    from app.staff_routes import staff_store as _staff_store
-    if _staff_store is not None:
-        account = _staff_store.verify_staff(request.username, request.password)
-        if account:
-            api_key = os.environ.get("ADMIN_API_KEY", "")
-            if not api_key:
-                raise HTTPException(status_code=500, detail={"error": "Admin API key not configured"})
-            return LoginResponse(
-                api_key=api_key,
-                role=account["role"],
-                display_name=account.get("display_name", ""),
-                staff_id=account.get("id"),
-            )
+        return LoginResponse(api_key=api_key)
 
     raise HTTPException(status_code=401, detail={"error": "Invalid username or password"})
 
@@ -89,32 +66,9 @@ async def admin_login(request: LoginRequest):
 async def verify_account():
     """Verify the current session is still valid.
 
-    Called on page load to check if the staff account still exists.
     The X-Admin-Key header is validated by the router dependency.
-    Returns basic account info so the frontend can confirm.
     """
-    # If we get here, the API key is valid (router dependency checked it).
-    # But we can't tell which user it is from the key alone — the frontend
-    # sends username/staff_id via query params.
     return {"status": "ok"}
-
-
-@router.get("/verify-staff/{username}")
-async def verify_staff_account(username: str):
-    """Check if a specific staff account still exists and is active."""
-    from app.staff_routes import staff_store as _staff_store
-    if _staff_store is None:
-        return {"valid": False}
-    # Check env-based admin account
-    expected_user = os.environ.get("ADMIN_USERNAME", "admin")
-    if username == expected_user:
-        return {"valid": True}
-    # Check staff accounts
-    accounts = _staff_store.list_staff()
-    for a in accounts:
-        if a["username"] == username and a["is_active"]:
-            return {"valid": True}
-    return {"valid": False}
 
 
 def _get_store() -> SessionStore:
