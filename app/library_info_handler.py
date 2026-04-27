@@ -176,7 +176,33 @@ def _group_hours(hours: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
-def _format_hours_as_sentences(loc_name: str, loc_info) -> str:
+_OVERDUE_KEYS = {"overdue_faculty", "overdue_students"}
+_PRINTING_KEYS = {"printing_procedure", "printing_card_price", "printing_card",
+                  "printing_short_bw", "printing_short_color_text", "printing_short_full_color",
+                  "printing_long_bw", "printing_long_color_text", "printing_long_full_color"}
+_PRINTING_RATE_KEYS = {"printing_short_bw", "printing_short_color_text", "printing_short_full_color",
+                       "printing_long_bw", "printing_long_color_text", "printing_long_full_color"}
+
+
+def _filter_section(section: dict[str, str], message: str) -> dict[str, str]:
+    """Return only the relevant keys from a section based on the patron's message."""
+    words = set(message.lower().replace("?", " ").replace("!", " ").split())
+    # Overdue-specific
+    if words & {"overdue", "late", "penalty", "penalties"}:
+        filtered = {k: v for k, v in section.items() if k in _OVERDUE_KEYS}
+        if filtered:
+            return filtered
+    # Printing rates specifically
+    if words & {"rate", "rates", "price", "prices", "cost", "costs", "how much"}:
+        filtered = {k: v for k, v in section.items() if k in _PRINTING_RATE_KEYS}
+        if filtered:
+            return filtered
+    # Printing in general
+    if words & {"print", "printing", "printer", "photocopy", "scan"}:
+        filtered = {k: v for k, v in section.items() if k in _PRINTING_KEYS}
+        if filtered:
+            return filtered
+    return section
     """Format a location's hours as a natural sentence string."""
     if not loc_info.hours:
         return ""
@@ -211,7 +237,7 @@ def _format_hours_as_sentences(loc_name: str, loc_info) -> str:
     return f"The {name} is open {', '.join(parts)}."
 
 
-def _format_category_data(category: str, library_info: LibraryInfo) -> str:
+def _format_category_data(category: str, library_info: LibraryInfo, message: str = "") -> str:
     """Format the data for a matched category across all locations as natural sentences."""
     if category in ("hours", "email", "address"):
         locations = library_info.get_all_locations()
@@ -236,6 +262,8 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
             return "No information is available at this time."
+        if message:
+            section = _filter_section(section, message)
         return " ".join(value for value in section.values())
 
 
@@ -263,12 +291,12 @@ def handle_library_info_query(
     if category == "all":
         parts = []
         for cat in ("hours", "address", "email", "policies", "fines"):
-            cat_data = _format_category_data(cat, library_info)
+            cat_data = _format_category_data(cat, library_info, message)
             if cat_data and "No" not in cat_data:
                 parts.append(f"[{cat.upper()}]\n{cat_data}")
         data_str = "\n\n".join(parts) if parts else "(No data available)"
     else:
-        data_str = _format_category_data(category, library_info)
+        data_str = _format_category_data(category, library_info, message)
 
     # Try LLM for a conversational reply
     if client and _is_llm_available(client):
