@@ -750,11 +750,14 @@
   function showHandoffRating() {
     if (ratingShown) return;
     ratingShown = true;
+    // Show "chat ended" message first
+    _origAddMsg("The librarian has ended the chat. 👋", "b");
+    // Then show rating
     var rateDiv = document.createElement("div");
     rateDiv.className = "lc-m b";
     rateDiv.style.cssText = "text-align:center;max-width:90%;padding:14px 18px";
     rateDiv.innerHTML =
-      '<div style="margin-bottom:8px;font-size:0.9rem;color:#333">How was your experience with the librarian?</div>' +
+      '<div style="margin-bottom:8px;font-size:0.92em;color:#333">How was your experience with the librarian?</div>' +
       '<div class="lc-handoff-rate">' +
       '<button class="lc-rate-btn" data-rating="1" aria-label="Good experience">👍 Good</button>' +
       '<button class="lc-rate-btn" data-rating="-1" aria-label="Bad experience">👎 Could be better</button>' +
