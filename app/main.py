@@ -601,6 +601,12 @@ async def live_chat_page():
     return FileResponse(_live_chat_html, media_type="text/html")
 
 
+@app.get("/admin/chat/")
+async def live_chat_page_alt():
+    """Serve the live chat page at /admin/chat/ too (for backward compat)."""
+    return FileResponse(_live_chat_html, media_type="text/html")
+
+
 # Mount static files for the chat widget.
 _static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.isdir(_static_dir):
