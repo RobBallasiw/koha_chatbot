@@ -6,6 +6,21 @@
       "use": "@vercel/python"
     }
   ],
+  "headers": [
+    {
+      "source": "/admin/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
+        { "key": "Pragma", "value": "no-cache" }
+      ]
+    },
+    {
+      "source": "/chat/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    }
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -17,6 +32,10 @@
     },
     {
       "src": "/admin/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/chat/(.*)",
       "dest": "api/index.py"
     },
     {
