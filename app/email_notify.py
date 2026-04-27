@@ -115,7 +115,7 @@ def send_handoff_email(
     admin_url: str,
 ) -> bool:
     """Send a handoff notification email."""
-    chat_link = f"{admin_url}/admin/#handoff-tab"
+    chat_link = f"{admin_url}/chat/?session={session_id}"
     subject = "📚 A patron wants to talk to a librarian"
 
     html_body = f"""
@@ -166,7 +166,7 @@ def send_staff_notify_email(
     admin_url: str,
 ) -> bool:
     """Send a personalized notification email to a specific librarian."""
-    chat_link = f"{admin_url}/admin/#handoff-tab"
+    chat_link = f"{admin_url}/chat/?session={session_id}" if session_id else f"{admin_url}/chat/"
     subject = f"📚 {staff_name}, a patron needs your help"
 
     session_note = ""
@@ -216,7 +216,7 @@ def send_ntfy_notification(
     admin_url: str,
 ) -> bool:
     """Send a push notification via ntfy.sh."""
-    chat_link = f"{admin_url}/admin/#handoff-tab"
+    chat_link = f"{admin_url}/chat/?session={session_id}"
     try:
         httpx.post(
             f"https://ntfy.sh/{ntfy_topic}",

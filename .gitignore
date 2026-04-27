@@ -8,3 +8,4 @@ __pycache__/
 venv/
 .venv/
 data/sessions.db
+service-account.json

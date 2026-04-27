@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Chat — Lorma Library</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #333; line-height: 1.5; }
+    header { background: #2c3e50; color: #fff; padding: 14px 24px; text-align: center; }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+
+    /* Login */
+    .login-card { background: #fff; border-radius: 8px; padding: 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); margin-top: 40px; }
+    .login-card h2 { font-size: 1.1rem; color: #2c3e50; margin-bottom: 18px; text-align: center; }
+    .login-card label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 4px; }
+    .login-card input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; margin-bottom: 14px; }
+    .login-card button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    .login-card button:hover { background: #34495e; }
+    .login-error { color: #991b1b; font-size: 0.85rem; margin-bottom: 10px; text-align: center; }
+
+    /* Chat */
+    .chat-wrap { display: none; height: calc(100vh - 70px); display: flex; flex-direction: column; }
+    .chat-header { background: #fff; padding: 12px 16px; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; color: #2c3e50; display: flex; align-items: center; justify-content: space-between; }
+    .chat-header .status { font-size: 0.8rem; color: #27ae60; font-weight: 600; }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 16px; background: #f4f6f9; }
+    .msg { margin-bottom: 12px; max-width: 85%; }
+    .msg-user { margin-left: auto; }
+    .msg-user .bubble { background: #3498db; color: #fff; border-radius: 12px 12px 0 12px; padding: 10px 14px; }
+    .msg-librarian { margin-right: auto; }
+    .msg-librarian .bubble { background: #2c3e50; color: #fff; border-radius: 12px 12px 12px 0; padding: 10px 14px; }
+    .msg-assistant .bubble { background: #ecf0f1; color: #333; border-radius: 12px; padding: 10px 14px; }
+    .msg-label { font-size: 0.72rem; color: #7f8c8d; margin-bottom: 3px; }
+    .msg-user .msg-label { text-align: right; }
+    .input-bar { display: flex; gap: 8px; padding: 12px 16px; background: #fff; border-top: 1px solid #ecf0f1; }
+    .input-bar input { flex: 1; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.9rem; }
+    .input-bar input:focus { border-color: #2c3e50; outline: none; }
+    .input-bar button { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+    #send-btn { background: #2c3e50; color: #fff; }
+    #send-btn:hover { background: #34495e; }
+    #end-btn { background: #e74c3c; color: #fff; }
+    #end-btn:hover { background: #c0392b; }
+    .hidden { display: none !important; }
+    .empty-state { text-align: center; color: #7f8c8d; padding: 40px 20px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header><h1>📚 Lorma Library — Live Chat</h1></header>
+
+  <div class="container">
+    <!-- Login -->
+    <div id="login-view">
+      <div class="login-card">
+        <h2>💬 Join Live Chat</h2>
+        <div id="login-error" class="login-error hidden"></div>
+        <label for="lc-name">Your Name</label>
+        <input type="text" id="lc-name" placeholder="e.g. Maria Santos" required>
+        <label for="lc-key">Admin API Key</label>
+        <input type="password" id="lc-key" placeholder="Enter admin API key" required>
+        <button id="lc-login-btn" type="button">Join Chat</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat view (full height) -->
+  <div id="chat-view" class="hidden" style="height:calc(100vh - 52px);display:flex;flex-direction:column">
+    <div class="chat-header">
+      <span id="chat-status">Connecting…</span>
+      <button id="end-btn" type="button" style="padding:6px 14px;border:none;border-radius:4px;background:#e74c3c;color:#fff;font-size:0.8rem;cursor:pointer">End Chat</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="empty-state">Loading messages…</div>
+    </div>
+    <div class="input-bar" id="input-bar">
+      <input type="text" id="reply-input" placeholder="Type your reply…" aria-label="Reply to patron">
+      <button id="send-btn" type="button">Send</button>
+    </div>
+  </div>
+
+<script>
+(function() {
+  var loginView = document.getElementById("login-view");
+  var chatView = document.getElementById("chat-view");
+  var loginError = document.getElementById("login-error");
+  var nameInput = document.getElementById("lc-name");
+  var keyInput = document.getElementById("lc-key");
+  var loginBtn = document.getElementById("lc-login-btn");
+  var chatStatus = document.getElementById("chat-status");
+  var chatMessages = document.getElementById("chat-messages");
+  var replyInput = document.getElementById("reply-input");
+  var sendBtn = document.getElementById("send-btn");
+  var endBtn = document.getElementById("end-btn");
+
+  var apiKey = "";
+  var myName = "";
+  var sessionId = "";
+  var liveChatId = "";
+  var pollTimer = null;
+
+  // Get session_id from URL params
+  var params = new URLSearchParams(window.location.search);
+  sessionId = params.get("session") || "";
+
+  loginBtn.addEventListener("click", doLogin);
+  keyInput.addEventListener("keydown", function(e) { if (e.key === "Enter") doLogin(); });
+
+  async function doLogin() {
+    myName = nameInput.value.trim();
+    apiKey = keyInput.value.trim();
+    if (!myName) { showError("Please enter your name"); return; }
+    if (!apiKey) { showError("Please enter the admin API key"); return; }
+
+    // Verify the key works
+    try {
+      var resp = await fetch("/admin/api/verify", { headers: { "X-Admin-Key": apiKey } });
+      if (resp.status === 401) { showError("Invalid API key"); return; }
+    } catch(e) { showError("Network error"); return; }
+
+    loginView.classList.add("hidden");
+    chatView.classList.remove("hidden");
+    chatView.style.display = "flex";
+
+    if (sessionId) {
+      await joinSession();
+    } else {
+      await findWaitingSession();
+    }
+  }
+
+  function showError(msg) {
+    loginError.textContent = msg;
+    loginError.classList.remove("hidden");
+  }
+
+  async function findWaitingSession() {
+    // No session specified — find the first waiting one
+    try {
+      var resp = await fetch("/admin/api/handoff-sessions?page_size=50", { headers: { "X-Admin-Key": apiKey } });
+      var data = await resp.json();
+      var sessions = data.sessions || [];
+      var waiting = sessions.filter(function(s) { return !s.staff_username; });
+      if (waiting.length > 0) {
+        sessionId = waiting[0].session_id;
+        liveChatId = waiting[0].live_chat_id;
+        await claimAndStart();
+      } else if (sessions.length > 0) {
+        sessionId = sessions[0].session_id;
+        liveChatId = sessions[0].live_chat_id;
+        await claimAndStart();
+      } else {
+        chatStatus.textContent = "No patrons waiting";
+        chatMessages.innerHTML = '<div class="empty-state">No active handoff requests right now. You\'ll see messages here when a patron needs help.</div>';
+        // Poll for new sessions
+        pollTimer = setInterval(async function() {
+          var r = await fetch("/admin/api/handoff-sessions?page_size=1", { headers: { "X-Admin-Key": apiKey } });
+          var d = await r.json();
+          if (d.sessions && d.sessions.length > 0) {
+            clearInterval(pollTimer);
+            sessionId = d.sessions[0].session_id;
+            liveChatId = d.sessions[0].live_chat_id;
+            await claimAndStart();
+          }
+        }, 5000);
+      }
+    } catch(e) {
+      chatStatus.textContent = "Error loading sessions";
+    }
+  }
+
+  async function joinSession() {
+    // Find the live chat for this session
+    try {
+      var resp = await fetch("/admin/api/handoff-sessions?page_size=50", { headers: { "X-Admin-Key": apiKey } });
+      var data = await resp.json();
+      var sessions = data.sessions || [];
+      var match = sessions.find(function(s) { return s.session_id === sessionId; });
+      if (match) {
+        liveChatId = match.live_chat_id;
+        await claimAndStart();
+      } else {
+        chatStatus.textContent = "Session not found or already ended";
+        chatMessages.innerHTML = '<div class="empty-state">This session may have already ended or been handled by another librarian.</div>';
+      }
+    } catch(e) {
+      chatStatus.textContent = "Error connecting";
+    }
+  }
+
+  async function claimAndStart() {
+    // Claim the session
+    try {
+      var resp = await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": apiKey },
+        body: JSON.stringify({ username: myName })
+      });
+      if (resp.status === 409) {
+        var d = await resp.json();
+        chatStatus.innerHTML = "Handled by <strong>" + esc(d.claimed_by || "someone") + "</strong> (read-only)";
+        document.getElementById("input-bar").style.display = "none";
+      } else {
+        chatStatus.innerHTML = "Connected — chatting with patron as <strong>" + esc(myName) + "</strong>";
+      }
+    } catch(e) {
+      chatStatus.textContent = "Connected";
+    }
+
+    await loadMessages();
+    startPoll();
+    replyInput.focus();
+  }
+
+  async function loadMessages() {
+    if (!liveChatId) return;
+    try {
+      var resp = await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/messages", {
+        headers: { "X-Admin-Key": apiKey }
+      });
+      var data = await resp.json();
+      renderMessages(data.messages || []);
+      if (data.status === "ended") {
+        chatStatus.textContent = "Chat has ended";
+        document.getElementById("input-bar").style.display = "none";
+        stopPoll();
+      }
+    } catch(e) {}
+  }
+
+  function renderMessages(msgs) {
+    chatMessages.innerHTML = "";
+    if (!msgs.length) {
+      chatMessages.innerHTML = '<div class="empty-state">Waiting for patron messages…</div>';
+      return;
+    }
+    msgs.forEach(function(m) {
+      var div = document.createElement("div");
+      var cls = "msg ";
+      var label = "";
+      if (m.role === "user") { cls += "msg-user"; label = "👤 Patron"; }
+      else if (m.role === "librarian") { cls += "msg-librarian"; label = "👩‍💼 " + myName; }
+      else { cls += "msg-assistant"; label = "🤖 Hero"; }
+      var time = m.timestamp ? new Date(m.timestamp * 1000).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}) : "";
+      div.className = cls;
+      div.innerHTML = '<div class="msg-label">' + label + " · " + time + '</div><div class="bubble">' + esc(m.content) + '</div>';
+      chatMessages.appendChild(div);
+    });
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+  function esc(s) {
+    var d = document.createElement("div");
+    d.textContent = s || "";
+    return d.innerHTML.replace(/\n/g, "<br>");
+  }
+
+  function startPoll() { stopPoll(); pollTimer = setInterval(loadMessages, 3000); }
+  function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+  sendBtn.addEventListener("click", sendReply);
+  replyInput.addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); sendReply(); } });
+
+  async function sendReply() {
+    var text = replyInput.value.trim();
+    if (!text || !liveChatId) return;
+    replyInput.value = "";
+    try {
+      await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/reply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": apiKey },
+        body: JSON.stringify({ message: text, sender_name: myName })
+      });
+      await loadMessages();
+    } catch(e) {}
+    replyInput.focus();
+  }
+
+  endBtn.addEventListener("click", async function() {
+    if (!liveChatId) return;
+    if (!confirm("End this chat? The patron will be returned to the bot.")) return;
+    try {
+      await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/end", {
+        method: "POST", headers: { "X-Admin-Key": apiKey }
+      });
+      chatStatus.textContent = "Chat ended";
+      document.getElementById("input-bar").style.display = "none";
+      stopPoll();
+    } catch(e) {}
+  });
+})();
+</script>
+</body>
+</html>

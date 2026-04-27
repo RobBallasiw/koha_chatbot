@@ -586,12 +586,19 @@ async def poll_messages(session_id: str, since: float = 0):
 
 # Serve admin dashboard HTML at /admin/.
 _admin_html = os.path.join(os.path.dirname(__file__), "static", "admin.html")
+_live_chat_html = os.path.join(os.path.dirname(__file__), "static", "live-chat.html")
 
 
 @app.get("/admin/")
 async def admin_dashboard():
     """Serve the admin monitoring dashboard."""
     return FileResponse(_admin_html, media_type="text/html")
+
+
+@app.get("/chat/")
+async def live_chat_page():
+    """Serve the standalone live chat page for librarians."""
+    return FileResponse(_live_chat_html, media_type="text/html")
 
 
 # Mount static files for the chat widget.
