@@ -162,7 +162,7 @@
             '<div class="empty-state">' +
             '<div style="font-size:1.5em;margin-bottom:12px">✅</div>' +
             '<div style="font-size:1.05em;color:#2c3e50;margin-bottom:8px">This session is already being handled</div>' +
-            '<div style="color:#7f8c8d"><strong>' + esc(match.staff_username) + '</strong> is chatting with the patron.</div>' +
+            '<div style="color:#7f8c8d">Another librarian is chatting with the patron.</div>' +
             '</div>';
           document.getElementById("input-bar").style.display = "none";
           document.getElementById("end-btn").style.display = "none";
@@ -190,7 +190,7 @@
           '<div class="empty-state">' +
           '<div style="font-size:1.5em;margin-bottom:12px">✅</div>' +
           '<div style="font-size:1.05em;color:#2c3e50;margin-bottom:8px">This session is already being handled</div>' +
-          '<div style="color:#7f8c8d"><strong>' + esc(d.claimed_by || "Another librarian") + '</strong> is chatting with the patron.</div>' +
+          '<div style="color:#7f8c8d">Another librarian is chatting with the patron.</div>' +
           '</div>';
         document.getElementById("input-bar").style.display = "none";
         document.getElementById("end-btn").style.display = "none";
