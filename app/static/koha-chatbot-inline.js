@@ -462,7 +462,11 @@
 
   function resetInactivityTimer() {
     if (inactivityTimer) clearTimeout(inactivityTimer);
+    // Don't start the timer during an active handoff — the patron may be waiting for a librarian
+    if (handoffActive) return;
     inactivityTimer = setTimeout(function () {
+      // Don't expire during handoff
+      if (handoffActive) return;
       // Close session on server
       if (sid) {
         var blob = new Blob(
@@ -642,6 +646,8 @@
     btn.disabled = false;
     removeCancelButton();
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    // Restart inactivity timer now that handoff is over
+    resetInactivityTimer();
   }
 
   function showCancelButton() {
