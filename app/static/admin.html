@@ -538,7 +538,7 @@
     .controls button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; background: #2c3e50; color: #fff; }
     .controls button:hover { background: #34495e; }
     .session-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .session-table th, .session-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; }
+    .session-table th, .session-table td { padding: clamp(6px, 1.2vw, 12px) clamp(8px, 1.5vw, 14px); text-align: left; border-bottom: 1px solid #ecf0f1; font-size: clamp(0.72rem, 1.4vw, 0.9rem); }
     .session-table th { background: #ecf0f1; font-weight: 600; color: #2c3e50; }
     .session-table tr:hover { background: #f9fafb; cursor: pointer; border-left: 3px solid #2c3e50; }
     .session-table tr { transition: opacity 0.3s ease; }
