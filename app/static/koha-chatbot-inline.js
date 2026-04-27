@@ -530,11 +530,19 @@
   document.getElementById("lc-new").addEventListener("click", function () {
     // Close the old session on the server
     if (sid) {
-      var blob = new Blob(
-        [JSON.stringify({ message: "", session_id: sid })],
-        { type: "application/json" }
-      );
-      navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
+      var oldSid = sid;
+      fetch(CHATBOT_API + "/api/close-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "", session_id: oldSid })
+      }).catch(function () {
+        // Fallback to sendBeacon if fetch fails
+        var blob = new Blob(
+          [JSON.stringify({ message: "", session_id: oldSid })],
+          { type: "application/json" }
+        );
+        navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
+      });
     }
     resetToNewChat();
     inp.focus();
