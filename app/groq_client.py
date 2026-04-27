@@ -2,7 +2,7 @@
 
 import logging
 
-from openai import OpenAI, APIError, APITimeoutError
+from openai import OpenAI, APIError, APITimeoutError, RateLimitError
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +24,16 @@ DEFAULT_MAX_TOKENS = 256
 DEFAULT_TEMPERATURE = 0.7
 DEFAULT_OLLAMA_URL = "http://localhost:11434/v1"
 
+# Ordered list of fallback models to try when the primary is rate-limited.
+# All are free on OpenRouter. First available one wins.
+FALLBACK_MODELS = [
+    "openai/gpt-oss-20b:free",
+    "openai/gpt-oss-120b:free",
+    "google/gemma-4-31b-it:free",
+    "google/gemma-3n-e2b-it:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+]
+
 # Fallback messages returned when the LLM is unavailable.
 FALLBACK_GENERAL = (
     "Oops, I'm having a little trouble right now 😅 "
@@ -36,24 +46,7 @@ FALLBACK_RATE_LIMIT = (
 
 
 class GroqClient:
-    """LLM client that talks to a local Ollama instance via its OpenAI-compatible API.
-
-    The class name is kept as ``GroqClient`` so the rest of the codebase
-    doesn't need renaming — it's a drop-in replacement.
-
-    Parameters
-    ----------
-    api_key:
-        Ignored for Ollama (kept for interface compatibility).
-    model:
-        Ollama model name (e.g. ``llama3.2:3b``).
-    max_tokens:
-        Maximum number of tokens in the generated response.
-    temperature:
-        Sampling temperature for response generation.
-    base_url:
-        Ollama OpenAI-compatible endpoint. Defaults to ``http://localhost:11434/v1``.
-    """
+    """LLM client that talks to a local Ollama instance via its OpenAI-compatible API."""
 
     def __init__(
         self,
@@ -67,40 +60,53 @@ class GroqClient:
         self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
-        # Use OpenRouter/Groq API key if set, otherwise fall back to provided key or "ollama"
         resolved_key = os.environ.get("OPENROUTER_API_KEY") or api_key or "ollama"
         self._client = OpenAI(base_url=base_url, api_key=resolved_key)
 
     def chat(self, messages: list[dict]) -> str:
-        """Send *messages* to Ollama and return the assistant reply.
-
-        The library system prompt is always prepended so the model stays on-topic.
-        """
+        """Send *messages* to the LLM and return the assistant reply."""
         full_messages = [{"role": "system", "content": SYSTEM_PROMPT}] + messages
         return self._send(full_messages)
 
     def chat_with_system(self, system_prompt: str, messages: list[dict]) -> str:
-        """Send *messages* with a custom system prompt.
-
-        Used by the query classifier and other components that need a
-        different system-level instruction than the default library prompt.
-        """
+        """Send *messages* with a custom system prompt."""
         full_messages = [{"role": "system", "content": system_prompt}] + messages
         return self._send(full_messages)
 
     def _send(self, messages: list[dict]) -> str:
-        """Send messages to Ollama and return the response text."""
-        try:
-            response = self._client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-            )
-            return response.choices[0].message.content
-        except APITimeoutError:
-            logger.warning("Ollama request timed out")
-            return FALLBACK_GENERAL
-        except (APIError, Exception) as exc:
-            logger.warning("Ollama request failed: %s", exc)
-            return FALLBACK_GENERAL
+        """Send messages, automatically falling back through FALLBACK_MODELS on rate limit."""
+        # Build the model chain: primary first, then fallbacks (excluding primary if already listed)
+        import os
+        primary = self.model
+        chain = [primary] + [m for m in FALLBACK_MODELS if m != primary]
+
+        for model in chain:
+            try:
+                response = self._client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                )
+                if model != primary:
+                    logger.info("Used fallback model: %s", model)
+                return response.choices[0].message.content
+            except RateLimitError:
+                logger.warning("Rate limit hit for model %s, trying next...", model)
+                continue
+            except APITimeoutError:
+                logger.warning("Timeout for model %s, trying next...", model)
+                continue
+            except APIError as exc:
+                # 429 may also surface as APIError
+                if "429" in str(exc) or "rate" in str(exc).lower():
+                    logger.warning("Rate limit (APIError) for model %s, trying next...", model)
+                    continue
+                logger.warning("APIError for model %s: %s", model, exc)
+                return FALLBACK_GENERAL
+            except Exception as exc:
+                logger.warning("Unexpected error for model %s: %s", model, exc)
+                return FALLBACK_GENERAL
+
+        logger.warning("All models exhausted")
+        return FALLBACK_RATE_LIMIT
