@@ -41,9 +41,11 @@ INFO_RESPONSE_PROMPT = (
     "Rules:\n"
     "- Answer in a friendly way using ONLY the data above.\n"
     "- Do NOT start with 'I'm Hero' or introduce yourself — just answer the question directly.\n"
-    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location.\n"
-    "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
     "- Write in natural flowing sentences. Do NOT use bullet points, dashes, or lists.\n"
+    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location.\n"
+    "- For email questions: state the email address(es) in a sentence.\n"
+    "- For address/location questions: state the location(s) in a sentence.\n"
+    "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
     "- Use 1 emoji at the end."
 )
 
@@ -184,13 +186,13 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
         for loc_name, loc_info in locations.items():
             if category == "email":
                 if loc_info.email:
-                    parts.append(f"📍 {loc_name}: ✉️ {loc_info.email}")
+                    parts.append(f"{loc_name}: {loc_info.email}")
             elif category == "address":
                 if loc_info.address:
-                    parts.append(f"📍 {loc_name}: {loc_info.address}")
+                    parts.append(f"{loc_name} is located at {loc_info.address}.")
             else:  # hours
                 if loc_info.hours:
-                    header = f"📍 {loc_name}"
+                    header = loc_name
                     if loc_info.address:
                         header += f" ({loc_info.address})"
                     parts.append(f"{header}\n{_group_hours(loc_info.hours)}")
@@ -201,9 +203,7 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
             return "(No data available)"
-        label = "Fines" if category == "fines" else "Policies"
-        lines = "\n".join(f"• {key}: {value}" for key, value in section.items())
-        return f"{label} (applies to all locations):\n{lines}"
+        return "\n".join(f"{key}: {value}" for key, value in section.items())
 
 
 def _is_llm_available(client: GroqClient) -> bool:
@@ -252,4 +252,4 @@ def handle_library_info_query(
             logger.info("LLM unavailable for library info, using formatted data")
 
     # Fallback: return formatted data directly
-    return f"Here's what I found 📚:\n\n{data_str}"
+    return f"Here's what I found:\n\n{data_str} 📚"
