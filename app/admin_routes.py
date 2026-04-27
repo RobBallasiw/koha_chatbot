@@ -442,8 +442,8 @@ async def get_typing(live_chat_id: str):
     now = _time.time()
     state = _typing_state.get(live_chat_id, {})
     return {
-        "patron_typing": now - state.get("patron", 0) < 4,
-        "librarian_typing": now - state.get("librarian", 0) < 4,
+        "patron_typing": now - state.get("patron", 0) < 3,
+        "librarian_typing": now - state.get("librarian", 0) < 3,
     }
 
 

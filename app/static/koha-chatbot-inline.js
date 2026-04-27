@@ -432,7 +432,7 @@
     // Send typing signal during live chat
     if (handoffActive && handoffHandler && inp.value.trim()) {
       var now = Date.now();
-      if (now - lastTypingSignal > 2000) {
+      if (now - lastTypingSignal > 1500) {
         lastTypingSignal = now;
         fetch(CHATBOT_API + "/api/typing/" + encodeURIComponent(sid), { method: "POST" }).catch(function(){});
       }

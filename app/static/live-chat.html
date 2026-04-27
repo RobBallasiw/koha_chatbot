@@ -266,7 +266,7 @@
   replyInput.addEventListener("input", function() {
     if (!liveChatId || !replyInput.value.trim()) return;
     var now = Date.now();
-    if (now - lastLibTyping > 2000) {
+    if (now - lastLibTyping > 1500) {
       lastLibTyping = now;
       fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/typing", {
         method: "POST",
