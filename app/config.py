@@ -53,6 +53,6 @@ def load_settings() -> Settings:
         smtp_email=os.environ.get("SMTP_EMAIL"),
         smtp_password=os.environ.get("SMTP_PASSWORD"),
         librarian_email=os.environ.get("LIBRARIAN_EMAIL"),
-        chatbot_public_url=os.environ.get("CHATBOT_PUBLIC_URL", "http://localhost:8000"),
+        chatbot_public_url=os.environ.get("CHATBOT_PUBLIC_URL", "http://localhost:8000").rstrip("/"),
         ntfy_topic=os.environ.get("NTFY_TOPIC"),
     )
