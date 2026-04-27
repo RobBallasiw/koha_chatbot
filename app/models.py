@@ -66,6 +66,7 @@ class LocationInfo(BaseModel):
     """Information for a single library location."""
 
     address: str = ""
+    email: str = ""
     hours: dict[str, str] = {}
 
 

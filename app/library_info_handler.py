@@ -84,7 +84,8 @@ def load_library_info(file_path: str) -> LibraryInfo:
 
 
 _HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time",
-                   "address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map"}
+                   "address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map",
+                   "email", "contact", "reach", "mail"}
 _FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
 _POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
                       "member", "membership", "limit", "rule", "rules", "loan", "card",
@@ -179,8 +180,11 @@ def _format_category_data(category: str, library_info: LibraryInfo) -> str:
                 header = f"📍 {loc_name}"
                 if loc_info.address:
                     header += f" ({loc_info.address})"
-                grouped = _group_hours(loc_info.hours)
-                parts.append(f"{header}\n{grouped}")
+                lines = [header]
+                if loc_info.email:
+                    lines.append(f"  ✉️ Email: {loc_info.email}")
+                lines.append(_group_hours(loc_info.hours))
+                parts.append("\n".join(lines))
         return "\n\n".join(parts) if parts else "(No hours data available)"
     else:
         section: dict[str, str] = getattr(library_info, category, {})
