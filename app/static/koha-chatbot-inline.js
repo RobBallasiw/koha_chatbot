@@ -146,10 +146,11 @@
     '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
     '<div class="lc-faqs">' +
     '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
-    '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
-    '<button class="lc-faq" data-q="How do I renew a book?">&#128260; Renew a book</button>' +
+    '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
     '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
-    '<button class="lc-faq" data-q="What happens if I lose a book?">&#128269; Lost book</button>' +
+    '<button class="lc-faq" data-q="How do I print documents?">&#128424; Printing procedure</button>' +
+    '<button class="lc-faq" data-q="What are the printing rates?">&#128176; Printing rates</button>' +
+    '<button class="lc-faq" data-q="What is the library email address?">&#128231; Library email</button>' +
     '</div>' +
     '</div>' +
     '<div id="lc-bar">' +
@@ -501,10 +502,11 @@
       '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
       '<div class="lc-faqs">' +
       '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
-      '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
-      '<button class="lc-faq" data-q="How do I renew a book?">&#128260; Renew a book</button>' +
+      '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
       '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
-      '<button class="lc-faq" data-q="What happens if I lose a book?">&#128269; Lost book</button>' +
+      '<button class="lc-faq" data-q="How do I print documents?">&#128424; Printing procedure</button>' +
+      '<button class="lc-faq" data-q="What are the printing rates?">&#128176; Printing rates</button>' +
+      '<button class="lc-faq" data-q="What is the library email address?">&#128231; Library email</button>' +
       '</div>';
     inp.disabled = false;
     inp.placeholder = "Type your message…";

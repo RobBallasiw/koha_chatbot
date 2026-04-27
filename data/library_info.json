@@ -2,37 +2,71 @@
   "locations": {
     "CHS Library": {
       "address": "Carlatan, San Fernando City, La Union",
+      "email": "chslibrary@lorma.edu",
       "hours": {
-        "monday": "7:00 AM - 7:00 PM",
-        "tuesday": "7:00 AM - 7:00 PM",
-        "wednesday": "7:00 AM - 7:00 PM",
-        "thursday": "7:00 AM - 7:00 PM",
-        "friday": "7:00 AM - 7:00 PM",
-        "saturday": "8:30 AM - 4:30 PM",
-        "sunday": "Closed"
+        "monday": "7:00 AM - 7:00 PM (no noon break)",
+        "tuesday": "7:00 AM - 7:00 PM (no noon break)",
+        "wednesday": "7:00 AM - 7:00 PM (no noon break)",
+        "thursday": "7:00 AM - 7:00 PM (no noon break)",
+        "friday": "7:00 AM - 7:00 PM (no noon break)",
+        "saturday": "8:30 AM - 4:30 PM (no noon break)",
+        "sunday": "Closed",
+        "holidays": "Closed"
       }
     },
     "CLI Library": {
       "address": "Urbiztondo, San Juan, La Union",
+      "email": "clilibrary@lorma.edu",
       "hours": {
-        "monday": "8:00 AM - 5:00 PM",
-        "tuesday": "8:00 AM - 5:00 PM",
-        "wednesday": "8:00 AM - 5:00 PM",
-        "thursday": "8:00 AM - 5:00 PM",
-        "friday": "8:00 AM - 5:00 PM",
+        "monday": "7:30 AM - 5:00 PM (no noon break)",
+        "tuesday": "7:30 AM - 5:00 PM (no noon break)",
+        "wednesday": "7:30 AM - 5:00 PM (no noon break)",
+        "thursday": "7:30 AM - 5:00 PM (no noon break)",
+        "friday": "7:30 AM - 5:00 PM (no noon break)",
         "saturday": "Closed",
-        "sunday": "Closed"
+        "sunday": "Closed",
+        "holidays": "Closed"
+      }
+    },
+    "High School Library": {
+      "hours": {
+        "monday": "8:30 AM - 4:30 PM",
+        "tuesday": "8:30 AM - 4:30 PM",
+        "wednesday": "8:30 AM - 4:30 PM",
+        "thursday": "8:30 AM - 4:30 PM",
+        "friday": "8:30 AM - 4:30 PM",
+        "saturday": "Closed",
+        "sunday": "Closed",
+        "holidays": "Closed"
+      }
+    },
+    "Preschool and Grade School Library": {
+      "hours": {
+        "monday": "8:30 AM - 4:30 PM",
+        "tuesday": "8:30 AM - 4:30 PM",
+        "wednesday": "8:30 AM - 4:30 PM",
+        "thursday": "8:30 AM - 4:30 PM",
+        "friday": "8:30 AM - 4:30 PM",
+        "saturday": "Closed",
+        "sunday": "Closed",
+        "holidays": "Closed"
       }
     }
   },
   "policies": {
-    "borrowing_limit": "15 items at a time",
-    "renewal_rules": "Items may be renewed up to 2 times unless on hold",
-    "membership": "Free for all residents with valid ID"
+    "borrowing_faculty": "Higher Education Faculty: Maximum of 5 books for 1 month, renewable if there is no demand from other users",
+    "borrowing_students": "Higher Education Students: Maximum of 2 books for 1 week, renewable if there is no demand from other users",
+    "printing_procedure": "1. Student purchases printing card at the business office. 2. Student sends PDF to official library email. 3. Library personnel reviews document. 4. Library personnel prints documents. 5. Student fills out Printing Monitoring Form. 6. Library personnel sends notification for pick-up through email. 7. Library personnel releases printouts."
   },
   "fines": {
-    "overdue_per_day": "$0.25 per day",
-    "lost_item": "Replacement cost + $5.00 processing fee",
-    "max_fine": "$10.00 per item"
+    "overdue_faculty": "Higher Education Faculty: Php 20.00 per day per book",
+    "overdue_students": "Higher Education Students: Php 12.00 per day per book",
+    "printing_card": "Php 100.00",
+    "printing_short_bw": "Short/A4 bond paper, Black & White (pure text): Php 2.00",
+    "printing_short_color_text": "Short/A4 bond paper, With colored text or illustration: Php 5.00",
+    "printing_short_full_color": "Short/A4 bond paper, Full Page Colored: Php 10.00",
+    "printing_long_bw": "Long bond paper, Black & White (pure text): Php 3.00",
+    "printing_long_color_text": "Long bond paper, With colored text or illustration: Php 7.00",
+    "printing_long_full_color": "Long bond paper, Full Page Colored: Php 12.00"
   }
 }
