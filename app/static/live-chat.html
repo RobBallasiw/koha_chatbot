@@ -155,6 +155,19 @@
       var match = sessions.find(function(s) { return s.session_id === sessionId; });
       if (match) {
         liveChatId = match.live_chat_id;
+        // If already claimed by someone else, show message instead of chat
+        if (match.staff_username && match.staff_username !== myName) {
+          chatStatus.textContent = "";
+          chatMessages.innerHTML =
+            '<div class="empty-state">' +
+            '<div style="font-size:1.5em;margin-bottom:12px">✅</div>' +
+            '<div style="font-size:1.05em;color:#2c3e50;margin-bottom:8px">This session is already being handled</div>' +
+            '<div style="color:#7f8c8d"><strong>' + esc(match.staff_username) + '</strong> is chatting with the patron.</div>' +
+            '</div>';
+          document.getElementById("input-bar").style.display = "none";
+          document.getElementById("end-btn").style.display = "none";
+          return;
+        }
         await claimAndStart();
       } else {
         chatStatus.textContent = "Session ended or not found";
@@ -172,8 +185,16 @@
       });
       if (resp.status === 409) {
         var d = await resp.json();
-        chatStatus.innerHTML = "Handled by <strong>" + esc(d.claimed_by || "someone") + "</strong> (read-only)";
+        chatStatus.textContent = "";
+        chatMessages.innerHTML =
+          '<div class="empty-state">' +
+          '<div style="font-size:1.5em;margin-bottom:12px">✅</div>' +
+          '<div style="font-size:1.05em;color:#2c3e50;margin-bottom:8px">This session is already being handled</div>' +
+          '<div style="color:#7f8c8d"><strong>' + esc(d.claimed_by || "Another librarian") + '</strong> is chatting with the patron.</div>' +
+          '</div>';
         document.getElementById("input-bar").style.display = "none";
+        document.getElementById("end-btn").style.display = "none";
+        return;
       } else {
         chatStatus.innerHTML = "Connected as <strong>" + esc(myName) + "</strong>";
       }
