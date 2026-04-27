@@ -96,7 +96,10 @@ def _send_via_smtp(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> b
 def _send_email(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool:
     """Send email — tries service account first, falls back to SMTP."""
     if _use_service_account():
-        return _send_via_service_account(msg)
+        ok = _send_via_service_account(msg)
+        if ok:
+            return True
+        logger.warning("Service account failed, falling back to SMTP")
     if smtp_email and smtp_password:
         return _send_via_smtp(smtp_email, smtp_password, msg)
     logger.warning("No email credentials configured (neither service account nor SMTP)")
