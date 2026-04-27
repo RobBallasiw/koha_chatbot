@@ -56,12 +56,13 @@
   "policies": {
     "borrowing_faculty": "Higher Education Faculty: Maximum of 5 books for 1 month, renewable if there is no demand from other users",
     "borrowing_students": "Higher Education Students: Maximum of 2 books for 1 week, renewable if there is no demand from other users",
-    "printing_procedure": "1. Student purchases printing card at the business office. 2. Student sends PDF to official library email. 3. Library personnel reviews document. 4. Library personnel prints documents. 5. Student fills out Printing Monitoring Form. 6. Library personnel sends notification for pick-up through email. 7. Library personnel releases printouts."
+    "printing_procedure": "1. Student purchases printing card at the business office. 2. Student sends PDF to official library email. 3. Library personnel reviews document. 4. Library personnel prints documents. 5. Student fills out Printing Monitoring Form. 6. Library personnel sends notification for pick-up through email. 7. Library personnel releases printouts.",
+    "printing_card_price": "A printing card costs Php 100.00 and can be purchased at the business office"
   },
   "fines": {
     "overdue_faculty": "Higher Education Faculty: Php 20.00 per day per book",
     "overdue_students": "Higher Education Students: Php 12.00 per day per book",
-    "printing_card": "Php 100.00",
+    "printing_card": "A printing card costs Php 100.00 and can be purchased at the business office",
     "printing_short_bw": "Short/A4 bond paper, Black & White (pure text): Php 2.00",
     "printing_short_color_text": "Short/A4 bond paper, With colored text or illustration: Php 5.00",
     "printing_short_full_color": "Short/A4 bond paper, Full Page Colored: Php 10.00",
