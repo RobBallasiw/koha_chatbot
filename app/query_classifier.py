@@ -18,7 +18,7 @@ CLASSIFICATION_SYSTEM_PROMPT = (
     "Intents:\n"
     '- "catalog_search": the patron wants to find books, authors, topics, or any subject. '
     "This is the DEFAULT for anything that could be a search query.\n"
-    '- "library_info": asking about hours, location, address, policies, fines, fees, membership.\n'
+    '- "library_info": asking about hours, location, address, policies, fines, fees, membership, printing rates, printing procedure, email, contact.\n'
     '- "greeting": ONLY saying hello/hi/hey with no other request.\n'
     '- "unclear": ONLY truly nonsensical or completely unrelated messages.'
 )
@@ -36,9 +36,12 @@ _INFO_KEYWORDS = {
     "hours", "hour", "open", "close", "closing", "opening", "schedule",
     "address", "location", "locations", "loc", "where", "directions",
     "branch", "branches", "visit", "map",
+    "email", "contact", "reach", "mail",
     "fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "lost",
     "policy", "policies", "borrow", "borrowing", "renew", "renewal",
     "member", "membership", "limit", "rule", "rules", "loan", "card",
+    "print", "printing", "printer", "photocopy", "scan", "scanning",
+    "rate", "rates", "cost", "costs", "price", "prices", "how much",
 }
 
 _GREETING_PATTERNS = {
