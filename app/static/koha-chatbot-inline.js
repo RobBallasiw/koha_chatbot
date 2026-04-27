@@ -489,6 +489,7 @@
     if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
     handoffHandler = null;
     lastPollTs = 0;
+    ratingShown = false;
     chatHistory.length = 0;
     sid = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -712,8 +713,8 @@
             if (m.role === "librarian") {
               _origAddMsg("👩‍💼 Librarian: " + m.content, "b", m.timestamp);
             } else if (m.role === "assistant") {
-              // Skip the "back to help" end-handoff message — we show our own UI for that
-              if (m.content && m.content.indexOf("Back to help") !== -1) {
+              // Skip end-handoff messages — we show our own rating UI
+              if (m.content && (m.content.indexOf("Back to help") !== -1 || m.content.indexOf("ended the chat") !== -1)) {
                 // don't display
               } else {
                 _origAddMsg(m.content, "b", m.timestamp);
@@ -731,7 +732,10 @@
       .catch(function() {});
   }
 
+  var ratingShown = false;
   function showHandoffRating() {
+    if (ratingShown) return;
+    ratingShown = true;
     var rateDiv = document.createElement("div");
     rateDiv.className = "lc-m b";
     rateDiv.style.cssText = "text-align:center;max-width:90%;padding:14px 18px";
