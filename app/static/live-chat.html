@@ -98,12 +98,27 @@
   var liveChatId = "";
   var pollTimer = null;
 
-  // Get session_id from URL params
+  // Get params from URL
   var params = new URLSearchParams(window.location.search);
   sessionId = params.get("session") || "";
+  var urlKey = params.get("key") || "";
+  var urlName = params.get("name") || "";
 
   loginBtn.addEventListener("click", doLogin);
   keyInput.addEventListener("keydown", function(e) { if (e.key === "Enter") doLogin(); });
+
+  // Auto-login if key and name are in the URL
+  if (urlKey) {
+    if (urlName) nameInput.value = urlName;
+    keyInput.value = urlKey;
+    // Clean the URL so the key isn't visible in the address bar
+    if (window.history.replaceState) {
+      var cleanUrl = window.location.pathname;
+      if (sessionId) cleanUrl += "?session=" + sessionId;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+    doLogin();
+  }
 
   async function doLogin() {
     myName = nameInput.value.trim();
