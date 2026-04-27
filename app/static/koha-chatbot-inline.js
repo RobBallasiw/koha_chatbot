@@ -537,7 +537,19 @@
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
     var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
-    inp.value = ""; btn.disabled = true; inp.disabled = true;
+    inp.value = "";
+    // During active handoff with a librarian, don't show typing indicator
+    if (handoffActive && handoffHandler) {
+      // Just send the message, no loading state — librarian sees it via poll
+      fetch(CHATBOT_API + "/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, session_id: sid })
+      }).catch(function() {});
+      inp.disabled = false; inp.focus(); btn.disabled = false;
+      return;
+    }
+    btn.disabled = true; inp.disabled = true;
     var lower = text.toLowerCase();
     var isSearch = /\b(find|search|look|book|books|author|title|catalog|isbn)\b/.test(lower);
     showTyping(isSearch ? "Searching…" : "Thinking…");
