@@ -367,6 +367,60 @@
             </div>
           </div>
         </div>
+
+        <!-- Live Chat History -->
+        <div style="margin-top:28px;padding-top:20px;border-top:2px solid #ecf0f1">
+          <div class="archive-header">
+            <h3>💬 Live Chat History</h3>
+            <div class="analytics-controls" style="margin:0">
+              <label for="lch-days">Time range:</label>
+              <select id="lch-days" aria-label="Live chat history time range">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+              <label for="lch-staff-filter">Staff:</label>
+              <select id="lch-staff-filter" aria-label="Filter by staff">
+                <option value="">All staff</option>
+              </select>
+              <button id="lch-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
+            </div>
+          </div>
+          <table class="session-table" id="lch-table" aria-label="Live chat history">
+            <thead>
+              <tr>
+                <th scope="col">Patron</th>
+                <th scope="col">Handled By</th>
+                <th scope="col">Started</th>
+                <th scope="col">Ended</th>
+                <th scope="col">Messages</th>
+                <th scope="col">Rating</th>
+                <th scope="col">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="lch-tbody"></tbody>
+          </table>
+          <nav class="pagination" aria-label="Live chat history pagination">
+            <button id="lch-prev-btn" type="button" disabled>← Prev</button>
+            <span id="lch-page-info">Page 1</span>
+            <button id="lch-next-btn" type="button" disabled>Next →</button>
+          </nav>
+          <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+            <button id="lch-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All History</button>
+            <span id="lch-delete-status" class="li-status"></span>
+          </div>
+        </div>
+
+        <div id="lch-detail" class="hidden" style="margin-top:20px">
+          <div class="detail-view">
+            <div class="detail-header">
+              <dl class="detail-meta" id="lch-detail-meta"></dl>
+              <button class="back-btn" id="lch-back-btn" type="button">← Back to history</button>
+            </div>
+            <div class="messages" id="lch-detail-messages" aria-label="Live chat transcript"></div>
+          </div>
+        </div>
+
       </div><!-- end handoff-tab -->
 
       <div id="notify-tab" class="tab-content">
@@ -471,57 +525,6 @@
           </div>
         </div>
 
-        <div style="margin-top:28px;padding-top:20px;border-top:2px solid #ecf0f1">
-          <div class="archive-header">
-            <h3>💬 Live Chat History</h3>
-            <div class="analytics-controls" style="margin:0">
-              <label for="lch-days">Time range:</label>
-              <select id="lch-days" aria-label="Live chat history time range">
-                <option value="7">Last 7 days</option>
-                <option value="30" selected>Last 30 days</option>
-                <option value="90">Last 90 days</option>
-              </select>
-              <label for="lch-staff-filter">Staff:</label>
-              <select id="lch-staff-filter" aria-label="Filter by staff">
-                <option value="">All staff</option>
-              </select>
-              <button id="lch-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
-            </div>
-          </div>
-          <table class="session-table" id="lch-table" aria-label="Live chat history">
-            <thead>
-              <tr>
-                <th scope="col">Patron</th>
-                <th scope="col">Handled By</th>
-                <th scope="col">Started</th>
-                <th scope="col">Ended</th>
-                <th scope="col">Messages</th>
-                <th scope="col">Rating</th>
-                <th scope="col">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="lch-tbody"></tbody>
-          </table>
-          <nav class="pagination" aria-label="Live chat history pagination">
-            <button id="lch-prev-btn" type="button" disabled>← Prev</button>
-            <span id="lch-page-info">Page 1</span>
-            <button id="lch-next-btn" type="button" disabled>Next →</button>
-          </nav>
-          <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
-            <button id="lch-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All History</button>
-            <span id="lch-delete-status" class="li-status"></span>
-          </div>
-        </div>
-
-        <div id="lch-detail" class="hidden" style="margin-top:20px">
-          <div class="detail-view">
-            <div class="detail-header">
-              <dl class="detail-meta" id="lch-detail-meta"></dl>
-              <button class="back-btn" id="lch-back-btn" type="button">← Back to history</button>
-            </div>
-            <div class="messages" id="lch-detail-messages" aria-label="Live chat transcript"></div>
-          </div>
-        </div>
       </div><!-- end archive-tab -->
 
     </div>
@@ -2056,6 +2059,8 @@
           if (btn.dataset.tab === "archive-tab") {
             populateStaffFilter();
             loadArchive();
+          }
+          if (btn.dataset.tab === "handoff-tab") {
             loadLiveChatHistory();
           }
         });
