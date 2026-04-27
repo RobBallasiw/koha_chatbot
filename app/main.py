@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.admin_routes import router as admin_router, login_router as admin_login_router, set_session_store, set_library_info_path
@@ -597,14 +597,19 @@ async def admin_dashboard():
 
 @app.get("/chat/")
 async def live_chat_page():
-    """Serve the standalone live chat page for librarians."""
-    return FileResponse(_live_chat_html, media_type="text/html")
+    """Serve the standalone live chat page with API key injected."""
+    api_key = os.environ.get("ADMIN_API_KEY", "")
+    with open(_live_chat_html, "r", encoding="utf-8") as f:
+        html = f.read()
+    # Inject the API key so the page can auto-connect
+    html = html.replace("__INJECTED_API_KEY__", api_key)
+    return HTMLResponse(html)
 
 
 @app.get("/admin/chat/")
 async def live_chat_page_alt():
-    """Serve the live chat page at /admin/chat/ too (for backward compat)."""
-    return FileResponse(_live_chat_html, media_type="text/html")
+    """Serve the live chat page at /admin/chat/ too."""
+    return await live_chat_page()
 
 
 # Mount static files for the chat widget.

@@ -104,10 +104,9 @@ def _send_email(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool
 
 
 def _build_chat_link(admin_url: str, session_id: str, staff_name: str = "") -> str:
-    """Build a live chat URL with embedded credentials for direct access."""
+    """Build a live chat URL with staff name for direct access."""
     from urllib.parse import quote
-    api_key = os.environ.get("ADMIN_API_KEY", "")
-    link = f"{admin_url}/chat/?session={session_id}&key={quote(api_key)}"
+    link = f"{admin_url}/chat/?session={session_id}"
     if staff_name:
         link += f"&name={quote(staff_name)}"
     return link
