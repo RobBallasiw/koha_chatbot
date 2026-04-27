@@ -487,6 +487,8 @@
   function resetToNewChat() {
     stopPolling();
     if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
+    handoffHandler = null;
+    lastPollTs = 0;
     chatHistory.length = 0;
     sid = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -637,7 +639,8 @@
 
   function stopPolling() {
     handoffActive = false;
-    // Don't reset handoffHandler — prevents duplicate "joined" messages
+    handoffHandler = null;
+    lastPollTs = 0;
     libBtn.style.opacity = "1";
     libBtn.style.cursor = "pointer";
     // Re-enable input
