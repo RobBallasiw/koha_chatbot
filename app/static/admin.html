@@ -20,18 +20,18 @@
     /* Login form */
     .login-overlay { display: flex; justify-content: center; align-items: center; min-height: 60vh; }
     .login-card { background: #fff; border-radius: 8px; padding: 32px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); width: 340px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fc 100%); }
-    .login-card h2 { font-size: 1.2rem; color: #2c3e50; margin-bottom: 20px; text-align: center; }
-    .login-card label { display: block; font-size: 0.85rem; color: #555; margin-bottom: 4px; }
-    .login-card input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; margin-bottom: 14px; }
-    .login-card button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; font-size: 0.9rem; cursor: pointer; }
+    .login-card h2 { font-size:1.15em; color: #2c3e50; margin-bottom: 20px; text-align: center; }
+    .login-card label { display: block; font-size:0.88em; color: #555; margin-bottom: 4px; }
+    .login-card input { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size:0.92em; margin-bottom: 14px; }
+    .login-card button { width: 100%; padding: 10px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; font-size:0.92em; cursor: pointer; }
     .login-card button:hover { background: #34495e; }
-    .login-error { color: #991b1b; font-size: 0.85rem; margin-bottom: 12px; text-align: center; }
+    .login-error { color: #991b1b; font-size:0.88em; margin-bottom: 12px; text-align: center; }
 
     /* Stats panel */
     .stats-panel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .stat-card { background: #fff; border-radius: 8px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-left: 4px solid #3498db; position: relative; }
-    .stat-card .stat-icon { font-size: 1.4rem; margin-bottom: 4px; }
-    .stat-card .stat-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; transition: opacity 0.3s ease; }
+    .stat-card .stat-icon { font-size:1.35em; margin-bottom: 4px; }
+    .stat-card .stat-value { font-size:1.7em; font-weight: 700; color: #2c3e50; transition: opacity 0.3s ease; }
     .stat-card .stat-label { font-size: 0.88em; color: #7f8c8d; margin-top: 4px; }
     .fade-update { animation: fadeIn 0.4s ease; }
     @keyframes fadeIn { from { opacity: 0.3; } to { opacity: 1; } }
@@ -51,7 +51,7 @@
     <h1>Koha Chatbot Admin</h1>
     <div class="header-right">
       <span id="user-info" class="user-info hidden"></span>
-      <button id="dark-mode-btn" type="button" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.1rem" aria-label="Toggle dark mode">🌙</button>
+      <button id="dark-mode-btn" type="button" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.08em" aria-label="Toggle dark mode">🌙</button>
       <button class="logout-btn hidden" id="logout-btn" type="button" aria-label="Log out">Logout</button>
     </div>
   </header>
@@ -285,7 +285,7 @@
 
           <div class="li-locations-header">
             <h3>🕐 Hours by Location</h3>
-            <button id="li-add-location-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.82rem;padding:6px 14px">+ Add Location</button>
+            <button id="li-add-location-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add Location</button>
           </div>
           <div id="li-locations" class="li-locations"></div>
         </div>
@@ -334,7 +334,7 @@
           <section class="analytics-card" style="grid-column:1/-1" aria-label="Flagged sessions">
             <div class="quality-section-header">
               <h3>🚩 Flagged Sessions</h3>
-              <button id="flagged-refresh-btn" type="button" style="font-size:0.8rem;padding:4px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer">Refresh</button>
+              <button id="flagged-refresh-btn" type="button" style="font-size:0.82em;padding:4px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer">Refresh</button>
             </div>
             <p class="quality-desc">Sessions marked for follow-up by admins.</p>
             <div id="flagged-list" class="quality-list"></div>
@@ -363,7 +363,7 @@
             <div class="handoff-input-bar" id="handoff-input-bar" style="display:none">
               <input type="text" id="handoff-reply-input" placeholder="Type your reply..." aria-label="Reply to patron">
               <button id="handoff-send-btn" type="button" aria-label="Send reply">Send</button>
-              <button id="handoff-end-btn" type="button" class="btn-danger" style="font-size:0.8rem;padding:6px 12px" aria-label="End handoff">End Chat</button>
+              <button id="handoff-end-btn" type="button" class="btn-danger" style="font-size:0.82em;padding:6px 12px" aria-label="End handoff">End Chat</button>
             </div>
           </div>
         </div>
@@ -383,7 +383,7 @@
               <select id="lch-staff-filter" aria-label="Filter by staff">
                 <option value="">All staff</option>
               </select>
-              <button id="lch-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
+              <button id="lch-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.88em">Refresh</button>
             </div>
           </div>
           <table class="session-table" id="lch-table" aria-label="Live chat history">
@@ -406,7 +406,7 @@
             <button id="lch-next-btn" type="button" disabled>Next →</button>
           </nav>
           <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
-            <button id="lch-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All History</button>
+            <button id="lch-delete-all-btn" type="button" class="btn-danger" style="font-size:0.84em;padding:6px 14px">Delete All History</button>
             <span id="lch-delete-status" class="li-status"></span>
           </div>
         </div>
@@ -426,7 +426,7 @@
       <div id="notify-tab" class="tab-content">
         <div class="notify-wrap">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <h3 style="font-size:1.05rem;color:#2c3e50;margin:0">📧 Staff Contacts</h3>
+            <h3 style="font-size:1.05em;color:#2c3e50;margin:0">📧 Staff Contacts</h3>
             <button id="sc-add-btn" type="button" class="btn-primary">+ Add Contact</button>
           </div>
           <p class="quality-desc">Manage librarian contacts. Active contacts are automatically notified by email when a patron requests to talk to a librarian.</p>
@@ -434,12 +434,12 @@
           <div id="sc-add-form" class="hidden" style="background:#fff;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin:16px 0">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
-                <label for="sc-new-name" style="display:block;font-size:0.85rem;color:#555;margin-bottom:4px">Name</label>
-                <input type="text" id="sc-new-name" placeholder="e.g. Maria Santos" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem" aria-label="Contact name">
+                <label for="sc-new-name" style="display:block;font-size:0.88em;color:#555;margin-bottom:4px">Name</label>
+                <input type="text" id="sc-new-name" placeholder="e.g. Maria Santos" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.92em" aria-label="Contact name">
               </div>
               <div>
-                <label for="sc-new-email" style="display:block;font-size:0.85rem;color:#555;margin-bottom:4px">Email</label>
-                <input type="email" id="sc-new-email" placeholder="librarian@example.com" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem" aria-label="Contact email">
+                <label for="sc-new-email" style="display:block;font-size:0.88em;color:#555;margin-bottom:4px">Email</label>
+                <input type="email" id="sc-new-email" placeholder="librarian@example.com" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.92em" aria-label="Contact email">
               </div>
             </div>
             <div style="display:flex;align-items:center;gap:10px;margin-top:12px">
@@ -480,16 +480,16 @@
               <select id="archive-staff-filter" aria-label="Filter by staff">
                 <option value="">All staff</option>
               </select>
-              <button id="archive-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.85rem">Refresh</button>
+              <button id="archive-refresh-btn" type="button" class="btn-primary" style="padding:6px 14px;font-size:0.88em">Refresh</button>
             </div>
           </div>
 
           <section class="staff-ratings-section" aria-label="Staff ratings summary">
-            <h4 style="font-size:0.95rem;color:#2c3e50;margin:0 0 10px 0">Ratings by Staff</h4>
+            <h4 style="font-size:0.96em;color:#2c3e50;margin:0 0 10px 0">Ratings by Staff</h4>
             <div id="staff-ratings-list" class="staff-ratings-cards"></div>
           </section>
 
-          <h4 style="font-size:0.95rem;color:#2c3e50;margin:20px 0 10px 0">Chat Sessions</h4>
+          <h4 style="font-size:0.96em;color:#2c3e50;margin:20px 0 10px 0">Chat Sessions</h4>
           <table class="session-table" id="archive-table" aria-label="Archived live chat sessions">
             <thead>
               <tr>
@@ -510,7 +510,7 @@
           </nav>
 
           <div class="archive-cleanup" style="margin-top:20px;padding-top:16px;border-top:1px solid #ecf0f1;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-            <button id="archive-delete-all-btn" type="button" class="btn-danger" style="font-size:0.82rem;padding:6px 14px">Delete All Records</button>
+            <button id="archive-delete-all-btn" type="button" class="btn-danger" style="font-size:0.84em;padding:6px 14px">Delete All Records</button>
             <span id="archive-delete-status" class="li-status"></span>
           </div>
         </div>
@@ -557,7 +557,7 @@
     .back-btn:hover { background: #ecf0f1; }
     .messages { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
     .message { padding: 10px 14px; border-radius: 8px; max-width: 80%; font-size: 0.92em; }
-    .message .msg-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 4px; }
+    .message .msg-meta { font-size:0.78em; color: #7f8c8d; margin-bottom: 4px; }
     .message-user { background: #dbeafe; align-self: flex-start; border: 1px solid #bfdbfe; }
     .message-assistant { background: #f0fdf4; align-self: flex-end; border: 1px solid #bbf7d0; }
     .loading {
@@ -571,9 +571,9 @@
       border-top-color: #2c3e50; border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-    .loading .spinner-text { margin-top: 12px; font-size: 0.9rem; color: #7f8c8d; }
+    .loading .spinner-text { margin-top: 12px; font-size:0.92em; color: #7f8c8d; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size: 0.9rem; }
+    .error-msg { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px; font-size:0.92em; }
     .hidden { display: none; }
 
     /* Analytics styles */
@@ -584,7 +584,7 @@
     .analytics-controls button:hover { background: #34495e; }
     .analytics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
     .analytics-card { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .analytics-card h3 { font-size: 1rem; color: #2c3e50; margin-bottom: 16px; font-weight: 600; }
+    .analytics-card h3 { font-size:1em; color: #2c3e50; margin-bottom: 16px; font-weight: 600; }
     .analytics-card:last-child { grid-column: 1 / -1; }
 
     /* Bar chart (intent breakdown) */
@@ -603,7 +603,7 @@
     .lc-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
     .lc-area { opacity: 0.12; }
     .lc-dot { r: 3.5; stroke: #fff; stroke-width: 1.5; }
-    .lc-tooltip { position: absolute; background: #2c3e50; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -8px; opacity: 0; transition: opacity 0.15s; }
+    .lc-tooltip { position: absolute; background: #2c3e50; color: #fff; padding: 4px 10px; border-radius: 4px; font-size:0.78em; pointer-events: none; white-space: nowrap; transform: translate(-50%, -100%); margin-top: -8px; opacity: 0; transition: opacity 0.15s; }
 
     /* Intent colors */
     .intent-catalog_search { background: #3498db; }
@@ -623,21 +623,21 @@
     .quality-grid { display: flex; flex-direction: column; gap: 20px; margin-top: 20px; }
     .quality-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .quality-section-header h3 { margin-bottom: 0; }
-    .quality-section-header select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem; }
+    .quality-section-header select { padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size:0.82em; }
     .quality-desc { font-size: 0.88em; color: #7f8c8d; margin-bottom: 12px; }
     .quality-list { display: flex; flex-direction: column; gap: 8px; max-height: 420px; overflow-y: auto; }
     .quality-item { background: #fff; border: 1px solid #ecf0f1; border-radius: 8px; padding: 12px 14px; font-size: 0.88em; transition: border-color 0.15s; }
     .quality-item:hover { border-color: #bdc3c7; }
-    .quality-item .qi-meta { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+    .quality-item .qi-meta { font-size:0.78em; color: #7f8c8d; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
     .quality-item .qi-user { color: #2c3e50; margin-bottom: 4px; }
     .quality-item .qi-user::before { content: "👤 "; }
-    .quality-item .qi-bot { color: #555; font-size: 0.82rem; }
+    .quality-item .qi-bot { color: #555; font-size:0.84em; }
     .quality-item .qi-bot::before { content: "🤖 "; }
     .quality-item .qi-rating { font-weight: 600; }
     .quality-item .qi-rating.positive { color: #27ae60; }
     .quality-item .qi-rating.negative { color: #e74c3c; }
-    .quality-item .qi-intent { display: inline-block; background: #ecf0f1; border-radius: 10px; padding: 2px 8px; font-size: 0.72rem; color: #555; }
-    .quality-empty { color: #7f8c8d; font-size: 0.85rem; text-align: center; padding: 32px; background: #f9fafb; border-radius: 8px; }
+    .quality-item .qi-intent { display: inline-block; background: #ecf0f1; border-radius: 10px; padding: 2px 8px; font-size:0.75em; color: #555; }
+    .quality-empty { color: #7f8c8d; font-size:0.88em; text-align: center; padding: 32px; background: #f9fafb; border-radius: 8px; }
 
     /* Library Info editor */
     .li-editor-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -655,7 +655,7 @@
     .li-location { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
     .li-location:last-child:nth-child(odd) { grid-column: 1 / -1; }
     .li-loc-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #f0f2f5; border-bottom: 1px solid #ddd; }
-    .li-loc-header .li-loc-icon { font-size: 1rem; flex-shrink: 0; }
+    .li-loc-header .li-loc-icon { font-size:1em; flex-shrink: 0; }
     .li-loc-header input { font-size: 0.92em; font-weight: 600; color: #2c3e50; border: 1px solid transparent; background: transparent; padding: 3px 6px; border-radius: 4px; flex: 1; min-width: 0; }
     .li-loc-header input:focus { border-color: #2c3e50; background: #fff; outline: none; }
     .li-loc-remove { background: none; border: 1px solid #ccc; color: #999; border-radius: 4px; padding: 2px 8px; font-size: 0.78em; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
@@ -667,22 +667,22 @@
     .li-row input:focus { border-color: #2c3e50; outline: none; }
     .li-row .li-key { width: 130px; flex-shrink: 0; }
     .li-row .li-val { flex: 1; min-width: 0; }
-    .li-row .li-del { background: none; border: none; color: #ccc; cursor: pointer; font-size: 1rem; padding: 2px 4px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; }
+    .li-row .li-del { background: none; border: none; color: #ccc; cursor: pointer; font-size:1em; padding: 2px 4px; border-radius: 4px; transition: color 0.15s; flex-shrink: 0; }
     .li-row .li-del:hover { color: #e74c3c; background: #fef2f2; }
     .li-add-btn { margin-top: 6px; background: none; border: 1px dashed #ccc; border-radius: 4px; padding: 4px 10px; font-size: 0.82em; color: #7f8c8d; cursor: pointer; width: fit-content; }
     .li-add-btn:hover { border-color: #2c3e50; color: #2c3e50; }
     .btn-primary { padding: 8px 16px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; cursor: pointer; font-size: 0.88em; }
     .btn-primary:hover { background: #34495e; }
-    .btn-danger { padding: 8px 16px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; font-size: 0.85rem; }
+    .btn-danger { padding: 8px 16px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; font-size:0.88em; }
     .btn-danger:hover { background: #c0392b; }
 
     /* Management tab */
     .mgmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .mgmt-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
-    .mgmt-controls select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.85rem; }
+    .mgmt-controls select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size:0.88em; }
 
     /* Session detail flag button */
-    .flag-btn { padding: 4px 12px; border: 1px solid #f39c12; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.8rem; color: #f39c12; margin-left: 8px; }
+    .flag-btn { padding: 4px 12px; border: 1px solid #f39c12; border-radius: 4px; background: #fff; cursor: pointer; font-size:0.82em; color: #f39c12; margin-left: 8px; }
     .flag-btn:hover { background: #fdf6e3; }
     .flag-btn.flagged { background: #f39c12; color: #fff; }
 
@@ -696,15 +696,15 @@
     /* Handoff / Live Chat tab */
     .handoff-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; height: calc(100vh - 220px); min-height: 400px; }
     .handoff-queue { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; display: flex; flex-direction: column; }
-    .handoff-queue h3 { padding: 14px 16px; font-size: 0.95rem; color: #2c3e50; border-bottom: 1px solid #ecf0f1; margin: 0; flex-shrink: 0; }
+    .handoff-queue h3 { padding: 14px 16px; font-size:0.96em; color: #2c3e50; border-bottom: 1px solid #ecf0f1; margin: 0; flex-shrink: 0; }
     .handoff-list { flex: 1; overflow-y: auto; padding: 8px; }
-    .handoff-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; border: 1px solid #ecf0f1; margin-bottom: 6px; transition: all 0.15s; }
+    .handoff-item { padding: 10px 12px; border-radius: 6px; cursor: pointer; font-size:0.88em; border: 1px solid #ecf0f1; margin-bottom: 6px; transition: all 0.15s; }
     .handoff-item:hover { border-color: #2c3e50; background: #f9fafb; }
     .handoff-item.active { border-color: #2c3e50; background: #eaf2f8; }
-    .handoff-item .hi-sid { font-weight: 600; color: #2c3e50; font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .handoff-item .hi-meta { font-size: 0.72rem; color: #7f8c8d; margin-top: 2px; }
+    .handoff-item .hi-sid { font-weight: 600; color: #2c3e50; font-size:0.82em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .handoff-item .hi-meta { font-size:0.75em; color: #7f8c8d; margin-top: 2px; }
     .handoff-item.claimed-other { opacity: 0.65; }
-    .hi-claim { font-size: 0.65rem; border-radius: 8px; padding: 1px 7px; margin-left: 6px; font-weight: 500; vertical-align: middle; }
+    .hi-claim { font-size:0.68em; border-radius: 8px; padding: 1px 7px; margin-left: 6px; font-weight: 500; vertical-align: middle; }
     .hi-claim-me { background: #d5f5e3; color: #1e8449; }
     .hi-claim-other { background: #fdebd0; color: #b9770e; }
     .hi-claim-open { background: #ebf5fb; color: #2e86c1; }
@@ -712,31 +712,31 @@
     /* Archive tab */
     .archive-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .archive-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
-    .archive-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
-    .rating-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 0.78rem; font-weight: 600; }
+    .archive-header h3 { font-size:1em; color: #2c3e50; margin: 0; }
+    .rating-badge { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size:0.8em; font-weight: 600; }
     .rating-positive { background: #d5f5e3; color: #1e8449; }
     .rating-negative { background: #fadbd8; color: #c0392b; }
     .rating-none { background: #f2f3f4; color: #7f8c8d; }
     .staff-ratings-section { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
     .staff-ratings-cards { display: flex; flex-wrap: wrap; gap: 12px; }
     .staff-rating-card { background: #fff; border: 1px solid #ecf0f1; border-radius: 8px; padding: 14px 18px; min-width: 180px; flex: 1; max-width: 260px; }
-    .staff-rating-card .src-name { font-weight: 600; color: #2c3e50; font-size: 0.92rem; margin-bottom: 6px; }
-    .staff-rating-card .src-stats { display: flex; gap: 12px; font-size: 0.82rem; color: #555; }
-    .staff-rating-card .src-rate { font-size: 1rem; font-weight: 700; margin-top: 4px; }
+    .staff-rating-card .src-name { font-weight: 600; color: #2c3e50; font-size:0.94em; margin-bottom: 6px; }
+    .staff-rating-card .src-stats { display: flex; gap: 12px; font-size:0.84em; color: #555; }
+    .staff-rating-card .src-rate { font-size:1em; font-weight: 700; margin-top: 4px; }
     .message-librarian { background: #fef3c7; align-self: flex-end; border: 1px solid #fde68a; }
     .message-librarian .msg-meta { color: #92400e; }
     .handoff-chat { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; overflow: hidden; }
-    .handoff-chat-header { padding: 12px 16px; border-bottom: 1px solid #ecf0f1; font-size: 0.9rem; color: #555; flex-shrink: 0; font-weight: 600; }
+    .handoff-chat-header { padding: 12px 16px; border-bottom: 1px solid #ecf0f1; font-size:0.92em; color: #555; flex-shrink: 0; font-weight: 600; }
     .handoff-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
     .handoff-messages .message-librarian { background: #fef3c7; align-self: flex-end; border: 1px solid #fde68a; }
     .handoff-messages .message-librarian .msg-meta { color: #92400e; }
     .handoff-input-bar { display: flex; gap: 8px; padding: 10px 14px; border-top: 1px solid #ecf0f1; flex-shrink: 0; }
-    .handoff-input-bar input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9rem; }
+    .handoff-input-bar input { flex: 1; padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size:0.92em; }
     .handoff-input-bar input:focus { border-color: #2c3e50; outline: none; }
-    .handoff-input-bar button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .handoff-input-bar button { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size:0.88em; }
     #handoff-send-btn { background: #2c3e50; color: #fff; }
     #handoff-send-btn:hover { background: #34495e; }
-    .handoff-badge { background: #e74c3c; color: #fff; font-size: 0.65rem; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+    .handoff-badge { background: #e74c3c; color: #fff; font-size:0.68em; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
     @media (max-width: 768px) {
       .handoff-layout { grid-template-columns: 1fr; height: auto; }
       .handoff-queue { max-height: 200px; }
@@ -745,14 +745,14 @@
     /* Staff tab */
     .staff-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .staff-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .staff-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
+    .staff-header h3 { font-size:1em; color: #2c3e50; margin: 0; }
     .staff-form { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 18px; margin: 16px 0; }
     .staff-form-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .staff-form-row label { width: 110px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
-    .staff-form-row input, .staff-form-row select { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; max-width: 280px; }
+    .staff-form-row label { width: 110px; font-size:0.88em; color: #555; flex-shrink: 0; }
+    .staff-form-row input, .staff-form-row select { flex: 1; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size:0.92em; max-width: 280px; }
     .staff-form-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
     .staff-actions-cell { display: flex; gap: 6px; flex-wrap: wrap; }
-    .staff-actions-cell button { padding: 3px 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size: 0.78rem; }
+    .staff-actions-cell button { padding: 3px 10px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer; font-size:0.8em; }
     .staff-actions-cell button:hover { background: #f0f2f5; }
     .staff-actions-cell .btn-deactivate { color: #e67e22; border-color: #e67e22; }
     .staff-actions-cell .btn-deactivate:hover { background: #fef3e2; }
@@ -764,31 +764,31 @@
     /* Settings tab */
     .settings-wrap { background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .settings-header h3 { font-size: 1rem; color: #2c3e50; margin: 0; }
+    .settings-header h3 { font-size:1em; color: #2c3e50; margin: 0; }
     .settings-section { background: #f9fafb; border: 1px solid #ecf0f1; border-radius: 8px; padding: 18px; margin-top: 20px; }
-    .settings-section h4 { font-size: 0.92rem; color: #2c3e50; margin: 0 0 14px 0; }
+    .settings-section h4 { font-size:0.94em; color: #2c3e50; margin: 0 0 14px 0; }
     .settings-toggles { display: flex; flex-direction: column; gap: 10px; }
-    .toggle-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #333; cursor: pointer; }
+    .toggle-row { display: flex; align-items: center; gap: 10px; font-size:0.92em; color: #333; cursor: pointer; }
     .toggle-row input[type="checkbox"] { width: 18px; height: 18px; accent-color: #2c3e50; cursor: pointer; }
     .settings-fields { display: flex; flex-direction: column; gap: 12px; }
     .settings-field-row { display: flex; align-items: center; gap: 12px; }
-    .settings-field-row label { width: 200px; font-size: 0.85rem; color: #555; flex-shrink: 0; }
-    .settings-field-row input { width: 100px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+    .settings-field-row label { width: 200px; font-size:0.88em; color: #555; flex-shrink: 0; }
+    .settings-field-row input { width: 100px; padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size:0.92em; }
 
     /* Toast notifications */
-    .toast { padding: 12px 20px; border-radius: 6px; color: #fff; font-size: 0.88rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; max-width: 340px; }
+    .toast { padding: 12px 20px; border-radius: 6px; color: #fff; font-size:0.9em; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards; max-width: 340px; }
     .toast-success { background: #27ae60; }
     .toast-error { background: #e74c3c; }
     @keyframes toastIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-10px); } }
 
     /* Session badge */
-    .session-badge { background: #3498db; color: #fff; font-size: 0.65rem; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
+    .session-badge { background: #3498db; color: #fff; font-size:0.68em; border-radius: 50%; width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: 6px; vertical-align: middle; }
 
     /* Empty state */
     .empty-state { text-align: center; padding: 40px 20px; color: #7f8c8d; }
-    .empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; display: block; }
-    .empty-state .empty-text { font-size: 0.9rem; }
+    .empty-state .empty-icon { font-size:1.9em; margin-bottom: 8px; display: block; }
+    .empty-state .empty-text { font-size:0.92em; }
 
     /* Dark mode */
     :root { --bg: #f4f6f9; --card-bg: #fff; --text: #333; --text-muted: #7f8c8d; --border: #ecf0f1; --header-bg: #2c3e50; }
@@ -1330,7 +1330,7 @@
       function renderBarChart(container, items, labelKey, valueKey, colorFn) {
         container.innerHTML = "";
         if (items.length === 0) {
-          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.85rem;">No data available.</p>';
+          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.88em;">No data available.</p>';
           return;
         }
         var maxVal = Math.max.apply(null, items.map(function (i) { return i[valueKey]; }));
@@ -1350,7 +1350,7 @@
       function renderLineChart(container, labels, values, color) {
         container.innerHTML = "";
         if (values.length === 0) {
-          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.85rem;">No data available.</p>';
+          container.innerHTML = '<p style="color:#7f8c8d;font-size:0.88em;">No data available.</p>';
           return;
         }
         var pad = { top: 16, right: 16, bottom: 28, left: 40 };
@@ -1545,7 +1545,7 @@
           item.innerHTML =
             '<div class="qi-meta"><span>' + formatTime(q.timestamp) + '</span><span class="qi-intent">' + escapeHtml(q.intent) + '</span></div>' +
             '<div class="qi-user">' + escapeHtml(q.content) + '</div>' +
-            '<div style="font-size:0.75rem;color:#7f8c8d;margin-top:4px">Session: ' + escapeHtml(q.session_id.substring(0, 8)) + '…</div>';
+            '<div style="font-size:0.78em;color:#7f8c8d;margin-top:4px">Session: ' + escapeHtml(q.session_id.substring(0, 8)) + '…</div>';
           container.appendChild(item);
         });
         var totalPages = Math.max(1, Math.ceil(data.total / 10));
@@ -1826,8 +1826,8 @@
           item.innerHTML =
             '<div class="qi-meta"><span>Flagged: ' + formatTime(f.flagged_at) + '</span><span class="' + statusClass + '">' + escapeHtml(f.status) + '</span></div>' +
             '<div style="font-weight:600;margin-bottom:4px">' + escapeHtml(f.session_id.substring(0, 16)) + '…</div>' +
-            (f.note ? '<div style="color:#555;font-size:0.82rem">📝 ' + escapeHtml(f.note) + '</div>' : '') +
-            '<div style="font-size:0.75rem;color:#7f8c8d;margin-top:4px">' + f.message_count + ' messages · Last active: ' + formatTime(f.last_activity) + '</div>';
+            (f.note ? '<div style="color:#555;font-size:0.84em">📝 ' + escapeHtml(f.note) + '</div>' : '') +
+            '<div style="font-size:0.78em;color:#7f8c8d;margin-top:4px">' + f.message_count + ' messages · Last active: ' + formatTime(f.last_activity) + '</div>';
           item.addEventListener("click", function () {
             // Switch to sessions tab and open detail
             tabBtns.forEach(function (b) { b.classList.remove("active"); });
@@ -1906,8 +1906,8 @@
             "<td>" + (s.message_count || "—") + "</td>" +
             "<td>" + ratingHtml + "</td>" +
             '<td class="staff-actions-cell">' +
-            '<button class="back-btn" style="padding:3px 10px;font-size:0.78rem">View</button>' +
-            '<button class="btn-delete" style="padding:3px 10px;font-size:0.78rem">Delete</button>' +
+            '<button class="back-btn" style="padding:3px 10px;font-size:0.8em">View</button>' +
+            '<button class="btn-delete" style="padding:3px 10px;font-size:0.8em">Delete</button>' +
             '</td>';
           tr.querySelector(".back-btn").addEventListener("click", function () {
             openArchiveDetail(s.session_id, s.handled_by, s.rating, s.handoff_num);
@@ -2014,7 +2014,7 @@
           var container = document.getElementById("staff-ratings-list");
           container.innerHTML = "";
           if (!data || !data.length) {
-            container.innerHTML = '<div style="color:#7f8c8d;font-size:0.85rem">No ratings yet.</div>';
+            container.innerHTML = '<div style="color:#7f8c8d;font-size:0.88em">No ratings yet.</div>';
             return;
           }
           data.forEach(function (s) {
@@ -2119,7 +2119,7 @@
             "<td>" + fmtDate(s.ended_at) + "</td>" +
             "<td>" + s.msg_count + "</td>" +
             "<td>" + ratingHtml + "</td>" +
-            '<td><button class="back-btn" style="padding:3px 10px;font-size:0.78rem">View</button></td>';
+            '<td><button class="back-btn" style="padding:3px 10px;font-size:0.8em">View</button></td>';
           tr.querySelector("button").addEventListener("click", function() {
             openLiveChatDetail(s.live_chat_id, s.display_name || s.session_id.substring(0, 12), s.handled_by);
           });
@@ -2450,7 +2450,7 @@
           } else {
             handoffChatHeader.innerHTML =
               '<span>Session: ' + parentSid.substring(0, 20) + '… — <span style="color:#27ae60">You are handling this</span></span>' +
-              ' <button id="handoff-release-btn" type="button" style="font-size:0.75rem;padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;margin-left:8px">Release</button>';
+              ' <button id="handoff-release-btn" type="button" style="font-size:0.78em;padding:3px 10px;border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;margin-left:8px">Release</button>';
             handoffInputBar.style.display = "flex";
             var releaseBtn = document.getElementById("handoff-release-btn");
             if (releaseBtn) {
