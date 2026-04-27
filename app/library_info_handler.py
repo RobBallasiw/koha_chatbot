@@ -37,11 +37,11 @@ INFO_RESPONSE_PROMPT = (
     "Here is the relevant library information:\n"
     "{data}\n\n"
     "Rules:\n"
-    "- Answer in a friendly, concise way using ONLY the data above.\n"
+    "- Answer in a friendly way using ONLY the data above.\n"
     "- Do NOT start with 'I'm Hero' or introduce yourself — just answer the question directly.\n"
+    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location or say 'Monday through Friday only' without the actual times.\n"
     "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
-    "- Use natural sentences, not bullet points or lists.\n"
-    "- Keep it short — 2-3 sentences max.\n"
+    "- Use natural sentences. You may use a short list if there are multiple locations.\n"
     "- Use 1 emoji at the end."
 )
 
