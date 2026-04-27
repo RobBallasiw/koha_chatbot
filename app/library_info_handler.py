@@ -9,15 +9,17 @@ from app.models import LibraryInfo
 
 logger = logging.getLogger(__name__)
 
-VALID_CATEGORIES = {"hours", "fines", "policies"}
+VALID_CATEGORIES = {"hours", "email", "address", "fines", "policies"}
 
 CATEGORY_CLASSIFY_SYSTEM = (
     "You are a category classifier for a library information system. "
     "Given a patron's message, determine which category of library information they need. "
     "Respond with ONLY a JSON object, no other text.\n\n"
     "Categories:\n"
-    '- "hours": anything about opening hours, schedules, locations, addresses, branches, where the library is, directions, visiting\n'
-    '- "policies": anything about borrowing rules, limits, renewals, membership, library cards, loans\n'
+    '- "hours": anything about opening hours, schedules, when the library is open or closed\n'
+    '- "email": anything about email address, how to contact the library by email\n'
+    '- "address": anything about physical location, address, where the library is, directions, branches, how to visit\n'
+    '- "policies": anything about borrowing rules, limits, renewals, membership, library cards, loans, printing\n'
     '- "fines": anything about fines, fees, overdue charges, lost items, penalties, costs\n'
     '- "all": the question spans multiple categories or is a general library question\n'
     '- "none": the message has nothing to do with library information\n\n'
@@ -83,9 +85,9 @@ def load_library_info(file_path: str) -> LibraryInfo:
         return LibraryInfo()
 
 
-_HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time",
-                   "address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map",
-                   "email", "contact", "reach", "mail"}
+_HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time"}
+_EMAIL_KEYWORDS = {"email", "e-mail", "mail", "contact", "reach"}
+_ADDRESS_KEYWORDS = {"address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map"}
 _FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
 _POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
                       "member", "membership", "limit", "rule", "rules", "loan", "card",
@@ -95,6 +97,10 @@ _POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "ren
 def _keyword_fallback(message: str) -> str | None:
     """Fast keyword-based category matching as fallback when LLM is unavailable."""
     words = set(message.lower().replace("?", " ").replace("!", " ").split())
+    if words & _EMAIL_KEYWORDS:
+        return "email"
+    if words & _ADDRESS_KEYWORDS:
+        return "address"
     if words & _HOURS_KEYWORDS:
         return "hours"
     if words & _FINES_KEYWORDS:
@@ -170,22 +176,27 @@ def _group_hours(hours: dict[str, str]) -> str:
 
 def _format_category_data(category: str, library_info: LibraryInfo) -> str:
     """Format the data for a matched category across all locations."""
-    if category == "hours":
+    if category in ("hours", "email", "address"):
         locations = library_info.get_all_locations()
         if not locations:
             return "(No location data available)"
         parts: list[str] = []
         for loc_name, loc_info in locations.items():
-            if loc_info.hours:
-                header = f"📍 {loc_name}"
-                if loc_info.address:
-                    header += f" ({loc_info.address})"
-                lines = [header]
+            if category == "email":
                 if loc_info.email:
-                    lines.append(f"  ✉️ Email: {loc_info.email}")
-                lines.append(_group_hours(loc_info.hours))
-                parts.append("\n".join(lines))
-        return "\n\n".join(parts) if parts else "(No hours data available)"
+                    parts.append(f"📍 {loc_name}: ✉️ {loc_info.email}")
+            elif category == "address":
+                if loc_info.address:
+                    parts.append(f"📍 {loc_name}: {loc_info.address}")
+            else:  # hours
+                if loc_info.hours:
+                    header = f"📍 {loc_name}"
+                    if loc_info.address:
+                        header += f" ({loc_info.address})"
+                    parts.append(f"{header}\n{_group_hours(loc_info.hours)}")
+        if not parts:
+            return f"(No {category} data available)"
+        return "\n\n".join(parts)
     else:
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
@@ -218,7 +229,7 @@ def handle_library_info_query(
     # Build data string
     if category == "all":
         parts = []
-        for cat in ("hours", "policies", "fines"):
+        for cat in ("hours", "address", "email", "policies", "fines"):
             cat_data = _format_category_data(cat, library_info)
             if cat_data and "No" not in cat_data:
                 parts.append(f"[{cat.upper()}]\n{cat_data}")
