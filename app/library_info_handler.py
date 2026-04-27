@@ -176,34 +176,67 @@ def _group_hours(hours: dict[str, str]) -> str:
     return "\n".join(lines)
 
 
+def _format_hours_as_sentences(loc_name: str, loc_info) -> str:
+    """Format a location's hours as a natural sentence string."""
+    if not loc_info.hours:
+        return ""
+    day_order = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+    day_short = {"monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu",
+                 "friday": "Fri", "saturday": "Sat", "sunday": "Sun"}
+    ordered = []
+    for day in day_order:
+        for key, val in loc_info.hours.items():
+            if key.lower() == day:
+                ordered.append((day, val.strip()))
+                break
+    # Group consecutive days with same hours
+    groups: list[tuple[list[str], str]] = []
+    for day, time_val in ordered:
+        if groups and groups[-1][1].lower() == time_val.lower():
+            groups[-1][0].append(day)
+        else:
+            groups.append(([day], time_val))
+    parts = []
+    for days, time_val in groups:
+        if len(days) == 1:
+            label = day_short[days[0]]
+        elif len(days) == 2:
+            label = f"{day_short[days[0]]} and {day_short[days[-1]]}"
+        else:
+            label = f"{day_short[days[0]]} to {day_short[days[-1]]}"
+        parts.append(f"{label} {time_val}")
+    name = loc_name
+    if loc_info.address:
+        name += f" ({loc_info.address})"
+    return f"The {name} is open {', '.join(parts)}."
+
+
 def _format_category_data(category: str, library_info: LibraryInfo) -> str:
-    """Format the data for a matched category across all locations."""
+    """Format the data for a matched category across all locations as natural sentences."""
     if category in ("hours", "email", "address"):
         locations = library_info.get_all_locations()
         if not locations:
-            return "(No location data available)"
+            return "No location data is available at this time."
         parts: list[str] = []
         for loc_name, loc_info in locations.items():
             if category == "email":
                 if loc_info.email:
-                    parts.append(f"{loc_name}: {loc_info.email}")
+                    parts.append(f"The {loc_name} can be reached at {loc_info.email}.")
             elif category == "address":
                 if loc_info.address:
-                    parts.append(f"{loc_name} is located at {loc_info.address}.")
+                    parts.append(f"The {loc_name} is located at {loc_info.address}.")
             else:  # hours
-                if loc_info.hours:
-                    header = loc_name
-                    if loc_info.address:
-                        header += f" ({loc_info.address})"
-                    parts.append(f"{header}\n{_group_hours(loc_info.hours)}")
+                sentence = _format_hours_as_sentences(loc_name, loc_info)
+                if sentence:
+                    parts.append(sentence)
         if not parts:
-            return f"(No {category} data available)"
-        return "\n\n".join(parts)
+            return f"No {category} information is available at this time."
+        return " ".join(parts)
     else:
         section: dict[str, str] = getattr(library_info, category, {})
         if not section:
-            return "(No data available)"
-        return "\n".join(f"{key}: {value}" for key, value in section.items())
+            return "No information is available at this time."
+        return " ".join(value for value in section.values())
 
 
 def _is_llm_available(client: GroqClient) -> bool:
