@@ -591,8 +591,15 @@ _live_chat_html = os.path.join(os.path.dirname(__file__), "static", "live-chat.h
 
 @app.get("/admin/")
 async def admin_dashboard():
-    """Serve the admin monitoring dashboard."""
-    return FileResponse(_admin_html, media_type="text/html")
+    """Serve the admin monitoring dashboard with no-cache headers."""
+    return HTMLResponse(
+        content=open(_admin_html, "r", encoding="utf-8").read(),
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.get("/chat/")
