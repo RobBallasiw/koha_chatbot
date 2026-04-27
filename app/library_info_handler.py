@@ -39,9 +39,9 @@ INFO_RESPONSE_PROMPT = (
     "Rules:\n"
     "- Answer in a friendly way using ONLY the data above.\n"
     "- Do NOT start with 'I'm Hero' or introduce yourself — just answer the question directly.\n"
-    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location or say 'Monday through Friday only' without the actual times.\n"
+    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location.\n"
     "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
-    "- Use natural sentences. You may use a short list if there are multiple locations.\n"
+    "- Write in natural flowing sentences. Do NOT use bullet points, dashes, or lists.\n"
     "- Use 1 emoji at the end."
 )
 
