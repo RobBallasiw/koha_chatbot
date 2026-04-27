@@ -59,9 +59,8 @@ CLARIFYING_MESSAGE = (
 )
 
 GREETING_MESSAGE = (
-    "Hey there! 👋 I'm your library assistant. "
-    "I can help you find books, check library hours, or answer questions about policies and fines. "
-    "What can I do for you?"
+    "Hello! 👋 How can I help you today? "
+    "I can assist with finding books, library hours, borrowing info, printing services, and more."
 )
 
 HANDOFF_ACTIVATED_MESSAGE = (
@@ -403,22 +402,7 @@ async def chat(request: ChatRequest):
             client, request.message, library_info, history
         )
     elif classification.intent == "greeting":
-        # Use LLM for a friendly greeting if available
-        if client and os.environ.get("OPENROUTER_API_KEY"):
-            try:
-                messages_for_llm: list[dict] = []
-                if history:
-                    messages_for_llm.extend(history[-4:])
-                messages_for_llm.append({"role": "user", "content": request.message})
-                llm_reply = client.chat(messages_for_llm)
-                if isinstance(llm_reply, str) and llm_reply and "trouble" not in llm_reply.lower():
-                    reply = llm_reply
-                else:
-                    reply = GREETING_MESSAGE
-            except Exception:
-                reply = GREETING_MESSAGE
-        else:
-            reply = GREETING_MESSAGE
+        reply = GREETING_MESSAGE
     else:
         # "unclear" intent — use LLM if available, otherwise static message
         if client and os.environ.get("OPENROUTER_API_KEY"):
