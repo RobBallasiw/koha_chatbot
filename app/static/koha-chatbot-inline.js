@@ -141,9 +141,9 @@
   wrap.setAttribute("role", "dialog");
   wrap.setAttribute("aria-label", "Library chat assistant");
   wrap.innerHTML =
-    '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> Hero — Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
+    '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
     '<div id="lc-msgs" role="log" aria-live="polite">' +
-    '<div class="lc-w">Hi, I\'m Hero! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+    '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
     '<div class="lc-faqs">' +
     '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
     '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
@@ -497,7 +497,7 @@
           return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
         });
     msgs.innerHTML =
-      '<div class="lc-w">Hi, I\'m Hero! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+      '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
       '<div class="lc-faqs">' +
       '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
       '<button class="lc-faq" data-q="What is the borrowing limit?">&#128214; Borrowing limit</button>' +
@@ -683,7 +683,7 @@
       .then(function(d) {
         if (d.status === "ok") {
           stopPolling();
-          _origAddMsg("Librarian request cancelled. I'm Hero, back to help! 👋 What else can I do for you?", "b");
+          _origAddMsg("Librarian request cancelled. Back to help! 👋 What else can I do for you?", "b");
         } else if (d.error) {
           // Staff already claimed — remove cancel button, keep polling
           removeCancelButton();
@@ -712,8 +712,8 @@
             if (m.role === "librarian") {
               _origAddMsg("👩‍💼 Librarian: " + m.content, "b", m.timestamp);
             } else if (m.role === "assistant") {
-              // Skip the "Hero is back" end-handoff message — we show our own UI for that
-              if (m.content && m.content.indexOf("Hero, back to help") !== -1) {
+              // Skip the "back to help" end-handoff message — we show our own UI for that
+              if (m.content && m.content.indexOf("Back to help") !== -1) {
                 // don't display
               } else {
                 _origAddMsg(m.content, "b", m.timestamp);

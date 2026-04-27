@@ -51,7 +51,7 @@ library_info: LibraryInfo | None = None
 
 CLARIFYING_MESSAGE = (
     "Hmm, I'm not quite sure what you mean! 🤔 "
-    "I'm Hero, your library assistant — I can help you with:\n"
+    "I'm your library assistant — I can help you with:\n"
     "📚 Finding books in the catalog\n"
     "🕐 Library hours and locations\n"
     "📋 Policies, fines, and membership info\n\n"
@@ -59,7 +59,7 @@ CLARIFYING_MESSAGE = (
 )
 
 GREETING_MESSAGE = (
-    "Hey there! 👋 I'm Hero, your library assistant. "
+    "Hey there! 👋 I'm your library assistant. "
     "I can help you find books, check library hours, or answer questions about policies and fines. "
     "What can I do for you?"
 )
@@ -497,7 +497,7 @@ async def cancel_handoff(request: ChatRequest):
         session_store.cancel_live_chat(live_chat["id"])
         session_store.save_message(
             request.session_id, "assistant",
-            "Librarian request cancelled. I'm Hero, back to help! 👋 What else can I do for you?"
+            "Librarian request cancelled. Back to help! 👋 What else can I do for you?"
         )
         return {"status": "ok"}
     except Exception:
