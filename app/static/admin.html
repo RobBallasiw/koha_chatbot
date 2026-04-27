@@ -83,6 +83,7 @@
         <button class="tab-btn" data-tab="management-tab" type="button">Management</button>
         <button class="tab-btn" data-tab="settings-tab" type="button">⚙️ Settings</button>
         <button class="tab-btn" data-tab="handoff-tab" type="button" id="handoff-tab-btn">💬 Live Chat</button>
+        <button class="tab-btn" data-tab="notify-tab" type="button">📧 Notify Staff</button>
         <button class="tab-btn" data-tab="archive-tab" type="button">📋 Staff Performance</button>
       </nav>
 
@@ -419,6 +420,38 @@
           </div>
         </div>
       </div><!-- end handoff-tab -->
+
+      <div id="notify-tab" class="tab-content">
+        <div class="notify-wrap" style="max-width:520px">
+          <h3 style="font-size:1.05rem;color:#2c3e50;margin:0 0 6px">📧 Notify a Librarian</h3>
+          <p class="quality-desc">Send an email to a librarian asking them to join the live chat. They'll receive a link that takes them directly to the Live Chat tab.</p>
+
+          <div class="notify-form" style="background:#fff;border-radius:8px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.1);margin-top:16px">
+            <div style="margin-bottom:14px">
+              <label for="notify-name" style="display:block;font-size:0.85rem;color:#555;margin-bottom:4px">Librarian Name</label>
+              <input type="text" id="notify-name" placeholder="e.g. Maria Santos" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem" aria-label="Librarian name">
+            </div>
+            <div style="margin-bottom:14px">
+              <label for="notify-email" style="display:block;font-size:0.85rem;color:#555;margin-bottom:4px">Email Address</label>
+              <input type="email" id="notify-email" placeholder="librarian@example.com" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem" aria-label="Librarian email">
+            </div>
+            <div style="margin-bottom:18px">
+              <label for="notify-session" style="display:block;font-size:0.85rem;color:#555;margin-bottom:4px">Session ID <span style="color:#aaa">(optional — auto-filled from waiting queue)</span></label>
+              <input type="text" id="notify-session" placeholder="Leave blank for general notification" style="width:100%;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:0.9rem" aria-label="Session ID">
+            </div>
+            <div style="display:flex;align-items:center;gap:12px">
+              <button id="notify-send-btn" type="button" class="btn-primary">Send Notification</button>
+              <span id="notify-status" class="li-status"></span>
+            </div>
+          </div>
+
+          <div style="margin-top:24px">
+            <h4 style="font-size:0.92rem;color:#2c3e50;margin:0 0 10px">Waiting Patrons</h4>
+            <p class="quality-desc" style="margin-bottom:10px">Patrons currently waiting for a librarian. Click a session to auto-fill the Session ID above.</p>
+            <div id="notify-queue" style="max-height:300px;overflow-y:auto"></div>
+          </div>
+        </div>
+      </div><!-- end notify-tab -->
 
       <div id="archive-tab" class="tab-content">
         <div class="archive-wrap">
@@ -2350,6 +2383,85 @@
           statusEl.style.color = "#e74c3c";
         }
         setTimeout(function() { statusEl.textContent = ""; }, 5000);
+      });
+    })();
+
+    // =====================================================================
+    // Notify Staff Tab
+    // =====================================================================
+    (function () {
+      var sendBtn = document.getElementById("notify-send-btn");
+      var statusEl = document.getElementById("notify-status");
+      var nameInput = document.getElementById("notify-name");
+      var emailInput = document.getElementById("notify-email");
+      var sessionInput = document.getElementById("notify-session");
+      var queueDiv = document.getElementById("notify-queue");
+
+      function getKey() { return sessionStorage.getItem("admin_api_key") || ""; }
+
+      sendBtn.addEventListener("click", async function () {
+        var name = nameInput.value.trim();
+        var email = emailInput.value.trim();
+        var sid = sessionInput.value.trim();
+        if (!name) { statusEl.textContent = "Name is required"; statusEl.style.color = "#e74c3c"; return; }
+        if (!email) { statusEl.textContent = "Email is required"; statusEl.style.color = "#e74c3c"; return; }
+        statusEl.textContent = "Sending…"; statusEl.style.color = "#7f8c8d";
+        try {
+          var resp = await fetch("/admin/api/notify-staff", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Admin-Key": getKey() },
+            body: JSON.stringify({ name: name, email: email, session_id: sid })
+          });
+          var data = await resp.json();
+          if (resp.ok) {
+            statusEl.textContent = "✓ Sent to " + name; statusEl.style.color = "#27ae60";
+            nameInput.value = ""; emailInput.value = ""; sessionInput.value = "";
+          } else {
+            statusEl.textContent = "✗ " + (data.error || "Failed"); statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error"; statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 5000);
+      });
+
+      async function loadNotifyQueue() {
+        try {
+          var resp = await fetch("/admin/api/handoff-sessions?page_size=50", {
+            headers: { "X-Admin-Key": getKey() }
+          });
+          var data = await resp.json();
+          var sessions = data.sessions || [];
+          var waiting = sessions.filter(function (s) { return !s.staff_username; });
+          if (waiting.length === 0) {
+            queueDiv.innerHTML = '<p style="color:#7f8c8d;font-size:0.85rem;text-align:center;padding:16px">No patrons waiting right now.</p>';
+            return;
+          }
+          queueDiv.innerHTML = "";
+          waiting.forEach(function (s) {
+            var div = document.createElement("div");
+            div.style.cssText = "padding:10px 14px;background:#fff;border:1px solid #ecf0f1;border-radius:6px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s";
+            div.onmouseenter = function () { div.style.borderColor = "#3498db"; };
+            div.onmouseleave = function () { div.style.borderColor = "#ecf0f1"; };
+            var ts = s.last_activity ? new Date(s.last_activity * 1000).toLocaleString() : "";
+            div.innerHTML =
+              '<div style="font-weight:600;font-size:0.85rem;color:#2c3e50">' + (s.display_name || s.session_id.substring(0, 16)) + '</div>' +
+              '<div style="font-size:0.78rem;color:#7f8c8d">' + s.message_count + ' msgs · ' + ts + '</div>';
+            div.addEventListener("click", function () {
+              sessionInput.value = s.session_id;
+              nameInput.focus();
+            });
+            queueDiv.appendChild(div);
+          });
+        } catch (e) {
+          queueDiv.innerHTML = '<p style="color:#e74c3c;font-size:0.85rem">Failed to load queue</p>';
+        }
+      }
+
+      document.querySelectorAll(".tab-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          if (btn.dataset.tab === "notify-tab") loadNotifyQueue();
+        });
       });
     })();
 

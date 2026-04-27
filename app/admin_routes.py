@@ -604,6 +604,49 @@ async def end_handoff(session_id: str):
 
 
 # ------------------------------------------------------------------
+# Notify Staff (send email to a specific librarian)
+# ------------------------------------------------------------------
+
+
+class NotifyStaffRequest(BaseModel):
+    name: str
+    email: str
+    session_id: str = ""
+
+
+@router.post("/notify-staff")
+async def notify_staff(request: NotifyStaffRequest):
+    """Send a notification email to a specific librarian to join live chat."""
+    if not request.name or not request.name.strip():
+        return JSONResponse(status_code=400, content={"error": "Staff name is required"})
+    if not request.email or not request.email.strip():
+        return JSONResponse(status_code=400, content={"error": "Email address is required"})
+
+    smtp_email = os.environ.get("SMTP_EMAIL", "")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "")
+    if not smtp_email or not smtp_password:
+        return JSONResponse(status_code=500, content={"error": "SMTP email is not configured. Set SMTP_EMAIL and SMTP_PASSWORD in environment."})
+
+    chatbot_url = os.environ.get("CHATBOT_PUBLIC_URL", "http://localhost:8000")
+    from app.email_notify import send_staff_notify_email
+    try:
+        ok = send_staff_notify_email(
+            smtp_email=smtp_email,
+            smtp_password=smtp_password,
+            recipient_email=request.email.strip(),
+            staff_name=request.name.strip(),
+            session_id=request.session_id.strip() if request.session_id else "",
+            admin_url=chatbot_url,
+        )
+        if ok:
+            return {"status": "ok", "message": f"Notification sent to {request.name}"}
+        return JSONResponse(status_code=500, content={"error": "Failed to send email"})
+    except Exception:
+        logger.exception("Failed to send staff notification to %s", request.email)
+        return JSONResponse(status_code=500, content={"error": "Failed to send email"})
+
+
+# ------------------------------------------------------------------
 # Staff Ratings
 # ------------------------------------------------------------------
 
