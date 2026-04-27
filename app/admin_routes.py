@@ -624,8 +624,12 @@ async def notify_staff(request: NotifyStaffRequest):
 
     smtp_email = os.environ.get("SMTP_EMAIL", "")
     smtp_password = os.environ.get("SMTP_PASSWORD", "")
-    if not smtp_email or not smtp_password:
-        return JSONResponse(status_code=500, content={"error": "SMTP email is not configured. Set SMTP_EMAIL and SMTP_PASSWORD in environment."})
+    has_service_account = bool(
+        os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+        or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+    )
+    if not smtp_email or (not smtp_password and not has_service_account):
+        return JSONResponse(status_code=500, content={"error": "Email is not configured. Set SMTP_EMAIL and either a service account or SMTP_PASSWORD."})
 
     chatbot_url = os.environ.get("CHATBOT_PUBLIC_URL", "http://localhost:8000")
     from app.email_notify import send_staff_notify_email

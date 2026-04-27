@@ -1,6 +1,9 @@
-"""Notification for librarian handoff — supports Gmail SMTP and ntfy.sh push."""
+"""Notification for librarian handoff — supports Gmail service account, SMTP, and ntfy.sh."""
 
+import base64
+import json
 import logging
+import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -9,6 +12,100 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Gmail API via service account (domain-wide delegation)
+# ---------------------------------------------------------------------------
+
+_gmail_service = None
+
+
+def _get_gmail_service():
+    """Build and cache a Gmail API service using a service account."""
+    global _gmail_service
+    if _gmail_service is not None:
+        return _gmail_service
+
+    creds_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON", "")
+    creds_file = os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE", "")
+    delegate_email = os.environ.get("SMTP_EMAIL", "")
+
+    if not delegate_email:
+        return None
+
+    try:
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
+
+        if creds_json:
+            info = json.loads(creds_json)
+            credentials = service_account.Credentials.from_service_account_info(info, scopes=SCOPES)
+        elif creds_file and os.path.exists(creds_file):
+            credentials = service_account.Credentials.from_service_account_file(creds_file, scopes=SCOPES)
+        else:
+            return None
+
+        # Delegate to the actual sender email (must be in the same Google Workspace)
+        delegated = credentials.with_subject(delegate_email)
+        _gmail_service = build("gmail", "v1", credentials=delegated, cache_discovery=False)
+        logger.info("Gmail API service account initialised (delegating to %s)", delegate_email)
+        return _gmail_service
+    except Exception:
+        logger.exception("Failed to initialise Gmail service account")
+        return None
+
+
+def _use_service_account() -> bool:
+    """Check if service account credentials are configured."""
+    return bool(
+        os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+        or os.environ.get("GOOGLE_SERVICE_ACCOUNT_FILE")
+    )
+
+
+def _send_via_service_account(msg: MIMEMultipart) -> bool:
+    """Send an email using the Gmail API with service account credentials."""
+    service = _get_gmail_service()
+    if service is None:
+        return False
+    try:
+        raw = base64.urlsafe_b64encode(msg.as_bytes()).decode()
+        service.users().messages().send(
+            userId="me", body={"raw": raw}
+        ).execute()
+        return True
+    except Exception:
+        logger.exception("Failed to send email via Gmail API service account")
+        return False
+
+
+def _send_via_smtp(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool:
+    """Send an email using Gmail SMTP with app password."""
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
+            server.starttls()
+            server.login(smtp_email, smtp_password)
+            server.send_message(msg)
+        return True
+    except Exception:
+        logger.exception("Failed to send email via SMTP")
+        return False
+
+
+def _send_email(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool:
+    """Send email — tries service account first, falls back to SMTP."""
+    if _use_service_account():
+        return _send_via_service_account(msg)
+    if smtp_email and smtp_password:
+        return _send_via_smtp(smtp_email, smtp_password, msg)
+    logger.warning("No email credentials configured (neither service account nor SMTP)")
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Email builders
+# ---------------------------------------------------------------------------
 
 def send_handoff_email(
     smtp_email: str,
@@ -17,7 +114,7 @@ def send_handoff_email(
     session_id: str,
     admin_url: str,
 ) -> bool:
-    """Send an email notification via Gmail SMTP. Requires an App Password."""
+    """Send a handoff notification email."""
     chat_link = f"{admin_url}/admin/#handoff-tab"
     subject = "📚 A patron wants to talk to a librarian"
 
@@ -46,23 +143,18 @@ def send_handoff_email(
         f"— Lorma Library Chatbot"
     )
 
+    sender = smtp_email or os.environ.get("SMTP_EMAIL", "noreply@example.com")
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Lorma Library Chatbot <{smtp_email}>"
+    msg["From"] = f"Lorma Library Chatbot <{sender}>"
     msg["To"] = librarian_email
     msg["Subject"] = subject
     msg.attach(MIMEText(plain_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_email, smtp_password)
-            server.send_message(msg)
+    ok = _send_email(smtp_email, smtp_password, msg)
+    if ok:
         logger.info("Handoff email sent for session %s", session_id)
-        return True
-    except Exception:
-        logger.exception("Failed to send handoff email for session %s", session_id)
-        return False
+    return ok
 
 
 def send_staff_notify_email(
@@ -73,7 +165,7 @@ def send_staff_notify_email(
     session_id: str,
     admin_url: str,
 ) -> bool:
-    """Send a targeted notification email to a specific librarian."""
+    """Send a personalized notification email to a specific librarian."""
     chat_link = f"{admin_url}/admin/#handoff-tab"
     subject = f"📚 {staff_name}, a patron needs your help"
 
@@ -99,34 +191,23 @@ def send_staff_notify_email(
     </div>
     """
 
-    plain_body = (
-        f"Hi {staff_name},\n\n"
-        f"A patron is waiting to chat with a librarian.\n"
-    )
+    plain_body = f"Hi {staff_name},\n\nA patron is waiting to chat with a librarian.\n"
     if session_id:
         plain_body += f"Session: {session_id[:16]}…\n"
-    plain_body += (
-        f"\nJoin the live chat:\n{chat_link}\n\n"
-        f"— Lorma Library Chatbot"
-    )
+    plain_body += f"\nJoin the live chat:\n{chat_link}\n\n— Lorma Library Chatbot"
 
+    sender = smtp_email or os.environ.get("SMTP_EMAIL", "noreply@example.com")
     msg = MIMEMultipart("alternative")
-    msg["From"] = f"Lorma Library Chatbot <{smtp_email}>"
+    msg["From"] = f"Lorma Library Chatbot <{sender}>"
     msg["To"] = recipient_email
     msg["Subject"] = subject
     msg.attach(MIMEText(plain_body, "plain"))
     msg.attach(MIMEText(html_body, "html"))
 
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587, timeout=10) as server:
-            server.starttls()
-            server.login(smtp_email, smtp_password)
-            server.send_message(msg)
+    ok = _send_email(smtp_email, smtp_password, msg)
+    if ok:
         logger.info("Staff notification sent to %s (%s)", staff_name, recipient_email)
-        return True
-    except Exception:
-        logger.exception("Failed to send staff notification to %s", recipient_email)
-        return False
+    return ok
 
 
 def send_ntfy_notification(

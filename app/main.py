@@ -337,7 +337,9 @@ async def chat(request: ChatRequest):
                 from app.email_notify import send_ntfy_notification, send_handoff_email, send_staff_notify_email
                 if _cfg.ntfy_topic:
                     send_ntfy_notification(_cfg.ntfy_topic, _sid, _cfg.chatbot_public_url)
-                if _cfg.smtp_email and _cfg.smtp_password:
+                from app.email_notify import _use_service_account
+                _has_email = (_cfg.smtp_email and _cfg.smtp_password) or _use_service_account()
+                if _has_email:
                     # 1. Email all active staff contacts (personalized by name)
                     try:
                         from app.staff_routes import staff_store as _ss
