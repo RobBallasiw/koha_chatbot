@@ -103,6 +103,18 @@ def _send_email(smtp_email: str, smtp_password: str, msg: MIMEMultipart) -> bool
     return False
 
 
+def _build_chat_link(admin_url: str, session_id: str = "", staff_name: str = "") -> str:
+    """Build a /chat/ link with embedded API key and optional params."""
+    api_key = os.environ.get("ADMIN_API_KEY", "")
+    parts = [f"{admin_url}/chat/?key={api_key}"]
+    if session_id:
+        parts.append(f"session={session_id}")
+    if staff_name:
+        from urllib.parse import quote
+        parts.append(f"name={quote(staff_name)}")
+    return "&".join(parts)
+
+
 # ---------------------------------------------------------------------------
 # Email builders
 # ---------------------------------------------------------------------------
@@ -115,7 +127,7 @@ def send_handoff_email(
     admin_url: str,
 ) -> bool:
     """Send a handoff notification email."""
-    chat_link = f"{admin_url}/chat/?session={session_id}"
+    chat_link = _build_chat_link(admin_url, session_id=session_id)
     subject = "📚 A patron wants to talk to a librarian"
 
     html_body = f"""
@@ -166,7 +178,7 @@ def send_staff_notify_email(
     admin_url: str,
 ) -> bool:
     """Send a personalized notification email to a specific librarian."""
-    chat_link = f"{admin_url}/chat/?session={session_id}" if session_id else f"{admin_url}/chat/"
+    chat_link = _build_chat_link(admin_url, session_id=session_id, staff_name=staff_name)
     subject = f"📚 {staff_name}, a patron needs your help"
 
     session_note = ""
@@ -216,7 +228,7 @@ def send_ntfy_notification(
     admin_url: str,
 ) -> bool:
     """Send a push notification via ntfy.sh."""
-    chat_link = f"{admin_url}/chat/?session={session_id}"
+    chat_link = _build_chat_link(admin_url, session_id=session_id)
     try:
         httpx.post(
             f"https://ntfy.sh/{ntfy_topic}",
