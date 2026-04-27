@@ -39,6 +39,14 @@ class StaffStore:
                     value TEXT NOT NULL,
                     updated_at REAL NOT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS staff_contacts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL UNIQUE,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at REAL NOT NULL
+                );
             """)
             conn.commit()
             self._seed_defaults(conn)
@@ -109,3 +117,82 @@ class StaffStore:
         """Check if a feature toggle is enabled."""
         val = self.get_setting(feature_key)
         return val == "true" if val is not None else True
+
+    # ------------------------------------------------------------------
+    # Staff contacts (name + email for notifications)
+    # ------------------------------------------------------------------
+
+    def list_contacts(self) -> list[dict]:
+        """Return all staff contacts."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id, name, email, is_active, created_at FROM staff_contacts ORDER BY created_at DESC"
+            ).fetchall()
+            return [
+                {"id": r["id"], "name": r["name"], "email": r["email"],
+                 "is_active": bool(r["is_active"]), "created_at": r["created_at"]}
+                for r in rows
+            ]
+        finally:
+            conn.close()
+
+    def add_contact(self, name: str, email: str) -> dict:
+        """Add a new staff contact. Raises ValueError if email already exists."""
+        now = time.time()
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                "INSERT INTO staff_contacts (name, email, is_active, created_at) VALUES (?, ?, 1, ?)",
+                (name.strip(), email.strip().lower(), now),
+            )
+            conn.commit()
+            return {"name": name.strip(), "email": email.strip().lower(), "is_active": True}
+        except Exception:
+            raise ValueError(f"Email '{email}' already exists")
+        finally:
+            conn.close()
+
+    def update_contact(self, contact_id: int, name: str | None = None, email: str | None = None, is_active: bool | None = None) -> bool:
+        """Update a staff contact. Returns True if updated."""
+        parts, params = [], []
+        if name is not None:
+            parts.append("name = ?")
+            params.append(name.strip())
+        if email is not None:
+            parts.append("email = ?")
+            params.append(email.strip().lower())
+        if is_active is not None:
+            parts.append("is_active = ?")
+            params.append(1 if is_active else 0)
+        if not parts:
+            return False
+        params.append(contact_id)
+        conn = self._get_connection()
+        try:
+            cur = conn.execute(f"UPDATE staff_contacts SET {', '.join(parts)} WHERE id = ?", params)
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+    def delete_contact(self, contact_id: int) -> bool:
+        """Delete a staff contact."""
+        conn = self._get_connection()
+        try:
+            cur = conn.execute("DELETE FROM staff_contacts WHERE id = ?", (contact_id,))
+            conn.commit()
+            return cur.rowcount > 0
+        finally:
+            conn.close()
+
+    def get_active_contacts(self) -> list[dict]:
+        """Return only active staff contacts (for notifications)."""
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id, name, email FROM staff_contacts WHERE is_active = 1"
+            ).fetchall()
+            return [{"id": r["id"], "name": r["name"], "email": r["email"]} for r in rows]
+        finally:
+            conn.close()

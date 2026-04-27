@@ -334,11 +334,26 @@ async def chat(request: ChatRequest):
             _sid = request.session_id
             async def _send_notification():
                 import json as _json
-                from app.email_notify import send_ntfy_notification, send_handoff_email
+                from app.email_notify import send_ntfy_notification, send_handoff_email, send_staff_notify_email
                 if _cfg.ntfy_topic:
                     send_ntfy_notification(_cfg.ntfy_topic, _sid, _cfg.chatbot_public_url)
                 if _cfg.smtp_email and _cfg.smtp_password:
-                    # Get notification emails from database, fall back to env var
+                    # 1. Email all active staff contacts (personalized by name)
+                    try:
+                        from app.staff_routes import staff_store as _ss
+                        if _ss:
+                            contacts = _ss.get_active_contacts()
+                            for c in contacts:
+                                try:
+                                    send_staff_notify_email(
+                                        _cfg.smtp_email, _cfg.smtp_password,
+                                        c["email"], c["name"], _sid, _cfg.chatbot_public_url,
+                                    )
+                                except Exception:
+                                    logger.exception("Failed to notify contact %s", c["email"])
+                    except Exception:
+                        pass
+                    # 2. Also email notification-emails list (legacy/fallback)
                     emails = []
                     try:
                         from app.staff_routes import staff_store as _ss
