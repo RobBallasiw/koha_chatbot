@@ -285,4 +285,4 @@ def handle_library_info_query(
             logger.info("LLM unavailable for library info, using formatted data")
 
     # Fallback: return formatted data directly
-    return f"Here's what I found:\n\n{data_str} 📚"
+    return f"{data_str} 📚"
