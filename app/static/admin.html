@@ -2426,6 +2426,9 @@
           return;
         }
 
+        // Ask before claiming
+        if (!confirm("Join this live chat session? You will be connected with the patron.")) return;
+
         // Claim the live chat session
         activeHandoffSid = liveChatId;
         activeParentSid = parentSid;
