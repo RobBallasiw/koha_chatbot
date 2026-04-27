@@ -426,7 +426,18 @@
   function hideTyping() { var e = document.getElementById("lc-tp"); if (e) e.remove(); }
 
   // Input
-  inp.addEventListener("input", function () { btn.disabled = !inp.value.trim(); });
+  var lastTypingSignal = 0;
+  inp.addEventListener("input", function () {
+    btn.disabled = !inp.value.trim();
+    // Send typing signal during live chat
+    if (handoffActive && handoffHandler && inp.value.trim()) {
+      var now = Date.now();
+      if (now - lastTypingSignal > 2000) {
+        lastTypingSignal = now;
+        fetch(CHATBOT_API + "/api/typing/" + encodeURIComponent(sid), { method: "POST" }).catch(function(){});
+      }
+    }
+  });
   inp.addEventListener("keydown", function (e) {
     if (e.key === "Enter" && !btn.disabled) { e.preventDefault(); send(); }
   });
@@ -741,6 +752,24 @@
         if (!d.handoff_active && handoffActive) {
           stopPolling();
           showHandoffRating();
+        }
+        // Check if librarian is typing
+        if (handoffActive && handoffHandler) {
+          fetch(CHATBOT_API + "/api/typing/" + encodeURIComponent(sid))
+            .then(function(r) { return r.json(); })
+            .then(function(t) {
+              var el = document.getElementById("lc-lib-typing");
+              if (t.librarian_typing) {
+                if (!el) {
+                  el = document.createElement("div");
+                  el.id = "lc-lib-typing";
+                  el.className = "lc-t";
+                  el.textContent = "Librarian is typing…";
+                  msgs.appendChild(el);
+                  scroll();
+                }
+              } else if (el) { el.remove(); }
+            }).catch(function(){});
         }
       })
       .catch(function() {});

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.admin_routes import router as admin_router, login_router as admin_login_router, set_session_store, set_library_info_path
+from app.admin_routes import router as admin_router, login_router as admin_login_router, set_session_store, set_library_info_path, _public_typing_router
 from app.catalog_handler import handle_catalog_query
 from app.config import Settings, load_settings
 from app.groq_client import GroqClient
@@ -41,6 +41,7 @@ app.add_middleware(
 app.include_router(admin_login_router)
 app.include_router(admin_router)
 app.include_router(staff_router)
+app.include_router(_public_typing_router)
 
 # Module-level variables initialised during the startup event.
 settings: Settings | None = None

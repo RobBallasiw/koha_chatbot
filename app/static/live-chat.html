@@ -236,11 +236,45 @@
   }
 
   function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML.replace(/\n/g, "<br>"); }
-  function startPoll() { stopPoll(); pollTimer = setInterval(loadMessages, 3000); }
+  function startPoll() { stopPoll(); pollTimer = setInterval(function() { loadMessages(); checkPatronTyping(); }, 3000); }
   function stopPoll() { if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+
+  async function checkPatronTyping() {
+    if (!liveChatId) return;
+    try {
+      var resp = await fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/typing", { headers: { "X-Admin-Key": apiKey } });
+      var data = await resp.json();
+      var el = document.getElementById("patron-typing-indicator");
+      if (data.patron_typing) {
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "patron-typing-indicator";
+          el.style.cssText = "padding:6px 14px;font-size:0.82em;color:#7f8c8d;font-style:italic";
+          el.textContent = "Patron is typing…";
+          chatMessages.appendChild(el);
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+      } else if (el) { el.remove(); }
+    } catch(e) {}
+  }
 
   sendBtn.addEventListener("click", sendReply);
   replyInput.addEventListener("keydown", function(e) { if (e.key === "Enter") { e.preventDefault(); sendReply(); } });
+
+  // Send typing signal when librarian types
+  var lastLibTyping = 0;
+  replyInput.addEventListener("input", function() {
+    if (!liveChatId || !replyInput.value.trim()) return;
+    var now = Date.now();
+    if (now - lastLibTyping > 2000) {
+      lastLibTyping = now;
+      fetch("/admin/api/live-chat/" + encodeURIComponent(liveChatId) + "/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Admin-Key": apiKey },
+        body: JSON.stringify({ role: "librarian" })
+      }).catch(function(){});
+    }
+  });
 
   async function sendReply() {
     var text = replyInput.value.trim();

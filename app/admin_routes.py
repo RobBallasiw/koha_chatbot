@@ -415,6 +415,74 @@ async def delete_all_sessions() -> BulkCleanupResponse:
 
 
 # ------------------------------------------------------------------
+# Typing indicators (in-memory, ephemeral)
+# ------------------------------------------------------------------
+
+import time as _time
+
+_typing_state: dict[str, dict] = {}  # live_chat_id -> {"patron": timestamp, "librarian": timestamp}
+
+
+class TypingRequest(BaseModel):
+    role: str  # "patron" or "librarian"
+
+
+@router.post("/live-chat/{live_chat_id}/typing")
+async def set_typing(live_chat_id: str, request: TypingRequest):
+    """Signal that someone is typing."""
+    if live_chat_id not in _typing_state:
+        _typing_state[live_chat_id] = {}
+    _typing_state[live_chat_id][request.role] = _time.time()
+    return {"status": "ok"}
+
+
+@router.get("/live-chat/{live_chat_id}/typing")
+async def get_typing(live_chat_id: str):
+    """Get typing status — returns who is currently typing (within last 4 seconds)."""
+    now = _time.time()
+    state = _typing_state.get(live_chat_id, {})
+    return {
+        "patron_typing": now - state.get("patron", 0) < 4,
+        "librarian_typing": now - state.get("librarian", 0) < 4,
+    }
+
+
+# Public endpoint (no auth) for patron widget to send/get typing
+_public_typing_router = APIRouter(prefix="/api")
+
+
+@_public_typing_router.post("/typing/{session_id}")
+async def patron_set_typing(session_id: str):
+    """Patron signals they are typing."""
+    # Find the live chat for this session
+    store = _get_store()
+    try:
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            lc_id = live_chat["id"]
+            if lc_id not in _typing_state:
+                _typing_state[lc_id] = {}
+            _typing_state[lc_id]["patron"] = _time.time()
+    except Exception:
+        pass
+    return {"status": "ok"}
+
+
+@_public_typing_router.get("/typing/{session_id}")
+async def patron_get_typing(session_id: str):
+    """Patron checks if librarian is typing."""
+    store = _get_store()
+    try:
+        live_chat = store.get_active_live_chat(session_id)
+        if live_chat:
+            state = _typing_state.get(live_chat["id"], {})
+            return {"librarian_typing": _time.time() - state.get("librarian", 0) < 4}
+    except Exception:
+        pass
+    return {"librarian_typing": False}
+
+
+# ------------------------------------------------------------------
 # Librarian Handoff (Talk to a Librarian)
 # ------------------------------------------------------------------
 
