@@ -415,6 +415,7 @@
     addMsgRaw(t, c, ts);
     chatHistory.push({text: t, cls: c, ts: ts});
     saveState();
+    resetInactivityTimer();
   }
   function showTyping(label) {
     var d = document.createElement("div"); d.className = "lc-t"; d.id = "lc-tp";
@@ -455,9 +456,33 @@
     send();
   });
 
+  // --- 5-minute inactivity timer ---
+  var INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+  var inactivityTimer = null;
+
+  function resetInactivityTimer() {
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    inactivityTimer = setTimeout(function () {
+      // Close session on server
+      if (sid) {
+        var blob = new Blob(
+          [JSON.stringify({ message: "", session_id: sid })],
+          { type: "application/json" }
+        );
+        navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
+      }
+      addMsg("Session ended due to inactivity. Starting a new chat…", "b");
+      setTimeout(function () { resetToNewChat(); }, 2000);
+    }, INACTIVITY_TIMEOUT);
+  }
+
+  // Start the timer on first load if there's an active chat
+  if (chatHistory.length > 0) resetInactivityTimer();
+
   // New Chat button
   function resetToNewChat() {
     stopPolling();
+    if (inactivityTimer) { clearTimeout(inactivityTimer); inactivityTimer = null; }
     chatHistory.length = 0;
     sid = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -499,6 +524,7 @@
   function send() {
     var text = inp.value.trim();
     if (!text) return;
+    resetInactivityTimer();
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
     var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
