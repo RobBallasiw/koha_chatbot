@@ -187,7 +187,6 @@
   // Restore previous messages
   if (chatHistory.length > 0) {
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
-    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts); });
   }
 
@@ -549,7 +548,6 @@
     if (!text) return;
     resetInactivityTimer();
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
-    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
     inp.value = "";
     // During active handoff with a librarian, don't show typing indicator
