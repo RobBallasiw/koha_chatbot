@@ -99,7 +99,7 @@
     "padding:7px 14px;font-size:.82rem;cursor:pointer;transition:background .15s,border-color .15s;" +
     "line-height:1.3;text-align:left}" +
     ".lc-faq:hover{background:#fdf6e3;border-color:#b8890f}" +
-    "#lc-faqs-bar{border-top:1px solid #e8e8e8;background:#fafafa;flex-shrink:0;padding:6px 10px 8px}" +
+    "#lc-faqs-bar{border-bottom:1px solid #e8e8e8;background:#fafafa;flex-shrink:0;padding:6px 10px 8px}" +
     // Catalog result cards
     ".lc-results{display:flex;flex-direction:column;gap:8px;width:100%;max-width:95%;align-self:flex-start}" +
     ".lc-results-header{font-size:.88rem;color:#555;padding:4px 0}" +
@@ -143,9 +143,6 @@
   wrap.setAttribute("aria-label", "Library chat assistant");
   wrap.innerHTML =
     '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
-    '<div id="lc-msgs" role="log" aria-live="polite">' +
-    '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
-    '</div>' +
     '<div id="lc-faqs-bar"><div class="lc-faqs">' +
     '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
     '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
@@ -154,6 +151,9 @@
     '<button class="lc-faq" data-q="What are the printing rates?">&#128176; Printing rates</button>' +
     '<button class="lc-faq" data-q="What is the library email address?">&#128231; Library email</button>' +
     '</div></div>' +
+    '<div id="lc-msgs" role="log" aria-live="polite">' +
+    '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+    '</div>' +
     '<div id="lc-bar">' +
     '<input type="text" id="lc-in" placeholder="Ask me about the library..." autocomplete="off" aria-label="Type your message">' +
     '<button id="lc-go" aria-label="Send message" disabled>&#10148;</button>' +
