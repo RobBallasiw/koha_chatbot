@@ -94,12 +94,7 @@
     "#lc-go:disabled{background:#a0aab4;cursor:not-allowed}" +
     ".lc-w{text-align:center;color:#555;font-size:.88rem;padding:18px 10px;" +
     "line-height:1.5}" +
-    ".lc-faqs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:8px 10px}" +
-    ".lc-faq{background:#fff;color:#0E553F;border:1px solid #D4A017;border-radius:18px;" +
-    "padding:7px 14px;font-size:.82rem;cursor:pointer;transition:background .15s,border-color .15s;" +
-    "line-height:1.3;text-align:left}" +
-    ".lc-faq:hover{background:#fdf6e3;border-color:#b8890f}" +
-    "#lc-faqs-bar{border-bottom:1px solid #e8e8e8;background:#fafafa;flex-shrink:0;padding:6px 10px 8px}" +
+    ".lc-faqs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:8px 10px 14px}" +
     // Catalog result cards
     ".lc-results{display:flex;flex-direction:column;gap:8px;width:100%;max-width:95%;align-self:flex-start}" +
     ".lc-results-header{font-size:.88rem;color:#555;padding:4px 0}" +
@@ -143,16 +138,16 @@
   wrap.setAttribute("aria-label", "Library chat assistant");
   wrap.innerHTML =
     '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
-    '<div id="lc-faqs-bar"><div class="lc-faqs">' +
+    '<div id="lc-msgs" role="log" aria-live="polite">' +
+    '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+    '<div class="lc-faqs">' +
     '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
     '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
     '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
     '<button class="lc-faq" data-q="How do I print documents?">&#128424; Printing procedure</button>' +
     '<button class="lc-faq" data-q="What are the printing rates?">&#128176; Printing rates</button>' +
     '<button class="lc-faq" data-q="What is the library email address?">&#128231; Library email</button>' +
-    '</div></div>' +
-    '<div id="lc-msgs" role="log" aria-live="polite">' +
-    '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+    '</div>' +
     '</div>' +
     '<div id="lc-bar">' +
     '<input type="text" id="lc-in" placeholder="Ask me about the library..." autocomplete="off" aria-label="Type your message">' +
@@ -192,6 +187,7 @@
   // Restore previous messages
   if (chatHistory.length > 0) {
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
+    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts); });
   }
 
@@ -444,7 +440,7 @@
   btn.addEventListener("click", send);
 
   // FAQ buttons — auto-send the question
-  function handleFaqClick(e) {
+  msgs.addEventListener("click", function (e) {
     var target = e.target;
     var faq = target.closest ? target.closest(".lc-faq") : null;
     if (!faq && target.classList && target.classList.contains("lc-faq")) faq = target;
@@ -456,9 +452,7 @@
     inp.value = question;
     btn.disabled = false;
     send();
-  }
-  msgs.addEventListener("click", handleFaqClick);
-  document.getElementById("lc-faqs-bar").addEventListener("click", handleFaqClick);
+  });
 
   // Talk to a Librarian header button — triggers handoff via chat
   var libBtn = document.getElementById("lc-librarian");
@@ -511,7 +505,15 @@
           return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
         });
     msgs.innerHTML =
-      '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>';
+      '<div class="lc-w">Hi! 👋 I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+      '<div class="lc-faqs">' +
+      '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
+      '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
+      '<button class="lc-faq" data-q="What are the overdue fines?">&#128176; Overdue fines</button>' +
+      '<button class="lc-faq" data-q="How do I print documents?">&#128424; Printing procedure</button>' +
+      '<button class="lc-faq" data-q="What are the printing rates?">&#128176; Printing rates</button>' +
+      '<button class="lc-faq" data-q="What is the library email address?">&#128231; Library email</button>' +
+      '</div>';
     inp.disabled = false;
     inp.placeholder = "Type your message…";
     btn.disabled = false;
@@ -547,6 +549,7 @@
     if (!text) return;
     resetInactivityTimer();
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
+    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
     inp.value = "";
     // During active handoff with a librarian, don't show typing indicator
