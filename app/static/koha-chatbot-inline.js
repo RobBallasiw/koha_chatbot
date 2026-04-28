@@ -641,7 +641,7 @@
       // Try to give a helpful static answer for common library info questions
       var q = text.toLowerCase();
       if (q.match(/hour|open|close|schedule/)) {
-        addMsg("Here are our library hours 🕐 CHS Library: Mon–Fri 7:00 AM–7:00 PM, Sat 8:30 AM–4:30 PM, Sun Closed. CLI Library: Mon–Fri 7:30 AM–5:00 PM, Sat & Sun Closed. High School Library & Preschool/Grade School Library: Mon–Fri 8:30 AM–4:30 PM, Sat & Sun Closed. 📚", "b");
+        addMsg("The CHS Library is open Monday to Friday from 7:00 AM to 7:00 PM, and on Saturdays from 8:30 AM to 4:30 PM. The CLI Library is open Monday to Friday from 7:30 AM to 5:00 PM. The High School Library and Preschool/Grade School Library are open Monday to Friday from 8:30 AM to 4:30 PM. All branches are closed on Sundays. 📚", "b");
       } else if (q.match(/email|contact/)) {
         addMsg("You can reach us at chslibrary@lorma.edu (CHS) or clilibrary@lorma.edu (CLI). 📧", "b");
       } else {
