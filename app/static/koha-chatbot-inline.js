@@ -638,10 +638,14 @@
     })
     .catch(function (err) {
       hideTyping();
-      if (err.message === "Failed to fetch" || err.name === "TypeError") {
-        addMsg("Oops, I can't connect right now 😅 Check your internet and try again in a moment!", "e");
+      // Try to give a helpful static answer for common library info questions
+      var q = text.toLowerCase();
+      if (q.match(/hour|open|close|schedule/)) {
+        addMsg("Our libraries are open Mon–Fri. CHS Library: 7:00 AM–7:00 PM, CLI Library: 7:30 AM–5:00 PM, High School & Grade School Libraries: 8:30 AM–4:30 PM. Closed on Sundays. 📚", "b");
+      } else if (q.match(/email|contact/)) {
+        addMsg("You can reach us at chslibrary@lorma.edu (CHS) or clilibrary@lorma.edu (CLI). 📧", "b");
       } else {
-        addMsg(err.message || "Something went wrong.", "e");
+        addMsg("I'm having trouble connecting right now 😅 Please try again in a moment, or contact library staff for assistance.", "e");
       }
     })
     .finally(function () {
