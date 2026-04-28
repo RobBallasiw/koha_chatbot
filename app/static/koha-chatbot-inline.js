@@ -95,6 +95,10 @@
     ".lc-w{text-align:center;color:#555;font-size:.88rem;padding:18px 10px;" +
     "line-height:1.5}" +
     ".lc-faqs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;padding:8px 10px 14px}" +
+    ".lc-faq{background:#fff;color:#0E553F;border:1px solid #D4A017;border-radius:18px;" +
+    "padding:7px 14px;font-size:.82rem;cursor:pointer;transition:background .15s,border-color .15s;" +
+    "line-height:1.3;text-align:left}" +
+    ".lc-faq:hover{background:#fdf6e3;border-color:#b8890f}" +
     // Catalog result cards
     ".lc-results{display:flex;flex-direction:column;gap:8px;width:100%;max-width:95%;align-self:flex-start}" +
     ".lc-results-header{font-size:.88rem;color:#555;padding:4px 0}" +
@@ -187,6 +191,7 @@
   // Restore previous messages
   if (chatHistory.length > 0) {
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
+    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts); });
   }
 
@@ -441,6 +446,7 @@
   // FAQ buttons — auto-send the question
   msgs.addEventListener("click", function (e) {
     var target = e.target;
+    // Handle click on FAQ buttons or Talk to Librarian button
     var faq = target.closest ? target.closest(".lc-faq") : null;
     if (!faq && target.classList && target.classList.contains("lc-faq")) faq = target;
     if (!faq) return;
@@ -548,6 +554,7 @@
     if (!text) return;
     resetInactivityTimer();
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
+    var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
     addMsg(text, "u");
     inp.value = "";
     // During active handoff with a librarian, don't show typing indicator
