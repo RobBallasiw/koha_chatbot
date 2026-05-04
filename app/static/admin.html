@@ -228,17 +228,58 @@
       <div id="library-info-tab" class="tab-content">
         <div class="li-editor-wrap">
           <div class="li-header">
-            <p class="li-desc">Manage FAQ buttons shown in the chat widget. Each button has a label (what patrons see), a question (sent when clicked), and a content area (the bot's reply — leave blank to let the AI answer).</p>
+            <p class="li-desc">Manage FAQ buttons shown in the chat widget. Click <strong>Edit</strong> to modify or <strong>Delete</strong> to remove an entry.</p>
             <div class="li-actions">
-              <button id="li-save-btn" type="button" class="btn-primary">Save All Changes</button>
-              <span id="li-save-status" class="li-status"></span>
+              <button id="li-add-faq-btn" type="button" class="btn-primary" style="background:#27ae60">+ Add FAQ</button>
             </div>
           </div>
-
-          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
-            <button id="li-add-faq-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add FAQ</button>
-          </div>
           <div id="li-faqs" class="li-faq-list"></div>
+        </div>
+
+        <!-- FAQ Drawer overlay -->
+        <div id="li-drawer-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="dialog" aria-label="FAQ editor">
+          <div class="li-drawer">
+            <div class="li-drawer-header">
+              <h3 id="li-drawer-title">Add FAQ</h3>
+              <button id="li-drawer-close" type="button" class="li-drawer-close-btn" aria-label="Close">✕</button>
+            </div>
+            <div class="li-drawer-body">
+              <div class="li-drawer-field">
+                <label for="li-d-label">Button Label <span class="li-required">*</span></label>
+                <p class="ai-hint">Text shown on the button in the chat widget.</p>
+                <input type="text" id="li-d-label" placeholder="e.g. 📖 Borrowing privileges" maxlength="80" aria-label="Button label">
+              </div>
+              <div class="li-drawer-field">
+                <label for="li-d-question">Question <span class="li-required">*</span></label>
+                <p class="ai-hint">Sent to the bot when the button is clicked.</p>
+                <input type="text" id="li-d-question" placeholder="e.g. What are the borrowing privileges?" maxlength="200" aria-label="FAQ question">
+              </div>
+              <div class="li-drawer-field">
+                <label for="li-d-content">Bot Reply</label>
+                <p class="ai-hint">The answer shown to the patron. Leave blank to let the AI answer.</p>
+                <textarea id="li-d-content" rows="6" placeholder="Type the answer here, or leave blank for AI to answer…" aria-label="FAQ content"></textarea>
+              </div>
+              <div id="li-drawer-error" class="li-drawer-error hidden"></div>
+            </div>
+            <div class="li-drawer-footer">
+              <button id="li-drawer-save" type="button" class="btn-primary">Save</button>
+              <button id="li-drawer-cancel" type="button" class="back-btn">Cancel</button>
+              <span id="li-drawer-status" class="li-status"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Delete confirm dialog -->
+        <div id="li-confirm-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="alertdialog" aria-label="Confirm delete">
+          <div class="li-confirm-dialog">
+            <div class="li-confirm-icon">🗑️</div>
+            <h3 class="li-confirm-title">Delete FAQ?</h3>
+            <p class="li-confirm-msg" id="li-confirm-msg"></p>
+            <div class="li-confirm-actions">
+              <button id="li-confirm-yes" type="button" class="btn-danger">Yes, delete</button>
+              <button id="li-confirm-no" type="button" class="back-btn">Cancel</button>
+            </div>
+          </div>
         </div>
       </div><!-- end library-info-tab -->
 
@@ -677,6 +718,45 @@
     .li-faq-content-row label { font-size: 0.82em; color: #7f8c8d; width: 64px; flex-shrink: 0; padding-top: 6px; }
     .li-faq-content-row textarea { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88em; resize: vertical; min-height: 60px; font-family: inherit; line-height: 1.4; }
     .li-faq-content-row textarea:focus { border-color: #2c3e50; outline: none; }
+
+    /* FAQ card list */
+    .li-faq-list { display: flex; flex-direction: column; gap: 10px; }
+    .li-faq-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; transition: border-color .15s; }
+    .li-faq-card:hover { border-color: #2c3e50; }
+    .li-faq-card-body { flex: 1; min-width: 0; }
+    .li-faq-card-label { font-size: 0.94em; font-weight: 600; color: #2c3e50; margin-bottom: 3px; }
+    .li-faq-card-question { font-size: 0.82em; color: #7f8c8d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .li-faq-card-content-preview { font-size: 0.78em; color: #aaa; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .li-faq-card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .li-faq-edit-btn { padding: 4px 12px; border: 1px solid #2c3e50; border-radius: 4px; background: #fff; color: #2c3e50; font-size: 0.82em; cursor: pointer; transition: all .15s; }
+    .li-faq-edit-btn:hover { background: #2c3e50; color: #fff; }
+    .li-faq-delete-btn { padding: 4px 12px; border: 1px solid #e74c3c; border-radius: 4px; background: #fff; color: #e74c3c; font-size: 0.82em; cursor: pointer; transition: all .15s; }
+    .li-faq-delete-btn:hover { background: #e74c3c; color: #fff; }
+    .li-faq-empty { color: #7f8c8d; font-size: 0.88em; text-align: center; padding: 40px 20px; background: #f9fafb; border-radius: 8px; border: 1px dashed #ddd; }
+
+    /* Drawer overlay */
+    .li-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+    .li-drawer { background: #fff; border-radius: 10px; width: 520px; max-width: calc(100vw - 32px); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .li-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #ecf0f1; }
+    .li-drawer-header h3 { font-size: 1em; color: #2c3e50; margin: 0; }
+    .li-drawer-close-btn { background: none; border: none; font-size: 1.1em; cursor: pointer; color: #7f8c8d; padding: 2px 6px; border-radius: 4px; }
+    .li-drawer-close-btn:hover { background: #ecf0f1; color: #2c3e50; }
+    .li-drawer-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .li-drawer-field label { display: block; font-size: 0.88em; font-weight: 600; color: #2c3e50; margin-bottom: 4px; }
+    .li-required { color: #e74c3c; }
+    .li-drawer-field input, .li-drawer-field textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.92em; font-family: inherit; }
+    .li-drawer-field input:focus, .li-drawer-field textarea:focus { border-color: #2c3e50; outline: none; }
+    .li-drawer-field textarea { resize: vertical; line-height: 1.5; }
+    .li-drawer-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 8px 12px; border-radius: 4px; font-size: 0.88em; }
+    .li-drawer-footer { padding: 14px 20px; border-top: 1px solid #ecf0f1; display: flex; align-items: center; gap: 10px; }
+
+    /* Confirm dialog */
+    .li-confirm-dialog { background: #fff; border-radius: 10px; width: 380px; max-width: calc(100vw - 32px); padding: 28px 24px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+    .li-confirm-icon { font-size: 2em; margin-bottom: 10px; }
+    .li-confirm-title { font-size: 1.05em; color: #2c3e50; margin: 0 0 8px 0; }
+    .li-confirm-msg { font-size: 0.88em; color: #555; margin: 0 0 20px 0; line-height: 1.5; }
+    .li-confirm-actions { display: flex; gap: 10px; justify-content: center; }
+    .li-required { color: #e74c3c; }
     .ai-settings-grid { display: flex; flex-direction: column; gap: 20px; }
     .ai-settings-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px 18px; }
     .ai-label { display: block; font-size: 0.94em; font-weight: 600; color: #2c3e50; margin-bottom: 4px; }
@@ -1534,64 +1614,127 @@
 
       // --- Library Info Editor (FAQ-based) ---
       var liLocationsContainer = null; // kept for compat, unused
+      var _faqData = []; // in-memory list of {label, question, content}
+      var _editingIndex = -1; // -1 = adding new
 
       async function loadLibraryInfo() {
         var data = await apiFetch("/admin/api/library-info");
         if (!data) return;
+        _faqData = (data.faqs || []).map(function(f) {
+          return { label: f.label || "", question: f.question || "", content: f.content || "" };
+        });
+        renderFaqCards();
+      }
 
-        // Render FAQs
-        var faqContainer = document.getElementById("li-faqs");
-        faqContainer.innerHTML = "";
-        var faqs = data.faqs || [];
-        if (faqs.length === 0) {
-          faqContainer.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:20px">No FAQ buttons yet. Click "+ Add FAQ" to add one.</p>';
-        } else {
-          faqs.forEach(function(faq) { addFaqRow(faq.label || "", faq.question || "", faq.content || ""); });
+      function renderFaqCards() {
+        var container = document.getElementById("li-faqs");
+        container.innerHTML = "";
+        if (_faqData.length === 0) {
+          container.innerHTML = '<div class="li-faq-empty">No FAQ buttons yet. Click "+ Add FAQ" to add one.</div>';
+          return;
         }
+        _faqData.forEach(function(faq, idx) {
+          var card = document.createElement("div");
+          card.className = "li-faq-card";
+          var preview = faq.content ? faq.content.substring(0, 80) + (faq.content.length > 80 ? "…" : "") : "AI will answer";
+          card.innerHTML =
+            '<div class="li-faq-card-body">' +
+              '<div class="li-faq-card-label">' + escapeHtml(faq.label) + '</div>' +
+              '<div class="li-faq-card-question">' + escapeHtml(faq.question) + '</div>' +
+              '<div class="li-faq-card-content-preview">' + escapeHtml(preview) + '</div>' +
+            '</div>' +
+            '<div class="li-faq-card-actions">' +
+              '<button class="li-faq-edit-btn" type="button" data-idx="' + idx + '" aria-label="Edit FAQ">✏️ Edit</button>' +
+              '<button class="li-faq-delete-btn" type="button" data-idx="' + idx + '" aria-label="Delete FAQ">🗑️ Delete</button>' +
+            '</div>';
+          card.querySelector(".li-faq-edit-btn").addEventListener("click", function() { openDrawer(parseInt(this.getAttribute("data-idx"))); });
+          card.querySelector(".li-faq-delete-btn").addEventListener("click", function() { openConfirm(parseInt(this.getAttribute("data-idx"))); });
+          container.appendChild(card);
+        });
       }
 
-      function addFaqRow(label, question, content) {
-        var faqContainer = document.getElementById("li-faqs");
-        var item = document.createElement("div");
-        item.className = "li-faq-item";
-        item.innerHTML =
-          '<div class="li-faq-item-header">' +
-            '<label>Label</label>' +
-            '<input type="text" class="li-faq-label" value="' + escapeHtml(label) + '" placeholder="e.g. 📖 Borrowing privileges" aria-label="Button label">' +
-            '<button class="li-faq-remove" type="button" aria-label="Remove FAQ">✕ Remove</button>' +
-          '</div>' +
-          '<div class="li-faq-item-header">' +
-            '<label>Question</label>' +
-            '<input type="text" class="li-faq-question" value="' + escapeHtml(question) + '" placeholder="e.g. What are the borrowing privileges?" aria-label="FAQ question">' +
-          '</div>' +
-          '<div class="li-faq-content-row">' +
-            '<label>Content</label>' +
-            '<textarea class="li-faq-content" placeholder="Bot reply when this FAQ is clicked (leave blank to let the AI answer)" aria-label="FAQ content">' + escapeHtml(content) + '</textarea>' +
-          '</div>';
-        item.querySelector(".li-faq-remove").addEventListener("click", function () { item.remove(); });
-        faqContainer.appendChild(item);
-        return item;
+      // Drawer
+      function openDrawer(idx) {
+        _editingIndex = idx;
+        var isNew = idx === -1;
+        document.getElementById("li-drawer-title").textContent = isNew ? "Add FAQ" : "Edit FAQ";
+        document.getElementById("li-d-label").value = isNew ? "" : _faqData[idx].label;
+        document.getElementById("li-d-question").value = isNew ? "" : _faqData[idx].question;
+        document.getElementById("li-d-content").value = isNew ? "" : _faqData[idx].content;
+        document.getElementById("li-drawer-error").classList.add("hidden");
+        document.getElementById("li-drawer-error").textContent = "";
+        document.getElementById("li-drawer-status").textContent = "";
+        document.getElementById("li-drawer-overlay").classList.remove("hidden");
+        document.getElementById("li-d-label").focus();
       }
 
-      // Add FAQ button
-      document.getElementById("li-add-faq-btn").addEventListener("click", function () {
-        var item = addFaqRow("", "", "");
-        item.querySelector(".li-faq-label").focus();
+      function closeDrawer() {
+        document.getElementById("li-drawer-overlay").classList.add("hidden");
+      }
+
+      document.getElementById("li-drawer-close").addEventListener("click", closeDrawer);
+      document.getElementById("li-drawer-cancel").addEventListener("click", closeDrawer);
+      document.getElementById("li-drawer-overlay").addEventListener("click", function(e) {
+        if (e.target === this) closeDrawer();
       });
 
-      // Save FAQ
-      document.getElementById("li-save-btn").addEventListener("click", async function () {
-        var payload = { faqs: [] };
+      document.getElementById("li-add-faq-btn").addEventListener("click", function() { openDrawer(-1); });
 
-        // Collect FAQs
-        document.getElementById("li-faqs").querySelectorAll(".li-faq-item").forEach(function (item) {
-          var label = item.querySelector(".li-faq-label").value.trim();
-          var question = item.querySelector(".li-faq-question").value.trim();
-          var content = item.querySelector(".li-faq-content").value.trim();
-          if (label && question) payload.faqs.push({ label: label, question: question, content: content });
-        });
+      document.getElementById("li-drawer-save").addEventListener("click", async function() {
+        var label = document.getElementById("li-d-label").value.trim();
+        var question = document.getElementById("li-d-question").value.trim();
+        var content = document.getElementById("li-d-content").value.trim();
+        var errEl = document.getElementById("li-drawer-error");
+        var statusEl = document.getElementById("li-drawer-status");
 
-        var statusEl = document.getElementById("li-save-status");
+        if (!label) { errEl.textContent = "Button label is required."; errEl.classList.remove("hidden"); return; }
+        if (!question) { errEl.textContent = "Question is required."; errEl.classList.remove("hidden"); return; }
+        errEl.classList.add("hidden");
+
+        if (_editingIndex === -1) {
+          _faqData.push({ label: label, question: question, content: content });
+        } else {
+          _faqData[_editingIndex] = { label: label, question: question, content: content };
+        }
+
+        var saved = await saveFaqsToServer(statusEl);
+        if (saved) {
+          renderFaqCards();
+          closeDrawer();
+        }
+      });
+
+      // Confirm delete dialog
+      var _deleteIndex = -1;
+      function openConfirm(idx) {
+        _deleteIndex = idx;
+        var faq = _faqData[idx];
+        document.getElementById("li-confirm-msg").textContent =
+          'Are you sure you want to delete "' + faq.label + '"? This cannot be undone.';
+        document.getElementById("li-confirm-overlay").classList.remove("hidden");
+      }
+
+      function closeConfirm() {
+        document.getElementById("li-confirm-overlay").classList.add("hidden");
+        _deleteIndex = -1;
+      }
+
+      document.getElementById("li-confirm-no").addEventListener("click", closeConfirm);
+      document.getElementById("li-confirm-overlay").addEventListener("click", function(e) {
+        if (e.target === this) closeConfirm();
+      });
+
+      document.getElementById("li-confirm-yes").addEventListener("click", async function() {
+        if (_deleteIndex < 0) return;
+        _faqData.splice(_deleteIndex, 1);
+        closeConfirm();
+        var saved = await saveFaqsToServer(null);
+        if (saved) renderFaqCards();
+      });
+
+      // Save to server
+      async function saveFaqsToServer(statusEl) {
+        var payload = { faqs: _faqData };
         try {
           var resp = await fetch("/admin/api/library-info", {
             method: "PUT",
@@ -1599,18 +1742,29 @@
             body: JSON.stringify(payload),
           });
           if (resp.ok) {
-            statusEl.textContent = "✓ Saved";
-            statusEl.style.color = "#27ae60";
+            if (statusEl) { statusEl.textContent = "✓ Saved"; statusEl.style.color = "#27ae60"; setTimeout(function() { statusEl.textContent = ""; }, 3000); }
+            return true;
           } else {
-            var err = await resp.json().catch(function () { return {}; });
-            statusEl.textContent = "✗ " + (err.error || "Save failed");
-            statusEl.style.color = "#e74c3c";
+            var err = await resp.json().catch(function() { return {}; });
+            var msg = "✗ " + (err.error || "Save failed");
+            if (statusEl) { statusEl.textContent = msg; statusEl.style.color = "#e74c3c"; }
+            else { document.getElementById("li-drawer-error").textContent = msg; document.getElementById("li-drawer-error").classList.remove("hidden"); }
+            return false;
           }
         } catch (e) {
-          statusEl.textContent = "✗ Network error";
-          statusEl.style.color = "#e74c3c";
+          var msg2 = "✗ Network error";
+          if (statusEl) { statusEl.textContent = msg2; statusEl.style.color = "#e74c3c"; }
+          else { document.getElementById("li-drawer-error").textContent = msg2; document.getElementById("li-drawer-error").classList.remove("hidden"); }
+          return false;
         }
-        setTimeout(function () { statusEl.textContent = ""; }, 4000);
+      }
+
+      // Close overlays on Escape
+      document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape") {
+          closeDrawer();
+          closeConfirm();
+        }
       });
 
       // --- AI Settings ---
