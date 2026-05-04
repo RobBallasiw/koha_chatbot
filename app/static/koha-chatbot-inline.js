@@ -16,24 +16,15 @@
   if (window.location.hostname.includes("vercel.app")) {
     CHATBOT_API = "";
   } else {
-    // Detect the origin from the script tag's src attribute.
-    // document.currentScript works for dynamically injected scripts in modern browsers.
+    // Detect the origin from the script tag's src attribute
     try {
-      var _scriptSrc = "";
-      if (document.currentScript && document.currentScript.src) {
-        _scriptSrc = document.currentScript.src;
-      } else {
-        var scripts = document.getElementsByTagName("script");
-        for (var i = scripts.length - 1; i >= 0; i--) {
-          var src = scripts[i].src || "";
-          if (src.indexOf("koha-chatbot-inline") !== -1) {
-            _scriptSrc = src;
-            break;
-          }
+      var scripts = document.getElementsByTagName("script");
+      for (var i = scripts.length - 1; i >= 0; i--) {
+        var src = scripts[i].src || "";
+        if (src.indexOf("koha-chatbot-inline") !== -1) {
+          CHATBOT_API = src.replace(/\/static\/koha-chatbot-inline\.js.*$/, "");
+          break;
         }
-      }
-      if (_scriptSrc.indexOf("koha-chatbot-inline") !== -1) {
-        CHATBOT_API = _scriptSrc.replace(/\/static\/koha-chatbot-inline\.js.*$/, "");
       }
     } catch (e) {}
   }
@@ -79,12 +70,6 @@
     ".lc-rate-btn{background:#fff;border:1px solid #ccc;border-radius:18px;" +
     "padding:8px 16px;font-size:.88rem;cursor:pointer;transition:all .15s}" +
     ".lc-rate-btn:hover{border-color:#0E553F;background:#f0fdf4}" +
-    ".lc-survey{display:flex;flex-direction:column;gap:8px;align-items:center;padding:4px 0}" +
-    ".lc-survey-btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}" +
-    ".lc-survey-btn{background:#fff;border:1px solid #D4A017;border-radius:18px;" +
-    "padding:7px 14px;font-size:.84rem;cursor:pointer;transition:all .15s;color:#2d2d2d}" +
-    ".lc-survey-btn:hover{background:#fdf6e3;border-color:#b8890f}" +
-    ".lc-survey-btn.selected{background:#0E553F;color:#fff;border-color:#0E553F}" +
     ".lc-m.e{align-self:center;background:#fce4e4;color:#a94442;" +
     "border-radius:8px;font-size:.85rem;text-align:center}" +
     ".lc-t{align-self:flex-start;display:flex;align-items:center;gap:8px;padding:10px 14px;" +
@@ -153,7 +138,7 @@
   wrap.innerHTML =
     '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> LLORA — Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
     '<div id="lc-msgs" role="log" aria-live="polite">' +
-    '<div class="lc-w">Hi! 👋 I'm LLORA, your virtual library assistant. I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
+    '<div class="lc-w">Hi! 👋 I\'m LLORA, your virtual library assistant. I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
     '<div class="lc-faqs">' +
     '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
     '<button class="lc-faq" data-q="What is LIBVAS?">&#128172; LIBVAS</button>' +
@@ -444,80 +429,6 @@
     send();
   });
 
-  // --- After-hours detection ---
-  function isAfterHours() {
-    // Office hours: Mon–Fri 7:00 AM – 7:00 PM, Sat 8:30 AM – 4:30 PM, Sun closed
-    var now = new Date();
-    var day = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    var h = now.getHours();
-    var m = now.getMinutes();
-    var mins = h * 60 + m;
-    if (day === 0) return true; // Sunday — always closed
-    if (day >= 1 && day <= 5) return mins < 7 * 60 || mins >= 19 * 60; // Mon–Fri 7:00–19:00
-    if (day === 6) return mins < 8 * 60 + 30 || mins >= 16 * 60 + 30; // Sat 8:30–16:30
-    return false;
-  }
-
-  function showAfterHoursMessage() {
-    var existing = document.getElementById("lc-after-hours");
-    if (existing) return;
-    var d = document.createElement("div");
-    d.id = "lc-after-hours";
-    d.className = "lc-m b";
-    d.style.cssText = "max-width:90%;text-align:center;font-size:.88rem";
-    d.innerHTML =
-      "Hello! Thank you for reaching out. I\u2019m LLORA, your virtual assistant. \U0001f4da<br><br>" +
-      "Our team is currently offline. Please leave your questions or inquiries, and we\u2019ll get back to you as soon as we resume operations.<br><br>" +
-      "Thank you for your patience and understanding!";
-    var w = msgs.querySelector(".lc-w");
-    if (w) w.insertAdjacentElement("afterend", d);
-    else msgs.insertBefore(d, msgs.firstChild);
-    scroll();
-  }
-
-  // Show after-hours message if applicable on load
-  if (chatHistory.length === 0 && isAfterHours()) {
-    showAfterHoursMessage();
-  }
-
-  // --- End-of-chat satisfaction survey (1–4 scale) ---
-  var surveyShown = false;
-
-  function showSessionRating() {
-    if (surveyShown || chatHistory.length === 0) return;
-    surveyShown = true;
-    var rateDiv = document.createElement("div");
-    rateDiv.className = "lc-m b";
-    rateDiv.style.cssText = "max-width:92%;padding:14px 16px";
-    rateDiv.innerHTML =
-      '<div class="lc-survey">' +
-      '<div style="font-size:0.9em;color:#333;margin-bottom:4px">How satisfied are you with this chat? \U0001f4ac</div>' +
-      '<div class="lc-survey-btns">' +
-      '<button class="lc-survey-btn" data-r="1" aria-label="Not Satisfied">1 \u2014 Not Satisfied</button>' +
-      '<button class="lc-survey-btn" data-r="2" aria-label="Moderately Satisfied">2 \u2014 Moderate</button>' +
-      '<button class="lc-survey-btn" data-r="3" aria-label="Satisfied">3 \u2014 Satisfied</button>' +
-      '<button class="lc-survey-btn" data-r="4" aria-label="Very Satisfied">4 \u2014 Very Satisfied</button>' +
-      '</div></div>';
-    msgs.appendChild(rateDiv);
-    scroll();
-    rateDiv.querySelectorAll(".lc-survey-btn").forEach(function(b) {
-      b.addEventListener("click", function() {
-        var rating = parseInt(b.getAttribute("data-r"));
-        rateDiv.querySelectorAll(".lc-survey-btn").forEach(function(x) { x.disabled = true; });
-        b.classList.add("selected");
-        fetch(CHATBOT_API + "/api/rate-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sid, rating: rating })
-        }).catch(function(){});
-        setTimeout(function() {
-          rateDiv.innerHTML = '<div style="color:#555;font-size:0.88rem;text-align:center">Thanks for your feedback! ' +
-            (rating >= 3 ? '\U0001f60a' : '\U0001f64f') + '</div>';
-        }, 400);
-      });
-    });
-  }
-
   // --- 5-minute inactivity timer ---
   var INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
   var inactivityTimer = null;
@@ -538,8 +449,7 @@
         navigator.sendBeacon(CHATBOT_API + "/api/close-session", blob);
       }
       addMsg("Session ended due to inactivity. Starting a new chat…", "b");
-      showSessionRating();
-      setTimeout(function () { resetToNewChat(); }, 3500);
+      setTimeout(function () { resetToNewChat(); }, 2000);
     }, INACTIVITY_TIMEOUT);
   }
 
@@ -553,7 +463,6 @@
     handoffHandler = null;
     lastPollTs = 0;
     ratingShown = false;
-    surveyShown = false;
     chatHistory.length = 0;
     sid = (typeof crypto !== "undefined" && crypto.randomUUID)
       ? crypto.randomUUID()
@@ -597,7 +506,6 @@
       });
     }
     resetToNewChat();
-    if (isAfterHours()) showAfterHoursMessage();
     inp.focus();
   });
 
