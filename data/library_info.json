@@ -57,11 +57,7 @@
     "borrowing_faculty": "Higher Education Faculty: Maximum of 5 books for 1 month, renewable if there is no demand from other users",
     "borrowing_students": "Higher Education Students: Maximum of 2 books for 1 week, renewable if there is no demand from other users",
     "printing_procedure": "1. Student purchases printing card at the business office. 2. Student sends PDF to official library email. 3. Library personnel reviews document. 4. Library personnel prints documents. 5. Student fills out Printing Monitoring Form. 6. Library personnel sends notification for pick-up through email. 7. Library personnel releases printouts.",
-    "printing_card_price": "A printing card costs Php 100.00 and can be purchased at the business office",
-    "libvas": "LIBVAS (Library Virtual Assistance Service) provides guidance and support through three platforms: Facebook (Lorma Colleges Library), Email (CHS: chslibrary@lorma.edu, CLI: clilibrary@lorma.edu, High School: jhshlibrary@lorma.edu, Grade School: pgslibrary@lorma.edu), and Telephone (CHS Library: +63 72 700 250 loc 360, CLI Library: +63 72 700 1234 loc 361).",
-    "liras": "LIRAS (Library Information & Research Service) facilitates convenient access to information resources. It includes: Document Delivery Service — scanned copies of selected pages or articles from library materials delivered to your official LORMA email (request via Document Delivery Request Form AY 2025-2026); and Online Renewal Request — renew borrowed library materials online subject to eligibility verification (request via Book Renewal Request Form AY 2025-2026).",
-    "libras": "LIBRAS (Library Remote Access Service) allows library users to access subscribed electronic resources off campus, including eBooks, eJournals, online databases, and Open Educational Resources (OERs). Access the OER portal via the OPEN EDUCATIONAL RESOURCES (OERs) AY 2025-2026 link.",
-    "libprints": "LibPrintS (Library Printing Service): 1. Purchase a printing card (Php 100.00) at the business office. 2. Send your PDF to the official library email. 3. Library personnel reviews and prints the document. 4. Fill out the Printing Monitoring Form. 5. Receive email notification for pick-up. 6. Collect your printouts from the library."
+    "printing_card_price": "A printing card costs Php 100.00 and can be purchased at the business office"
   },
   "fines": {
     "overdue_faculty": "Higher Education Faculty: Php 20.00 per day per book",
@@ -73,5 +69,37 @@
     "printing_long_bw": "Long bond paper, Black & White (pure text): Php 3.00",
     "printing_long_color_text": "Long bond paper, With colored text or illustration: Php 7.00",
     "printing_long_full_color": "Long bond paper, Full Page Colored: Php 12.00"
-  }
+  },
+  "faqs": [
+    {
+      "label": "🕐 Library hours",
+      "question": "What are the library hours?",
+      "content": ""
+    },
+    {
+      "label": "💬 LIBVAS",
+      "question": "What is LIBVAS?",
+      "content": ""
+    },
+    {
+      "label": "📄 LIRAS",
+      "question": "What is LIRAS?",
+      "content": ""
+    },
+    {
+      "label": "💻 LIBRAS",
+      "question": "What is LIBRAS?",
+      "content": ""
+    },
+    {
+      "label": "🖨️ LibPrintS",
+      "question": "How does LibPrintS work?",
+      "content": ""
+    },
+    {
+      "label": "📖 Borrowing privileges",
+      "question": "What are the borrowing privileges?",
+      "content": ""
+    }
+  ]
 }

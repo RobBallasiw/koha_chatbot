@@ -93,10 +93,7 @@ _ADDRESS_KEYWORDS = {"address", "location", "locations", "loc", "where", "direct
 _FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
 _POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
                       "member", "membership", "limit", "rule", "rules", "loan", "card",
-                      "print", "printing", "printer", "photocopy", "scan", "scanning",
-                      "libvas", "liras", "libras", "libprints", "virtual", "assistance",
-                      "remote", "access", "research", "service", "document", "delivery",
-                      "renewal", "ebook", "ejournal", "database", "oer"}
+                      "print", "printing", "printer", "photocopy", "scan", "scanning"}
 
 
 def _keyword_fallback(message: str) -> str | None:
@@ -285,6 +282,13 @@ def handle_library_info_query(
     conversation_history: list[dict],
 ) -> str:
     """Handle a library information query from a patron."""
+    # Check if the message matches a configured FAQ question exactly
+    if library_info.faqs:
+        msg_lower = message.strip().lower()
+        for faq in library_info.faqs:
+            if faq.question.strip().lower() == msg_lower and faq.content.strip():
+                return faq.content.strip()
+
     category = _classify_category(client, message)
 
     if category is None:

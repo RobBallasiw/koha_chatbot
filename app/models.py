@@ -70,6 +70,14 @@ class LocationInfo(BaseModel):
     hours: dict[str, str] = {}
 
 
+class FaqItem(BaseModel):
+    """A single FAQ entry shown as a quick-reply button in the chat widget."""
+
+    label: str  # Button label shown in the widget
+    question: str  # The question text sent when the button is clicked
+    content: str  # The answer content the bot returns
+
+
 class LibraryInfo(BaseModel):
     """Structured library information.
 
@@ -80,6 +88,7 @@ class LibraryInfo(BaseModel):
     locations: dict[str, LocationInfo] = {}
     policies: dict[str, str] = {}
     fines: dict[str, str] = {}
+    faqs: list[FaqItem] = []
 
     # Legacy field for backward compatibility
     hours: dict[str, str] = {}

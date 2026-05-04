@@ -224,24 +224,6 @@ async def get_unanswered_queries(
         )
 
 
-@router.get("/quality/session-ratings")
-async def get_session_ratings(
-    days: int = Query(default=30, ge=1, le=365),
-    page: int = Query(default=1, ge=1),
-    page_size: int = Query(default=10, ge=1, le=100),
-):
-    """Return patron end-of-chat satisfaction ratings (1–4 scale)."""
-    store = _get_store()
-    try:
-        return store.get_session_ratings(days=days, page=page, page_size=page_size)
-    except Exception:
-        logger.exception("Failed to retrieve session ratings")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Unable to retrieve session ratings"},
-        )
-
-
 # ------------------------------------------------------------------
 # Library Info Management
 # ------------------------------------------------------------------
@@ -285,6 +267,13 @@ async def update_library_info(payload: dict):
     for key in ("policies", "fines"):
         if key not in payload or not isinstance(payload[key], dict):
             return JSONResponse(status_code=400, content={"error": f"Missing or invalid '{key}' section."})
+    # faqs is optional — validate if present
+    if "faqs" in payload:
+        if not isinstance(payload["faqs"], list):
+            return JSONResponse(status_code=400, content={"error": "'faqs' must be a list."})
+        for i, faq in enumerate(payload["faqs"]):
+            if not isinstance(faq, dict) or not faq.get("label") or not faq.get("question"):
+                return JSONResponse(status_code=400, content={"error": f"FAQ item {i} must have 'label' and 'question'."})
 
     # Save to database (works on Vercel and locally)
     from app.staff_routes import staff_store as _staff_store

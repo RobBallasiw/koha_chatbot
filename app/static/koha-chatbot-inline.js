@@ -139,13 +139,7 @@
     '<div id="lc-hdr"><span aria-hidden="true">&#128218;</span> LLORA — Library Assistant<button id="lc-librarian" aria-label="Talk to a librarian">&#128172; Librarian</button><button id="lc-new" aria-label="Start new chat">New Chat</button></div>' +
     '<div id="lc-msgs" role="log" aria-live="polite">' +
     '<div class="lc-w">Hi! 👋 I\'m LLORA, your virtual library assistant. I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
-    '<div class="lc-faqs">' +
-    '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
-    '<button class="lc-faq" data-q="What is LIBVAS?">&#128172; LIBVAS</button>' +
-    '<button class="lc-faq" data-q="What is LIRAS?">&#128196; LIRAS</button>' +
-    '<button class="lc-faq" data-q="What is LIBRAS?">&#128187; LIBRAS</button>' +
-    '<button class="lc-faq" data-q="How does LibPrintS work?">&#128424; LibPrintS</button>' +
-    '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
+    '<div class="lc-faqs" id="lc-faqs-init">' +
     '</div>' +
     '</div>' +
     '<div id="lc-bar">' +
@@ -182,6 +176,43 @@
       }));
     } catch(e) {}
   }
+
+  // FAQ buttons — loaded from server
+  var _cachedFaqs = null;
+  function buildFaqHtml(faqs) {
+    if (!faqs || faqs.length === 0) return "";
+    return faqs.map(function(f) {
+      return '<button class="lc-faq" data-q="' + f.question.replace(/"/g, "&quot;") + '">' + f.label + '</button>';
+    }).join("");
+  }
+  function loadAndRenderFaqs(container) {
+    if (_cachedFaqs !== null) {
+      container.innerHTML = buildFaqHtml(_cachedFaqs);
+      return;
+    }
+    fetch(CHATBOT_API + "/api/faqs")
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        _cachedFaqs = d.faqs || [];
+        container.innerHTML = buildFaqHtml(_cachedFaqs);
+      })
+      .catch(function() {
+        // Fallback to defaults if fetch fails
+        _cachedFaqs = [
+          { label: "&#128336; Library hours", question: "What are the library hours?" },
+          { label: "&#128172; LIBVAS", question: "What is LIBVAS?" },
+          { label: "&#128196; LIRAS", question: "What is LIRAS?" },
+          { label: "&#128187; LIBRAS", question: "What is LIBRAS?" },
+          { label: "&#128424; LibPrintS", question: "How does LibPrintS work?" },
+          { label: "&#128214; Borrowing privileges", question: "What are the borrowing privileges?" }
+        ];
+        container.innerHTML = buildFaqHtml(_cachedFaqs);
+      });
+  }
+
+  // Load FAQs into the initial welcome screen
+  var initFaqContainer = document.getElementById("lc-faqs-init");
+  if (initFaqContainer) loadAndRenderFaqs(initFaqContainer);
 
   // Restore previous messages
   if (chatHistory.length > 0) {
@@ -472,14 +503,9 @@
         });
     msgs.innerHTML =
       '<div class="lc-w">Hi! 👋 I\'m LLORA, your virtual library assistant. I can help you find books, check hours, or answer questions about the library. What can I do for you?</div>' +
-      '<div class="lc-faqs">' +
-      '<button class="lc-faq" data-q="What are the library hours?">&#128336; Library hours</button>' +
-      '<button class="lc-faq" data-q="What is LIBVAS?">&#128172; LIBVAS</button>' +
-      '<button class="lc-faq" data-q="What is LIRAS?">&#128196; LIRAS</button>' +
-      '<button class="lc-faq" data-q="What is LIBRAS?">&#128187; LIBRAS</button>' +
-      '<button class="lc-faq" data-q="How does LibPrintS work?">&#128424; LibPrintS</button>' +
-      '<button class="lc-faq" data-q="What are the borrowing privileges?">&#128214; Borrowing privileges</button>' +
-      '</div>';
+      '<div class="lc-faqs" id="lc-faqs-reset"></div>';
+    var resetFaqContainer = document.getElementById("lc-faqs-reset");
+    if (resetFaqContainer) loadAndRenderFaqs(resetFaqContainer);
     inp.disabled = false;
     inp.placeholder = "Type your message…";
     btn.disabled = false;

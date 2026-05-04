@@ -252,6 +252,13 @@
             <button id="li-add-location-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add Location</button>
           </div>
           <div id="li-locations" class="li-locations"></div>
+
+          <div class="li-locations-header" style="margin-top:24px">
+            <h3>💬 FAQ Buttons <span class="li-badge">Widget quick-reply buttons</span></h3>
+            <button id="li-add-faq-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add FAQ</button>
+          </div>
+          <p class="li-desc" style="margin:0 0 10px 0;font-size:0.88em">Each FAQ appears as a button in the chat widget. The button label is what patrons see; the question is sent when clicked; the content is the bot's reply (leave blank to let the AI answer).</p>
+          <div id="li-faqs" class="li-faq-list"></div>
         </div>
       </div><!-- end library-info-tab -->
 
@@ -635,6 +642,18 @@
     .li-row .li-del:hover { color: #e74c3c; background: #fef2f2; }
     .li-add-btn { margin-top: 6px; background: none; border: 1px dashed #ccc; border-radius: 4px; padding: 4px 10px; font-size: 0.82em; color: #7f8c8d; cursor: pointer; width: fit-content; }
     .li-add-btn:hover { border-color: #2c3e50; color: #2c3e50; }
+    .li-faq-list { display: flex; flex-direction: column; gap: 12px; }
+    .li-faq-item { border: 1px solid #ddd; border-radius: 8px; padding: 14px 16px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+    .li-faq-item-header { display: flex; align-items: center; gap: 8px; }
+    .li-faq-item-header label { font-size: 0.82em; color: #7f8c8d; width: 64px; flex-shrink: 0; }
+    .li-faq-item-header input { flex: 1; padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88em; }
+    .li-faq-item-header input:focus { border-color: #2c3e50; outline: none; }
+    .li-faq-remove { background: none; border: 1px solid #ccc; color: #999; border-radius: 4px; padding: 2px 8px; font-size: 0.78em; cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+    .li-faq-remove:hover { color: #e74c3c; border-color: #e74c3c; background: #fef2f2; }
+    .li-faq-content-row { display: flex; align-items: flex-start; gap: 8px; }
+    .li-faq-content-row label { font-size: 0.82em; color: #7f8c8d; width: 64px; flex-shrink: 0; padding-top: 6px; }
+    .li-faq-content-row textarea { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88em; resize: vertical; min-height: 60px; font-family: inherit; line-height: 1.4; }
+    .li-faq-content-row textarea:focus { border-color: #2c3e50; outline: none; }
     .btn-primary { padding: 8px 16px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; cursor: pointer; font-size: 0.88em; }
     .btn-primary:hover { background: #34495e; }
     .btn-danger { padding: 8px 16px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; font-size:0.88em; }
@@ -1496,6 +1515,12 @@
         if (Object.keys(locations).length === 0) {
           liLocationsContainer.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:20px">No locations yet. Click "+ Add Location" to add one.</p>';
         }
+
+        // Render FAQs
+        var faqContainer = document.getElementById("li-faqs");
+        faqContainer.innerHTML = "";
+        var faqs = data.faqs || [];
+        faqs.forEach(function(faq) { addFaqRow(faq.label || "", faq.question || "", faq.content || ""); });
       }
 
       function renderSharedSection(containerId, entries) {
@@ -1568,6 +1593,35 @@
         container.appendChild(row);
       }
 
+      function addFaqRow(label, question, content) {
+        var faqContainer = document.getElementById("li-faqs");
+        var item = document.createElement("div");
+        item.className = "li-faq-item";
+        item.innerHTML =
+          '<div class="li-faq-item-header">' +
+            '<label>Label</label>' +
+            '<input type="text" class="li-faq-label" value="' + escapeHtml(label) + '" placeholder="e.g. 📖 Borrowing privileges" aria-label="Button label">' +
+            '<button class="li-faq-remove" type="button" aria-label="Remove FAQ">✕ Remove</button>' +
+          '</div>' +
+          '<div class="li-faq-item-header">' +
+            '<label>Question</label>' +
+            '<input type="text" class="li-faq-question" value="' + escapeHtml(question) + '" placeholder="e.g. What are the borrowing privileges?" aria-label="FAQ question">' +
+          '</div>' +
+          '<div class="li-faq-content-row">' +
+            '<label>Content</label>' +
+            '<textarea class="li-faq-content" placeholder="Bot reply when this FAQ is clicked (leave blank to let the AI answer)" aria-label="FAQ content">' + escapeHtml(content) + '</textarea>' +
+          '</div>';
+        item.querySelector(".li-faq-remove").addEventListener("click", function () { item.remove(); });
+        faqContainer.appendChild(item);
+        return item;
+      }
+
+      // Add FAQ button
+      document.getElementById("li-add-faq-btn").addEventListener("click", function () {
+        var item = addFaqRow("", "", "");
+        item.querySelector(".li-faq-label").focus();
+      });
+
       // Shared section add-entry buttons
       document.querySelectorAll(".li-add-btn[data-target]").forEach(function (btn) {
         btn.addEventListener("click", function () {
@@ -1586,7 +1640,7 @@
 
       // Save
       document.getElementById("li-save-btn").addEventListener("click", async function () {
-        var payload = { locations: {}, policies: {}, fines: {} };
+        var payload = { locations: {}, policies: {}, fines: {}, faqs: [] };
 
         // Collect shared policies
         document.getElementById("li-policies").querySelectorAll(".li-row").forEach(function (row) {
@@ -1612,6 +1666,13 @@
             if (k) hours[k] = v;
           });
           payload.locations[locName] = { address: address.trim(), hours: hours };
+        });
+        // Collect FAQs
+        document.getElementById("li-faqs").querySelectorAll(".li-faq-item").forEach(function (item) {
+          var label = item.querySelector(".li-faq-label").value.trim();
+          var question = item.querySelector(".li-faq-question").value.trim();
+          var content = item.querySelector(".li-faq-content").value.trim();
+          if (label && question) payload.faqs.push({ label: label, question: question, content: content });
         });
 
         var statusEl = document.getElementById("li-save-status");
