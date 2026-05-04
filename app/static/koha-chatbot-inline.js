@@ -16,15 +16,24 @@
   if (window.location.hostname.includes("vercel.app")) {
     CHATBOT_API = "";
   } else {
-    // Detect the origin from the script tag's src attribute
+    // Detect the origin from the script tag's src attribute.
+    // document.currentScript works for dynamically injected scripts in modern browsers.
     try {
-      var scripts = document.getElementsByTagName("script");
-      for (var i = scripts.length - 1; i >= 0; i--) {
-        var src = scripts[i].src || "";
-        if (src.indexOf("koha-chatbot-inline") !== -1) {
-          CHATBOT_API = src.replace(/\/static\/koha-chatbot-inline\.js.*$/, "");
-          break;
+      var _scriptSrc = "";
+      if (document.currentScript && document.currentScript.src) {
+        _scriptSrc = document.currentScript.src;
+      } else {
+        var scripts = document.getElementsByTagName("script");
+        for (var i = scripts.length - 1; i >= 0; i--) {
+          var src = scripts[i].src || "";
+          if (src.indexOf("koha-chatbot-inline") !== -1) {
+            _scriptSrc = src;
+            break;
+          }
         }
+      }
+      if (_scriptSrc.indexOf("koha-chatbot-inline") !== -1) {
+        CHATBOT_API = _scriptSrc.replace(/\/static\/koha-chatbot-inline\.js.*$/, "");
       }
     } catch (e) {}
   }
