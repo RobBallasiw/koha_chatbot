@@ -65,12 +65,7 @@
     "border-bottom-right-radius:4px}" +
     ".lc-m.b{align-self:flex-start;background:#f0f0ec;color:#2d2d2d;" +
     "border-bottom-left-radius:4px}" +
-    ".lc-fb{display:flex;gap:4px;margin-top:6px}" +
-    ".lc-fb button{background:none;border:1px solid #ccc;border-radius:12px;" +
-    "padding:2px 8px;font-size:.78rem;cursor:pointer;color:#777;transition:all .15s;line-height:1.4}" +
-    ".lc-fb button:hover{border-color:#0E553F;color:#0E553F}" +
-    ".lc-fb button.voted{border-color:#0E553F;color:#0E553F;font-weight:600}" +
-    ".lc-fb button:disabled{opacity:.5;cursor:default}" +
+    ".lc-fb{display:none}" +
     ".lc-handoff-rate{display:flex;gap:8px;justify-content:center}" +
     ".lc-rate-btn{background:#fff;border:1px solid #ccc;border-radius:18px;" +
     "padding:8px 16px;font-size:.88rem;cursor:pointer;transition:all .15s}" +
@@ -257,24 +252,7 @@
     html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g,
       '$1<a href="$2" class="lc-link" style="color:inherit;text-decoration:underline;cursor:pointer">$2</a>');
     d.innerHTML = html;
-    // Add feedback buttons for bot messages
-    if (c === "b" && ts) {
-      var fb = document.createElement("div"); fb.className = "lc-fb";
-      var up = document.createElement("button"); up.innerHTML = "&#128077;"; up.setAttribute("aria-label", "Helpful");
-      var down = document.createElement("button"); down.innerHTML = "&#128078;"; down.setAttribute("aria-label", "Not helpful");
-      function vote(rating, btn, other) {
-        btn.classList.add("voted"); btn.disabled = true; other.disabled = true;
-        fetch(CHATBOT_API + "/api/feedback", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sid, message_timestamp: ts, rating: rating })
-        }).catch(function(){});
-      }
-      up.addEventListener("click", function() { vote(1, up, down); });
-      down.addEventListener("click", function() { vote(-1, down, up); });
-      fb.appendChild(up); fb.appendChild(down);
-      d.appendChild(fb);
-    }
+
     d.querySelectorAll("a.lc-link").forEach(function(a) {
       a.addEventListener("click", function(e) {
         e.preventDefault();
@@ -389,23 +367,6 @@
     }
     renderPage();
 
-    // Feedback buttons
-    if (ts) {
-      var fb = document.createElement("div"); fb.className = "lc-fb"; fb.style.padding = "4px 0";
-      var up = document.createElement("button"); up.innerHTML = "&#128077;"; up.setAttribute("aria-label", "Helpful");
-      var down = document.createElement("button"); down.innerHTML = "&#128078;"; down.setAttribute("aria-label", "Not helpful");
-      function voteCards(rating, b, o) {
-        b.classList.add("voted"); b.disabled = true; o.disabled = true;
-        fetch(CHATBOT_API + "/api/feedback", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sid, message_timestamp: ts, rating: rating })
-        }).catch(function(){});
-      }
-      up.addEventListener("click", function() { voteCards(1, up, down); });
-      down.addEventListener("click", function() { voteCards(-1, down, up); });
-      fb.appendChild(up); fb.appendChild(down);
-      wrap.appendChild(fb);
-    }
     d.appendChild(wrap);
     return d;
   }

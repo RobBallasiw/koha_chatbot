@@ -210,43 +210,7 @@
           <button id="quality-refresh-btn" type="button" aria-label="Refresh quality data">Refresh</button>
         </div>
 
-        <section class="stats-panel" aria-label="Feedback summary">
-          <div class="stat-card">
-            <div class="stat-value" id="q-total-ratings">—</div>
-            <div class="stat-label">Total Ratings</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="q-positive" style="color:#27ae60">—</div>
-            <div class="stat-label">👍 Positive</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="q-negative" style="color:#e74c3c">—</div>
-            <div class="stat-label">👎 Negative</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value" id="q-satisfaction">—</div>
-            <div class="stat-label">Satisfaction Rate</div>
-          </div>
-        </section>
-
         <div class="quality-grid">
-          <section class="analytics-card" aria-label="Recent feedback">
-            <div class="quality-section-header">
-              <h3>Recent Feedback</h3>
-              <select id="feedback-filter" aria-label="Filter feedback by rating">
-                <option value="">All ratings</option>
-                <option value="1">👍 Positive only</option>
-                <option value="-1">👎 Negative only</option>
-              </select>
-            </div>
-            <div id="feedback-list" class="quality-list"></div>
-            <nav class="pagination" aria-label="Feedback pagination">
-              <button id="fb-prev-btn" type="button" disabled>← Prev</button>
-              <span id="fb-page-info">Page 1</span>
-              <button id="fb-next-btn" type="button" disabled>Next →</button>
-            </nav>
-          </section>
-
           <section class="analytics-card" aria-label="Unanswered queries">
             <h3>Unanswered Queries</h3>
             <p class="quality-desc">Messages the bot couldn't handle — classified as unclear or too vague.</p>
@@ -1460,67 +1424,19 @@
       // --- Conversation Quality ---
       var qualityDays = document.getElementById("quality-days");
       var qualityRefreshBtn = document.getElementById("quality-refresh-btn");
-      var feedbackFilter = document.getElementById("feedback-filter");
       var fbPage = 1;
       var uqPage = 1;
 
       qualityRefreshBtn.addEventListener("click", loadQuality);
       qualityDays.addEventListener("change", function () { fbPage = 1; uqPage = 1; loadQuality(); });
-      feedbackFilter.addEventListener("change", function () { fbPage = 1; loadFeedbackList(); });
 
-      document.getElementById("fb-prev-btn").addEventListener("click", function () { if (fbPage > 1) { fbPage--; loadFeedbackList(); } });
-      document.getElementById("fb-next-btn").addEventListener("click", function () { fbPage++; loadFeedbackList(); });
       document.getElementById("uq-prev-btn").addEventListener("click", function () { if (uqPage > 1) { uqPage--; loadUnanswered(); } });
       document.getElementById("uq-next-btn").addEventListener("click", function () { uqPage++; loadUnanswered(); });
 
       async function loadQuality() {
-        await Promise.all([loadFeedbackStats(), loadFeedbackList(), loadUnanswered()]);
+        await loadUnanswered();
       }
 
-      async function loadFeedbackStats() {
-        var days = qualityDays.value;
-        var data = await apiFetch("/admin/api/quality/feedback-stats?days=" + days);
-        if (!data) return;
-        document.getElementById("q-total-ratings").textContent = data.total_ratings;
-        document.getElementById("q-positive").textContent = data.positive;
-        document.getElementById("q-negative").textContent = data.negative;
-        document.getElementById("q-satisfaction").textContent = data.satisfaction_rate + "%";
-      }
-
-      async function loadFeedbackList() {
-        var days = qualityDays.value;
-        var params = new URLSearchParams();
-        params.set("days", days);
-        params.set("page", fbPage);
-        params.set("page_size", "10");
-        var rating = feedbackFilter.value;
-        if (rating) params.set("rating", rating);
-        var data = await apiFetch("/admin/api/quality/feedback?" + params.toString());
-        if (!data) return;
-        var container = document.getElementById("feedback-list");
-        container.innerHTML = "";
-        if (data.length === 0) {
-          container.innerHTML = '<div class="quality-empty">No feedback yet. Patrons can rate bot responses with 👍/👎 in the chat widget.</div>';
-          document.getElementById("fb-prev-btn").disabled = true;
-          document.getElementById("fb-next-btn").disabled = true;
-          document.getElementById("fb-page-info").textContent = "Page 1";
-          return;
-        }
-        data.forEach(function (f) {
-          var item = document.createElement("div");
-          item.className = "quality-item";
-          var ratingClass = f.rating === 1 ? "positive" : "negative";
-          var ratingIcon = f.rating === 1 ? "👍" : "👎";
-          item.innerHTML =
-            '<div class="qi-meta"><span>' + formatTime(f.timestamp) + '</span><span class="qi-rating ' + ratingClass + '">' + ratingIcon + '</span></div>' +
-            '<div class="qi-user">' + escapeHtml(f.user_message || "—") + '</div>' +
-            '<div class="qi-bot">' + escapeHtml(truncate(f.assistant_message, 150)) + '</div>';
-          container.appendChild(item);
-        });
-        document.getElementById("fb-prev-btn").disabled = fbPage <= 1;
-        document.getElementById("fb-next-btn").disabled = data.length < 10;
-        document.getElementById("fb-page-info").textContent = "Page " + fbPage;
-      }
 
       async function loadUnanswered() {
         var days = qualityDays.value;
