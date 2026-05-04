@@ -211,6 +211,18 @@
         </div>
 
         <div class="quality-grid">
+          <section class="analytics-card" aria-label="Session satisfaction ratings">
+            <h3>Session Satisfaction Ratings</h3>
+            <p class="quality-desc">End-of-chat ratings submitted by patrons (1 = Not Satisfied, 4 = Very Satisfied).</p>
+            <div id="session-ratings-summary" class="stats-panel" style="margin-bottom:12px"></div>
+            <div id="session-ratings-list" class="quality-list"></div>
+            <nav class="pagination" aria-label="Session ratings pagination">
+              <button id="sr-prev-btn" type="button" disabled>← Prev</button>
+              <span id="sr-page-info">Page 1</span>
+              <button id="sr-next-btn" type="button" disabled>Next →</button>
+            </nav>
+          </section>
+
           <section class="analytics-card" aria-label="Unanswered queries">
             <h3>Unanswered Queries</h3>
             <p class="quality-desc">Messages the bot couldn't handle — classified as unclear or too vague.</p>
@@ -1426,15 +1438,63 @@
       var qualityRefreshBtn = document.getElementById("quality-refresh-btn");
       var fbPage = 1;
       var uqPage = 1;
+      var srPage = 1;
 
       qualityRefreshBtn.addEventListener("click", loadQuality);
-      qualityDays.addEventListener("change", function () { fbPage = 1; uqPage = 1; loadQuality(); });
+      qualityDays.addEventListener("change", function () { fbPage = 1; uqPage = 1; srPage = 1; loadQuality(); });
 
+      document.getElementById("sr-prev-btn").addEventListener("click", function () { if (srPage > 1) { srPage--; loadSessionRatings(); } });
+      document.getElementById("sr-next-btn").addEventListener("click", function () { srPage++; loadSessionRatings(); });
       document.getElementById("uq-prev-btn").addEventListener("click", function () { if (uqPage > 1) { uqPage--; loadUnanswered(); } });
       document.getElementById("uq-next-btn").addEventListener("click", function () { uqPage++; loadUnanswered(); });
 
       async function loadQuality() {
-        await loadUnanswered();
+        await Promise.all([loadSessionRatings(), loadUnanswered()]);
+      }
+
+      async function loadSessionRatings() {
+        var days = qualityDays.value;
+        var params = new URLSearchParams();
+        params.set("days", days);
+        params.set("page", srPage);
+        params.set("page_size", "10");
+        var data = await apiFetch("/admin/api/quality/session-ratings?" + params.toString());
+        if (!data) return;
+
+        // Summary bar
+        var summary = document.getElementById("session-ratings-summary");
+        if (data.summary) {
+          var s = data.summary;
+          var avgLabel = s.avg_rating ? s.avg_rating.toFixed(2) : "—";
+          summary.innerHTML =
+            '<div class="stat-card"><div class="stat-value">' + (s.total || 0) + '</div><div class="stat-label">Total Ratings</div></div>' +
+            '<div class="stat-card"><div class="stat-value" style="color:#27ae60">' + avgLabel + '</div><div class="stat-label">Avg Score</div></div>' +
+            '<div class="stat-card"><div class="stat-value" style="color:#0E553F">' + (s.satisfied_pct || 0) + '%</div><div class="stat-label">Satisfied (3–4)</div></div>';
+        }
+
+        var container = document.getElementById("session-ratings-list");
+        container.innerHTML = "";
+        if (!data.ratings || data.ratings.length === 0) {
+          container.innerHTML = '<div class="quality-empty">No session ratings yet. Patrons are prompted to rate at the end of each chat.</div>';
+          document.getElementById("sr-prev-btn").disabled = true;
+          document.getElementById("sr-next-btn").disabled = true;
+          document.getElementById("sr-page-info").textContent = "Page 1";
+          return;
+        }
+        var labels = ["", "😞 Not Satisfied", "😐 Moderately Satisfied", "😊 Satisfied", "🌟 Very Satisfied"];
+        var colors = ["", "#e74c3c", "#e67e22", "#27ae60", "#0E553F"];
+        data.ratings.forEach(function(r) {
+          var item = document.createElement("div");
+          item.className = "quality-item";
+          item.innerHTML =
+            '<div class="qi-meta"><span>' + formatTime(r.created_at) + '</span>' +
+            '<span class="qi-rating" style="color:' + (colors[r.rating] || "#555") + '">' + (labels[r.rating] || r.rating) + '</span></div>' +
+            '<div style="font-size:0.78em;color:#7f8c8d;margin-top:4px">Session: ' + escapeHtml((r.session_id || "").substring(0, 8)) + '…</div>';
+          container.appendChild(item);
+        });
+        document.getElementById("sr-prev-btn").disabled = srPage <= 1;
+        document.getElementById("sr-next-btn").disabled = data.ratings.length < 10;
+        document.getElementById("sr-page-info").textContent = "Page " + srPage;
       }
 
 

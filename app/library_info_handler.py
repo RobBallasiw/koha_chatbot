@@ -93,7 +93,10 @@ _ADDRESS_KEYWORDS = {"address", "location", "locations", "loc", "where", "direct
 _FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
 _POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
                       "member", "membership", "limit", "rule", "rules", "loan", "card",
-                      "print", "printing", "printer", "photocopy", "scan", "scanning"}
+                      "print", "printing", "printer", "photocopy", "scan", "scanning",
+                      "libvas", "liras", "libras", "libprints", "virtual", "assistance",
+                      "remote", "access", "research", "service", "document", "delivery",
+                      "renewal", "ebook", "ejournal", "database", "oer"}
 
 
 def _keyword_fallback(message: str) -> str | None:

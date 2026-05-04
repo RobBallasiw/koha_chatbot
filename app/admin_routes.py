@@ -224,6 +224,24 @@ async def get_unanswered_queries(
         )
 
 
+@router.get("/quality/session-ratings")
+async def get_session_ratings(
+    days: int = Query(default=30, ge=1, le=365),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=10, ge=1, le=100),
+):
+    """Return patron end-of-chat satisfaction ratings (1–4 scale)."""
+    store = _get_store()
+    try:
+        return store.get_session_ratings(days=days, page=page, page_size=page_size)
+    except Exception:
+        logger.exception("Failed to retrieve session ratings")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Unable to retrieve session ratings"},
+        )
+
+
 # ------------------------------------------------------------------
 # Library Info Management
 # ------------------------------------------------------------------

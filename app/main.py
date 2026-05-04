@@ -513,6 +513,27 @@ class HandoffRatingRequest(BaseModel):
     rating: int  # 1 = positive, -1 = negative
 
 
+class SessionRatingRequest(BaseModel):
+    session_id: str
+    rating: int  # 1–4 scale: 1=Not Satisfied, 2=Moderately Satisfied, 3=Satisfied, 4=Very Satisfied
+
+
+@app.post("/api/rate-session")
+async def rate_session(request: SessionRatingRequest):
+    """Accept patron satisfaction rating (1–4) at the end of a chat session."""
+    if not request.session_id or not request.session_id.strip():
+        return JSONResponse(status_code=400, content={"error": "Session identifier is required"})
+    if request.rating not in (1, 2, 3, 4):
+        return JSONResponse(status_code=400, content={"error": "Rating must be 1, 2, 3, or 4"})
+    if session_store is not None:
+        try:
+            session_store.save_session_rating(request.session_id, request.rating)
+        except Exception:
+            logger.exception("Failed to save session rating for session %s", request.session_id)
+            return JSONResponse(status_code=500, content={"error": "Failed to save rating"})
+    return {"status": "ok"}
+
+
 @app.post("/api/rate-handoff")
 async def rate_handoff(request: HandoffRatingRequest):
     """Accept patron rating for the staff member who handled their live chat."""

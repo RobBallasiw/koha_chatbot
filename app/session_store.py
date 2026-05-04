@@ -304,6 +304,14 @@ class SessionStore:
                     FOREIGN KEY (live_chat_id) REFERENCES live_chat_sessions(id)
                 );
                 CREATE INDEX IF NOT EXISTS idx_lcm_chat ON live_chat_messages(live_chat_id);
+
+                CREATE TABLE IF NOT EXISTS session_ratings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL UNIQUE,
+                    rating INTEGER NOT NULL,
+                    created_at REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_sr_session ON session_ratings(session_id);
             """)
             conn.commit()
         finally:
@@ -1481,6 +1489,59 @@ class SessionStore:
             conn.commit()
         except Exception:
             logger.exception("Failed to save staff rating for session %s", session_id)
+            raise
+        finally:
+            conn.close()
+
+    def save_session_rating(self, session_id: str, rating: int) -> None:
+        """Save a patron's end-of-chat satisfaction rating (1–4 scale)."""
+        conn = self._get_connection()
+        try:
+            conn.execute(
+                """INSERT INTO session_ratings (session_id, rating, created_at)
+                   VALUES (?, ?, ?)
+                   ON CONFLICT(session_id) DO UPDATE SET rating = excluded.rating, created_at = excluded.created_at""",
+                (session_id, rating, time.time()),
+            )
+            conn.commit()
+        except Exception:
+            logger.exception("Failed to save session rating for session %s", session_id)
+            raise
+        finally:
+            conn.close()
+
+    def get_session_ratings(self, days: int = 30, page: int = 1, page_size: int = 10) -> dict:
+        """Return paginated session ratings with summary stats."""
+        cutoff = time.time() - (days * 86400)
+        conn = self._get_connection()
+        try:
+            rows = conn.execute(
+                """SELECT session_id, rating, created_at FROM session_ratings
+                   WHERE created_at >= ? ORDER BY created_at DESC
+                   LIMIT ? OFFSET ?""",
+                (cutoff, page_size, (page - 1) * page_size),
+            ).fetchall()
+            total_row = conn.execute(
+                "SELECT COUNT(*) AS cnt, AVG(rating) AS avg_r FROM session_ratings WHERE created_at >= ?",
+                (cutoff,),
+            ).fetchone()
+            satisfied_row = conn.execute(
+                "SELECT COUNT(*) AS cnt FROM session_ratings WHERE created_at >= ? AND rating >= 3",
+                (cutoff,),
+            ).fetchone()
+            total = total_row["cnt"] if total_row else 0
+            avg_rating = round(total_row["avg_r"], 2) if total_row and total_row["avg_r"] else None
+            satisfied_pct = round(satisfied_row["cnt"] / total * 100) if total > 0 else 0
+            return {
+                "ratings": [dict(r) for r in rows],
+                "summary": {
+                    "total": total,
+                    "avg_rating": avg_rating,
+                    "satisfied_pct": satisfied_pct,
+                },
+            }
+        except Exception:
+            logger.exception("Failed to get session ratings")
             raise
         finally:
             conn.close()
