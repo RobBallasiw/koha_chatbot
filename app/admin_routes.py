@@ -442,6 +442,7 @@ async def update_library_info(payload: dict):
         import app.main as main_module
         from app.models import LibraryInfo
         main_module.library_info = LibraryInfo(**clean_payload)
+        main_module._sync_faq_questions()
     except Exception:
         logger.exception("Failed to reload library info into running app")
 

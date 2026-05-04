@@ -155,6 +155,9 @@ async def startup() -> None:
     except Exception:
         logger.info("No AI settings in database, using defaults")
 
+    # Sync FAQ questions into classifier for fast intent matching
+    _sync_faq_questions()
+
     # Background task that purges expired sessions every 5 minutes.
     asyncio.create_task(_periodic_cleanup(session_manager))
 
@@ -249,9 +252,20 @@ async def session_status(session_id: str):
         return {"status": "unknown"}
 
 
+def _sync_faq_questions() -> None:
+    """Sync FAQ question strings into the classifier for fast intent matching."""
+    try:
+        import app.query_classifier as _qc
+        if library_info and library_info.faqs:
+            _qc.FAQ_QUESTIONS = {f.question.strip().lower() for f in library_info.faqs}
+        else:
+            _qc.FAQ_QUESTIONS = set()
+    except Exception:
+        pass
+
+
 @app.get("/api/faqs")
-async def get_faqs():
-    """Return the configured FAQ buttons for the chat widget (no-cache)."""
+async def get_faqs():    """Return the configured FAQ buttons for the chat widget (no-cache)."""
     faqs = []
     if library_info is not None:
         faqs = [f.model_dump() for f in library_info.faqs]

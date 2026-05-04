@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = 0.4
 
+# Module-level set of FAQ question strings — updated when library info is saved.
+# Any message that exactly matches a FAQ question is classified as library_info.
+FAQ_QUESTIONS: set[str] = set()
+
 CLASSIFICATION_SYSTEM_PROMPT = (
     "You are a query classifier for a school library chatbot. "
     "Your ONLY job is to classify patron messages into one of these intents. "
@@ -72,6 +76,10 @@ _LIBRARIAN_PHRASES = {
 def _quick_classify(message: str) -> str | None:
     """Fast keyword-based classification. Returns intent or None to defer to LLM."""
     lower = message.lower().strip()
+
+    # FAQ exact match — highest priority, before any other check
+    if lower in FAQ_QUESTIONS or lower.rstrip("?") in FAQ_QUESTIONS:
+        return "library_info"
 
     # Greetings (exact or near-exact match)
     if lower in _GREETING_PATTERNS or lower.rstrip("!?.") in _GREETING_PATTERNS:
