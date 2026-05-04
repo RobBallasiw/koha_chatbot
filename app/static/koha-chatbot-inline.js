@@ -238,7 +238,7 @@
   if (chatHistory.length > 0) {
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();
     var fq = msgs.querySelector(".lc-faqs"); if (fq) fq.remove();
-    chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts); });
+    chatHistory.forEach(function(m) { addMsgRaw(m.text, m.cls, m.ts, m.imgUrl || null); });
   }
 
   // Check if the existing session has expired — auto-reset to new chat
@@ -292,7 +292,7 @@
 
   // Helpers
   function scroll() { msgs.scrollTop = msgs.scrollHeight; }
-  function renderMsg(t, c, ts) {
+  function renderMsg(t, c, ts, imgUrl) {
     var d = document.createElement("div"); d.className = "lc-m " + c;
     // Check if this is a catalog result message — render as cards
     if (c === "b" && t && t.indexOf("found in the catalog") !== -1) {
@@ -303,7 +303,16 @@
     html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g,
       '$1<a href="$2" class="lc-link" style="color:inherit;text-decoration:underline;cursor:pointer">$2</a>');
     d.innerHTML = html;
-
+    // Render image below text if provided
+    if (imgUrl && c === "b") {
+      var img = document.createElement("img");
+      img.src = imgUrl;
+      img.alt = "Reply image";
+      img.style.cssText = "display:block;max-width:100%;border-radius:8px;margin-top:8px;cursor:pointer";
+      img.addEventListener("click", function() { window.open(imgUrl, "_blank"); });
+      img.addEventListener("error", function() { img.style.display = "none"; });
+      d.appendChild(img);
+    }
     d.querySelectorAll("a.lc-link").forEach(function(a) {
       a.addEventListener("click", function(e) {
         e.preventDefault();
@@ -421,12 +430,12 @@
     d.appendChild(wrap);
     return d;
   }
-  function addMsgRaw(t, c, ts) {
-    msgs.appendChild(renderMsg(t, c, ts)); scroll();
+  function addMsgRaw(t, c, ts, imgUrl) {
+    msgs.appendChild(renderMsg(t, c, ts, imgUrl)); scroll();
   }
-  function addMsg(t, c, ts) {
-    addMsgRaw(t, c, ts);
-    chatHistory.push({text: t, cls: c, ts: ts});
+  function addMsg(t, c, ts, imgUrl) {
+    addMsgRaw(t, c, ts, imgUrl);
+    chatHistory.push({text: t, cls: c, ts: ts, imgUrl: imgUrl || null});
     saveState();
     resetInactivityTimer();
   }
@@ -641,7 +650,7 @@
           });
         return;
       }
-      hideTyping(); if (d.reply) addMsg(d.reply, "b", d.timestamp);
+      hideTyping(); if (d.reply) addMsg(d.reply, "b", d.timestamp, d.image_url || null);
     })
     .catch(function (err) {
       hideTyping();

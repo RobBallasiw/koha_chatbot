@@ -19,6 +19,7 @@ class ChatResponse(BaseModel):
     session_id: str  # Session identifier
     timestamp: float | None = None  # Unix timestamp of the response
     client_search: str | None = None  # If set, client should search Koha with this query
+    image_url: str | None = None  # Optional image URL to display with the reply
 
 
 class ErrorResponse(BaseModel):
@@ -68,6 +69,7 @@ class FaqItem(BaseModel):
     label: str  # Button label shown in the widget
     question: str  # The question text sent when the button is clicked
     content: str = ""  # The answer content the bot returns
+    image_url: str = ""  # Optional image URL shown with the reply
 
 
 class LibraryInfo(BaseModel):

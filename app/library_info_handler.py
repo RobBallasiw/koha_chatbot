@@ -96,21 +96,33 @@ def handle_library_info_query(
     message: str,
     library_info: LibraryInfo,
     conversation_history: list[dict],
-) -> str:
-    """Handle a library information query from a patron."""
+) -> tuple[str, str]:
+    """Handle a library information query from a patron.
+
+    Returns (reply_text, image_url) — image_url is empty string if none.
+    """
     if not library_info or not library_info.faqs:
-        return CONTACT_STAFF_MESSAGE
+        return CONTACT_STAFF_MESSAGE, ""
 
     matches = _find_matching_faqs(message, library_info)
 
     if not matches:
-        return CONTACT_STAFF_MESSAGE
+        return CONTACT_STAFF_MESSAGE, ""
 
-    # Exact match with content — return directly
+    # Exact match — return content and image directly
     msg_lower = message.strip().lower()
     if len(matches) == 1 and matches[0].question.strip().lower() == msg_lower:
-        if matches[0].content.strip():
-            return matches[0].content.strip()
+        faq = matches[0]
+        image_url = faq.image_url.strip() if faq.image_url else ""
+        if faq.content.strip():
+            return faq.content.strip(), image_url
+
+    # Collect image from best match (first one with an image)
+    image_url = ""
+    for faq in matches:
+        if faq.image_url and faq.image_url.strip():
+            image_url = faq.image_url.strip()
+            break
 
     # Build data string from matched FAQ content
     data_parts = []
@@ -119,7 +131,7 @@ def handle_library_info_query(
             data_parts.append(f"[{faq.question}]\n{faq.content.strip()}")
 
     if not data_parts:
-        return CONTACT_STAFF_MESSAGE
+        return CONTACT_STAFF_MESSAGE, ""
 
     data_str = "\n\n".join(data_parts)
 
@@ -133,8 +145,8 @@ def handle_library_info_query(
             messages.append({"role": "user", "content": prompt})
             reply = client.chat(messages)
             if isinstance(reply, str) and reply and "trouble" not in reply.lower() and "moment" not in reply.lower():
-                return reply
+                return reply, image_url
         except Exception:
             logger.info("LLM unavailable for library info, using raw FAQ content")
 
-    return f"{data_str} 📚"
+    return f"{data_str} 📚", image_url

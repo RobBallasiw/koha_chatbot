@@ -542,6 +542,12 @@
           <p class="ai-hint">The answer shown to the patron. Leave blank to let the AI answer.</p>
           <textarea id="li-d-content" rows="6" placeholder="Type the answer here, or leave blank for AI to answer…" aria-label="FAQ content"></textarea>
         </div>
+        <div class="li-drawer-field">
+          <label for="li-d-image">Image URL <span style="font-weight:400;color:#7f8c8d">(optional)</span></label>
+          <p class="ai-hint">A public image URL shown below the reply. Leave blank for no image.</p>
+          <input type="url" id="li-d-image" placeholder="https://example.com/image.jpg" aria-label="Image URL">
+          <div id="li-d-image-preview" style="margin-top:8px;display:none"><img id="li-d-image-thumb" src="" alt="Preview" style="max-width:100%;max-height:160px;border-radius:6px;border:1px solid #ddd"></div>
+        </div>
         <div id="li-drawer-error" class="li-drawer-error hidden"></div>
       </div>
       <div class="li-drawer-footer">
@@ -1638,9 +1644,10 @@
           var card = document.createElement("div");
           card.className = "li-faq-card";
           var preview = faq.content ? faq.content.substring(0, 80) + (faq.content.length > 80 ? "…" : "") : "AI will answer";
+          var imgBadge = faq.image_url ? ' <span style="font-size:0.75em;background:#e8f4fd;color:#2980b9;padding:1px 6px;border-radius:8px;margin-left:4px">🖼️ image</span>' : "";
           card.innerHTML =
             '<div class="li-faq-card-body">' +
-              '<div class="li-faq-card-label">' + escapeHtml(faq.label) + '</div>' +
+              '<div class="li-faq-card-label">' + escapeHtml(faq.label) + imgBadge + '</div>' +
               '<div class="li-faq-card-question">' + escapeHtml(faq.question) + '</div>' +
               '<div class="li-faq-card-content-preview">' + escapeHtml(preview) + '</div>' +
             '</div>' +
@@ -1662,6 +1669,9 @@
         document.getElementById("li-d-label").value = isNew ? "" : _faqData[idx].label;
         document.getElementById("li-d-question").value = isNew ? "" : _faqData[idx].question;
         document.getElementById("li-d-content").value = isNew ? "" : _faqData[idx].content;
+        var imgUrl = isNew ? "" : (_faqData[idx].image_url || "");
+        document.getElementById("li-d-image").value = imgUrl;
+        updateImagePreview(imgUrl);
         document.getElementById("li-drawer-error").classList.add("hidden");
         document.getElementById("li-drawer-error").textContent = "";
         document.getElementById("li-drawer-status").textContent = "";
@@ -1681,10 +1691,27 @@
 
       document.getElementById("li-add-faq-btn").addEventListener("click", function() { openDrawer(-1); });
 
+      // Image preview
+      function updateImagePreview(url) {
+        var preview = document.getElementById("li-d-image-preview");
+        var thumb = document.getElementById("li-d-image-thumb");
+        if (url && url.trim()) {
+          thumb.src = url.trim();
+          preview.style.display = "block";
+        } else {
+          preview.style.display = "none";
+          thumb.src = "";
+        }
+      }
+      document.getElementById("li-d-image").addEventListener("input", function() {
+        updateImagePreview(this.value);
+      });
+
       document.getElementById("li-drawer-save").addEventListener("click", async function() {
         var label = document.getElementById("li-d-label").value.trim();
         var question = document.getElementById("li-d-question").value.trim();
         var content = document.getElementById("li-d-content").value.trim();
+        var imageUrl = document.getElementById("li-d-image").value.trim();
         var errEl = document.getElementById("li-drawer-error");
         var statusEl = document.getElementById("li-drawer-status");
 
@@ -1693,9 +1720,9 @@
         errEl.classList.add("hidden");
 
         if (_editingIndex === -1) {
-          _faqData.push({ label: label, question: question, content: content });
+          _faqData.push({ label: label, question: question, content: content, image_url: imageUrl });
         } else {
-          _faqData[_editingIndex] = { label: label, question: question, content: content };
+          _faqData[_editingIndex] = { label: label, question: question, content: content, image_url: imageUrl };
         }
 
         var saved = await saveFaqsToServer(statusEl);

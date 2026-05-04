@@ -452,8 +452,30 @@ async def chat(request: ChatRequest):
                     client_search=raw_kw,
                 )
     elif classification.intent == "library_info":
-        reply = handle_library_info_query(
+        reply, _img_url = handle_library_info_query(
             client, request.message, library_info, history
+        )
+        # Store conversation and return with image if present
+        session_mgr.add_message(request.session_id, "user", request.message)
+        session_mgr.add_message(request.session_id, "assistant", reply)
+        if session_store is not None:
+            _store = session_store
+            _sid = request.session_id
+            _msg = request.message
+            _reply = reply
+            _intent = classification.intent
+            async def _persist_info():
+                try:
+                    _store.save_message(_sid, "user", _msg, intent=_intent)
+                    _store.save_message(_sid, "assistant", _reply)
+                except Exception:
+                    logger.exception("Failed to persist messages for session %s", _sid)
+            asyncio.create_task(_persist_info())
+        return ChatResponse(
+            reply=reply,
+            session_id=request.session_id,
+            timestamp=time.time(),
+            image_url=_img_url if _img_url else None,
         )
     elif classification.intent == "greeting":
         reply = GREETING_MESSAGE
