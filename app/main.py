@@ -237,10 +237,14 @@ async def session_status(session_id: str):
 
 @app.get("/api/faqs")
 async def get_faqs():
-    """Return the configured FAQ buttons for the chat widget."""
-    if library_info is None:
-        return {"faqs": []}
-    return {"faqs": [f.model_dump() for f in library_info.faqs]}
+    """Return the configured FAQ buttons for the chat widget (no-cache)."""
+    faqs = []
+    if library_info is not None:
+        faqs = [f.model_dump() for f in library_info.faqs]
+    return JSONResponse(
+        content={"faqs": faqs},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
 
 
 @app.get("/")

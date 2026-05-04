@@ -190,14 +190,22 @@
       container.innerHTML = buildFaqHtml(_cachedFaqs);
       return;
     }
-    fetch(CHATBOT_API + "/api/faqs")
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        _cachedFaqs = d.faqs || [];
-        container.innerHTML = buildFaqHtml(_cachedFaqs);
+    // Cache-bust so proxy/browser never serves stale FAQ list
+    fetch(CHATBOT_API + "/api/faqs?t=" + Date.now())
+      .then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
       })
-      .catch(function() {
-        // Fallback to defaults if fetch fails
+      .then(function(d) {
+        _cachedFaqs = (d.faqs && d.faqs.length > 0) ? d.faqs : null;
+        if (_cachedFaqs) {
+          container.innerHTML = buildFaqHtml(_cachedFaqs);
+        }
+        // If server returned empty list, leave container empty (no buttons)
+      })
+      .catch(function(err) {
+        // Only fall back to hardcoded defaults on network/server error
+        console.warn("[LLORA] FAQ fetch failed:", err);
         _cachedFaqs = [
           { label: "&#128336; Library hours", question: "What are the library hours?" },
           { label: "&#128172; LIBVAS", question: "What is LIBVAS?" },
