@@ -235,52 +235,6 @@
           </div>
           <div id="li-faqs" class="li-faq-list"></div>
         </div>
-
-        <!-- FAQ Drawer overlay -->
-        <div id="li-drawer-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="dialog" aria-label="FAQ editor">
-          <div class="li-drawer">
-            <div class="li-drawer-header">
-              <h3 id="li-drawer-title">Add FAQ</h3>
-              <button id="li-drawer-close" type="button" class="li-drawer-close-btn" aria-label="Close">✕</button>
-            </div>
-            <div class="li-drawer-body">
-              <div class="li-drawer-field">
-                <label for="li-d-label">Button Label <span class="li-required">*</span></label>
-                <p class="ai-hint">Text shown on the button in the chat widget.</p>
-                <input type="text" id="li-d-label" placeholder="e.g. 📖 Borrowing privileges" maxlength="80" aria-label="Button label">
-              </div>
-              <div class="li-drawer-field">
-                <label for="li-d-question">Question <span class="li-required">*</span></label>
-                <p class="ai-hint">Sent to the bot when the button is clicked.</p>
-                <input type="text" id="li-d-question" placeholder="e.g. What are the borrowing privileges?" maxlength="200" aria-label="FAQ question">
-              </div>
-              <div class="li-drawer-field">
-                <label for="li-d-content">Bot Reply</label>
-                <p class="ai-hint">The answer shown to the patron. Leave blank to let the AI answer.</p>
-                <textarea id="li-d-content" rows="6" placeholder="Type the answer here, or leave blank for AI to answer…" aria-label="FAQ content"></textarea>
-              </div>
-              <div id="li-drawer-error" class="li-drawer-error hidden"></div>
-            </div>
-            <div class="li-drawer-footer">
-              <button id="li-drawer-save" type="button" class="btn-primary">Save</button>
-              <button id="li-drawer-cancel" type="button" class="back-btn">Cancel</button>
-              <span id="li-drawer-status" class="li-status"></span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Delete confirm dialog -->
-        <div id="li-confirm-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="alertdialog" aria-label="Confirm delete">
-          <div class="li-confirm-dialog">
-            <div class="li-confirm-icon">🗑️</div>
-            <h3 class="li-confirm-title">Delete FAQ?</h3>
-            <p class="li-confirm-msg" id="li-confirm-msg"></p>
-            <div class="li-confirm-actions">
-              <button id="li-confirm-yes" type="button" class="btn-danger">Yes, delete</button>
-              <button id="li-confirm-no" type="button" class="back-btn">Cancel</button>
-            </div>
-          </div>
-        </div>
       </div><!-- end library-info-tab -->
 
       <div id="ai-settings-tab" class="tab-content">
@@ -564,6 +518,52 @@
 
     </div>
   </main>
+
+  <!-- FAQ Drawer overlay — at body level so it's not clipped by hidden tab parents -->
+  <div id="li-drawer-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="dialog" aria-label="FAQ editor">
+    <div class="li-drawer">
+      <div class="li-drawer-header">
+        <h3 id="li-drawer-title">Add FAQ</h3>
+        <button id="li-drawer-close" type="button" class="li-drawer-close-btn" aria-label="Close">✕</button>
+      </div>
+      <div class="li-drawer-body">
+        <div class="li-drawer-field">
+          <label for="li-d-label">Button Label <span class="li-required">*</span></label>
+          <p class="ai-hint">Text shown on the button in the chat widget.</p>
+          <input type="text" id="li-d-label" placeholder="e.g. 📖 Borrowing privileges" maxlength="80" aria-label="Button label">
+        </div>
+        <div class="li-drawer-field">
+          <label for="li-d-question">Question <span class="li-required">*</span></label>
+          <p class="ai-hint">Sent to the bot when the button is clicked.</p>
+          <input type="text" id="li-d-question" placeholder="e.g. What are the borrowing privileges?" maxlength="200" aria-label="FAQ question">
+        </div>
+        <div class="li-drawer-field">
+          <label for="li-d-content">Bot Reply</label>
+          <p class="ai-hint">The answer shown to the patron. Leave blank to let the AI answer.</p>
+          <textarea id="li-d-content" rows="6" placeholder="Type the answer here, or leave blank for AI to answer…" aria-label="FAQ content"></textarea>
+        </div>
+        <div id="li-drawer-error" class="li-drawer-error hidden"></div>
+      </div>
+      <div class="li-drawer-footer">
+        <button id="li-drawer-save" type="button" class="btn-primary">Save</button>
+        <button id="li-drawer-cancel" type="button" class="back-btn">Cancel</button>
+        <span id="li-drawer-status" class="li-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm dialog — at body level -->
+  <div id="li-confirm-overlay" class="li-drawer-overlay hidden" aria-modal="true" role="alertdialog" aria-label="Confirm delete">
+    <div class="li-confirm-dialog">
+      <div class="li-confirm-icon">🗑️</div>
+      <h3 class="li-confirm-title">Delete FAQ?</h3>
+      <p class="li-confirm-msg" id="li-confirm-msg"></p>
+      <div class="li-confirm-actions">
+        <button id="li-confirm-yes" type="button" class="btn-danger">Yes, delete</button>
+        <button id="li-confirm-no" type="button" class="back-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <style>
     /* Controls bar */
