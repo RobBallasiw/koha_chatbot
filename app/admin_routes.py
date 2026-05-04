@@ -229,16 +229,121 @@ async def get_unanswered_queries(
 # ------------------------------------------------------------------
 
 
+def _migrate_to_faqs(data: dict) -> dict:
+    """Convert old locations/policies/fines format to the new faqs list format."""
+    if "faqs" in data:
+        return data  # Already new format
+
+    faqs = []
+
+    # Hours from locations
+    locations = data.get("locations", {})
+    if locations:
+        hours_content_parts = []
+        for loc_name, loc_data in locations.items():
+            if not isinstance(loc_data, dict):
+                continue
+            hours = loc_data.get("hours", {})
+            address = loc_data.get("address", "")
+            email = loc_data.get("email", "")
+            loc_label = f"{loc_name} ({address})" if address else loc_name
+            day_order = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "holidays"]
+            day_lines = []
+            for day in day_order:
+                if day in hours:
+                    day_lines.append(f"{day.capitalize()}: {hours[day]}")
+            # Also catch any keys not in day_order
+            for k, v in hours.items():
+                if k.lower() not in day_order:
+                    day_lines.append(f"{k}: {v}")
+            if day_lines:
+                hours_content_parts.append(f"{loc_label}:\n" + "\n".join(day_lines))
+            if email:
+                faqs.append({
+                    "label": f"📧 {loc_name} email",
+                    "question": f"What is the {loc_name} email address?",
+                    "content": f"{loc_name}: {email}"
+                })
+        if hours_content_parts:
+            faqs.insert(0, {
+                "label": "🕐 Library hours",
+                "question": "What are the library hours?",
+                "content": "\n\n".join(hours_content_parts)
+            })
+
+    # Policies
+    policies = data.get("policies", {})
+    if policies:
+        # Group printing-related policies
+        printing_keys = {k for k in policies if "print" in k.lower()}
+        borrow_keys = {k for k in policies if "borrow" in k.lower() or "member" in k.lower()}
+        other_keys = set(policies.keys()) - printing_keys - borrow_keys
+
+        if borrow_keys:
+            content = "\n\n".join(policies[k] for k in sorted(borrow_keys) if policies[k])
+            faqs.append({
+                "label": "📖 Borrowing privileges",
+                "question": "What are the borrowing privileges?",
+                "content": content
+            })
+        if printing_keys:
+            content = "\n\n".join(policies[k] for k in sorted(printing_keys) if policies[k])
+            faqs.append({
+                "label": "🖨️ Printing procedure",
+                "question": "How do I print documents?",
+                "content": content
+            })
+        for k in sorted(other_keys):
+            if policies[k]:
+                faqs.append({
+                    "label": f"📋 {k.replace('_', ' ').title()}",
+                    "question": k.replace("_", " ").capitalize() + "?",
+                    "content": policies[k]
+                })
+
+    # Fines
+    fines = data.get("fines", {})
+    if fines:
+        overdue_keys = {k for k in fines if "overdue" in k.lower()}
+        printing_rate_keys = {k for k in fines if "printing" in k.lower() or "print" in k.lower()}
+        other_keys = set(fines.keys()) - overdue_keys - printing_rate_keys
+
+        if overdue_keys:
+            content = "\n\n".join(fines[k] for k in sorted(overdue_keys) if fines[k])
+            faqs.append({
+                "label": "💸 Overdue fines",
+                "question": "What are the overdue fines?",
+                "content": content
+            })
+        if printing_rate_keys:
+            content = "\n\n".join(fines[k] for k in sorted(printing_rate_keys) if fines[k])
+            faqs.append({
+                "label": "🖨️ Printing rates",
+                "question": "What are the printing rates?",
+                "content": content
+            })
+        for k in sorted(other_keys):
+            if fines[k]:
+                faqs.append({
+                    "label": f"💰 {k.replace('_', ' ').title()}",
+                    "question": k.replace("_", " ").capitalize() + "?",
+                    "content": fines[k]
+                })
+
+    return {"faqs": faqs}
+
+
 @router.get("/library-info")
 async def get_library_info():
-    """Return the current library info contents (from DB or file)."""
+    """Return the current library info contents (from DB or file), migrating old format if needed."""
     # Try database first (works on Vercel)
     from app.staff_routes import staff_store as _staff_store
     if _staff_store is not None:
         db_val = _staff_store.get_setting("library_info_json")
         if db_val:
             try:
-                return json.loads(db_val)
+                data = json.loads(db_val)
+                return _migrate_to_faqs(data)
             except Exception:
                 pass
     # Fall back to file
@@ -247,7 +352,7 @@ async def get_library_info():
     try:
         with open(library_info_path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return data
+        return _migrate_to_faqs(data)
     except Exception:
         logger.exception("Failed to read library info")
         return JSONResponse(status_code=500, content={"error": "Failed to read library info"})
