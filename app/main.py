@@ -265,7 +265,8 @@ def _sync_faq_questions() -> None:
 
 
 @app.get("/api/faqs")
-async def get_faqs():    """Return the configured FAQ buttons for the chat widget (no-cache)."""
+async def get_faqs():
+    """Return the configured FAQ buttons for the chat widget (no-cache)."""
     faqs = []
     if library_info is not None:
         faqs = [f.model_dump() for f in library_info.faqs]
