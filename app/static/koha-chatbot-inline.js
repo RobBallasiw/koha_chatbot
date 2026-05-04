@@ -178,7 +178,6 @@
   }
 
   // FAQ buttons — loaded from server
-  var _cachedFaqs = null;
   function buildFaqHtml(faqs) {
     if (!faqs || faqs.length === 0) return "";
     return faqs.map(function(f) {
@@ -186,35 +185,26 @@
     }).join("");
   }
   function loadAndRenderFaqs(container) {
-    if (_cachedFaqs !== null) {
-      container.innerHTML = buildFaqHtml(_cachedFaqs);
-      return;
-    }
-    // Cache-bust so proxy/browser never serves stale FAQ list
+    // Always fetch fresh — no caching so admin changes appear immediately
     fetch(CHATBOT_API + "/api/faqs?t=" + Date.now())
       .then(function(r) {
         if (!r.ok) throw new Error("HTTP " + r.status);
         return r.json();
       })
       .then(function(d) {
-        _cachedFaqs = (d.faqs && d.faqs.length > 0) ? d.faqs : null;
-        if (_cachedFaqs) {
-          container.innerHTML = buildFaqHtml(_cachedFaqs);
-        }
-        // If server returned empty list, leave container empty (no buttons)
+        container.innerHTML = buildFaqHtml(d.faqs || []);
       })
       .catch(function(err) {
-        // Only fall back to hardcoded defaults on network/server error
         console.warn("[LLORA] FAQ fetch failed:", err);
-        _cachedFaqs = [
+        // Fallback only on network/server error
+        container.innerHTML = buildFaqHtml([
           { label: "&#128336; Library hours", question: "What are the library hours?" },
           { label: "&#128172; LIBVAS", question: "What is LIBVAS?" },
           { label: "&#128196; LIRAS", question: "What is LIRAS?" },
           { label: "&#128187; LIBRAS", question: "What is LIBRAS?" },
           { label: "&#128424; LibPrintS", question: "How does LibPrintS work?" },
           { label: "&#128214; Borrowing privileges", question: "What are the borrowing privileges?" }
-        ];
-        container.innerHTML = buildFaqHtml(_cachedFaqs);
+        ]);
       });
   }
 
