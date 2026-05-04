@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 CONFIDENCE_THRESHOLD = 0.4
 
 CLASSIFICATION_SYSTEM_PROMPT = (
-    "You are a query classifier for a school library chatbot called Hero. "
+    "You are a query classifier for a school library chatbot. "
     "Your ONLY job is to classify patron messages into one of these intents. "
     "You must respond with ONLY a JSON object, no other text.\n\n"
     "IMPORTANT: When in doubt, classify as catalog_search.\n\n"

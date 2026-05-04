@@ -80,6 +80,7 @@
         <button class="tab-btn" data-tab="analytics-tab" type="button">Analytics</button>
         <button class="tab-btn" data-tab="quality-tab" type="button">Quality</button>
         <button class="tab-btn" data-tab="library-info-tab" type="button">Library Info</button>
+        <button class="tab-btn" data-tab="ai-settings-tab" type="button">🤖 AI Settings</button>
         <button class="tab-btn" data-tab="management-tab" type="button">Management</button>
         <button class="tab-btn" data-tab="handoff-tab" type="button" id="handoff-tab-btn">💬 Live Chat</button>
         <button class="tab-btn" data-tab="notify-tab" type="button">📧 Notify Staff</button>
@@ -240,6 +241,49 @@
           <div id="li-faqs" class="li-faq-list"></div>
         </div>
       </div><!-- end library-info-tab -->
+
+      <div id="ai-settings-tab" class="tab-content">
+        <div class="li-editor-wrap">
+          <div class="li-header">
+            <p class="li-desc">Customize the AI assistant's identity and behavior. Changes take effect immediately without restarting the server.</p>
+            <div class="li-actions">
+              <button id="ai-save-btn" type="button" class="btn-primary">Save Changes</button>
+              <span id="ai-save-status" class="li-status"></span>
+            </div>
+          </div>
+
+          <div class="ai-settings-grid">
+            <div class="ai-settings-section">
+              <label class="ai-label" for="ai-name">🤖 Assistant Name</label>
+              <p class="ai-hint">The name shown in the widget header and used in responses.</p>
+              <input type="text" id="ai-name" class="ai-input" placeholder="e.g. LLORA" maxlength="40" aria-label="AI assistant name">
+            </div>
+
+            <div class="ai-settings-section">
+              <label class="ai-label" for="ai-personality">💬 Personality &amp; Tone</label>
+              <p class="ai-hint">Describe how the assistant should communicate with patrons.</p>
+              <textarea id="ai-personality" class="ai-textarea" rows="4" placeholder="e.g. You speak warmly and concisely. You are helpful, friendly, and professional. Use 1 emoji at the end of each response." aria-label="AI personality"></textarea>
+            </div>
+
+            <div class="ai-settings-section">
+              <label class="ai-label" for="ai-limitations">🚫 Limitations &amp; Scope</label>
+              <p class="ai-hint">Define what the assistant can and cannot help with.</p>
+              <textarea id="ai-limitations" class="ai-textarea" rows="5" placeholder="e.g. Only help with: finding books, library hours, borrowing policies, fines, and printing services. Politely redirect off-topic questions. Never make up information." aria-label="AI limitations"></textarea>
+            </div>
+
+            <div class="ai-settings-section">
+              <label class="ai-label" for="ai-welcome">👋 Welcome Message</label>
+              <p class="ai-hint">Shown when a patron opens the chat widget. Use <code>{name}</code> to insert the assistant name.</p>
+              <textarea id="ai-welcome" class="ai-textarea" rows="3" placeholder="e.g. Hi! 👋 I'm {name}, your virtual library assistant. What can I do for you?" aria-label="Welcome message"></textarea>
+            </div>
+          </div>
+
+          <div class="ai-preview-box" id="ai-preview-box">
+            <div class="ai-preview-label">Preview</div>
+            <div class="ai-preview-bubble" id="ai-preview-bubble"></div>
+          </div>
+        </div>
+      </div><!-- end ai-settings-tab -->
 
       <div id="management-tab" class="tab-content">
         <div class="mgmt-grid">
@@ -633,6 +677,18 @@
     .li-faq-content-row label { font-size: 0.82em; color: #7f8c8d; width: 64px; flex-shrink: 0; padding-top: 6px; }
     .li-faq-content-row textarea { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88em; resize: vertical; min-height: 60px; font-family: inherit; line-height: 1.4; }
     .li-faq-content-row textarea:focus { border-color: #2c3e50; outline: none; }
+    .ai-settings-grid { display: flex; flex-direction: column; gap: 20px; }
+    .ai-settings-section { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px 18px; }
+    .ai-label { display: block; font-size: 0.94em; font-weight: 600; color: #2c3e50; margin-bottom: 4px; }
+    .ai-hint { font-size: 0.82em; color: #7f8c8d; margin-bottom: 10px; }
+    .ai-hint code { background: #f0f0ec; padding: 1px 5px; border-radius: 3px; font-size: 0.9em; }
+    .ai-input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.92em; }
+    .ai-input:focus { border-color: #2c3e50; outline: none; }
+    .ai-textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.88em; font-family: inherit; line-height: 1.5; resize: vertical; }
+    .ai-textarea:focus { border-color: #2c3e50; outline: none; }
+    .ai-preview-box { margin-top: 20px; background: #f0f0ec; border-radius: 12px; padding: 16px 18px; }
+    .ai-preview-label { font-size: 0.78em; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .ai-preview-bubble { background: #fff; border-radius: 16px; border-bottom-left-radius: 4px; padding: 10px 14px; font-size: 0.88em; color: #2d2d2d; line-height: 1.5; max-width: 80%; box-shadow: 0 1px 3px rgba(0,0,0,0.08); white-space: pre-wrap; }
     .btn-primary { padding: 8px 16px; border: none; border-radius: 4px; background: #2c3e50; color: #fff; cursor: pointer; font-size: 0.88em; }
     .btn-primary:hover { background: #34495e; }
     .btn-danger { padding: 8px 16px; border: none; border-radius: 4px; background: #e74c3c; color: #fff; cursor: pointer; font-size:0.88em; }
@@ -1247,6 +1303,9 @@
           if (btn.getAttribute("data-tab") === "library-info-tab") {
             loadLibraryInfo();
           }
+          if (btn.getAttribute("data-tab") === "ai-settings-tab") {
+            loadAiSettings();
+          }
           if (btn.getAttribute("data-tab") === "management-tab") {
             loadFlaggedSessions();
           }
@@ -1520,7 +1579,7 @@
         item.querySelector(".li-faq-label").focus();
       });
 
-      // Save
+      // Save FAQ
       document.getElementById("li-save-btn").addEventListener("click", async function () {
         var payload = { faqs: [] };
 
@@ -1535,6 +1594,63 @@
         var statusEl = document.getElementById("li-save-status");
         try {
           var resp = await fetch("/admin/api/library-info", {
+            method: "PUT",
+            headers: { "X-Admin-Key": apiKey, "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (resp.ok) {
+            statusEl.textContent = "✓ Saved";
+            statusEl.style.color = "#27ae60";
+          } else {
+            var err = await resp.json().catch(function () { return {}; });
+            statusEl.textContent = "✗ " + (err.error || "Save failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        setTimeout(function () { statusEl.textContent = ""; }, 4000);
+      });
+
+      // --- AI Settings ---
+      async function loadAiSettings() {
+        var data = await apiFetch("/admin/api/ai-settings");
+        if (!data) return;
+        document.getElementById("ai-name").value = data.name || "";
+        document.getElementById("ai-personality").value = data.personality || "";
+        document.getElementById("ai-limitations").value = data.limitations || "";
+        document.getElementById("ai-welcome").value = data.welcome_message || "";
+        updateAiPreview();
+      }
+
+      function updateAiPreview() {
+        var name = document.getElementById("ai-name").value.trim() || "LLORA";
+        var welcome = document.getElementById("ai-welcome").value.trim();
+        if (!welcome) welcome = "Hi! 👋 I'm {name}, your virtual library assistant. What can I do for you?";
+        document.getElementById("ai-preview-bubble").textContent = welcome.replace(/\{name\}/g, name);
+      }
+
+      ["ai-name", "ai-welcome"].forEach(function(id) {
+        document.getElementById(id).addEventListener("input", updateAiPreview);
+      });
+
+      document.getElementById("ai-save-btn").addEventListener("click", async function () {
+        var payload = {
+          name: document.getElementById("ai-name").value.trim(),
+          personality: document.getElementById("ai-personality").value.trim(),
+          limitations: document.getElementById("ai-limitations").value.trim(),
+          welcome_message: document.getElementById("ai-welcome").value.trim(),
+        };
+        var statusEl = document.getElementById("ai-save-status");
+        if (!payload.name) {
+          statusEl.textContent = "✗ Name is required";
+          statusEl.style.color = "#e74c3c";
+          setTimeout(function () { statusEl.textContent = ""; }, 3000);
+          return;
+        }
+        try {
+          var resp = await fetch("/admin/api/ai-settings", {
             method: "PUT",
             headers: { "X-Admin-Key": apiKey, "Content-Type": "application/json" },
             body: JSON.stringify(payload),

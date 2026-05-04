@@ -222,6 +222,28 @@
   var initFaqContainer = document.getElementById("lc-faqs-init");
   if (initFaqContainer) loadAndRenderFaqs(initFaqContainer);
 
+  // Load AI config (name + welcome message) from server
+  fetch(CHATBOT_API + "/api/ai-config?t=" + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      var name = d.name || "LLORA";
+      var welcome = d.welcome_message || ("Hi! 👋 I'm " + name + ", your virtual library assistant. I can help you find books, check hours, or answer questions about the library. What can I do for you?");
+      // Update header
+      var hdr = document.getElementById("lc-hdr");
+      if (hdr) {
+        var span = hdr.querySelector("span[aria-hidden]");
+        if (span) span.nextSibling && (span.nextSibling.textContent = " " + name + " — Library Assistant");
+        // Rebuild header text node
+        hdr.childNodes.forEach(function(n) {
+          if (n.nodeType === 3) n.textContent = " " + name + " — Library Assistant";
+        });
+      }
+      // Update welcome message (only if chat hasn't started)
+      var wEl = msgs.querySelector(".lc-w");
+      if (wEl) wEl.textContent = welcome;
+    })
+    .catch(function() {});
+
   // Restore previous messages
   if (chatHistory.length > 0) {
     var w = msgs.querySelector(".lc-w"); if (w) w.remove();

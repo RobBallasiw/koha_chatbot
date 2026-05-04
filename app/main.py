@@ -20,6 +20,7 @@ from app.groq_client import GroqClient
 from app.library_info_handler import handle_library_info_query, load_library_info
 from app.models import ChatRequest, ChatResponse, ErrorResponse, LibraryInfo
 from app.models import FeedbackRequest
+from app.ai_settings import AiSettings, load_ai_settings
 from pydantic import BaseModel
 from app.query_classifier import classify_query
 from app.session_manager import SessionManager
@@ -49,6 +50,7 @@ groq_client: GroqClient | None = None
 session_manager: SessionManager | None = None
 session_store: SessionStore | None = None
 library_info: LibraryInfo | None = None
+ai_settings: AiSettings = AiSettings()
 
 CLARIFYING_MESSAGE = (
     "Hmm, I'm not quite sure what you mean! 🤔 "
@@ -87,7 +89,7 @@ async def _periodic_cleanup(mgr: SessionManager) -> None:
 @app.on_event("startup")
 async def startup() -> None:
     """Initialise application state on startup."""
-    global settings, groq_client, session_manager, session_store, library_info
+    global settings, groq_client, session_manager, session_store, library_info, ai_settings
 
     try:
         settings = load_settings()
@@ -140,6 +142,18 @@ async def startup() -> None:
                 logger.info("Loaded library info from database")
     except Exception:
         logger.info("No library info in database, using file")
+
+    # Load AI settings from database
+    try:
+        from app.staff_routes import staff_store as _ss2
+        if _ss2 is not None:
+            ai_settings = load_ai_settings(_ss2)
+            # Apply to groq_client system prompt
+            import app.groq_client as _gc
+            _gc.SYSTEM_PROMPT = ai_settings.build_system_prompt()
+            logger.info("Loaded AI settings: name=%s", ai_settings.name)
+    except Exception:
+        logger.info("No AI settings in database, using defaults")
 
     # Background task that purges expired sessions every 5 minutes.
     asyncio.create_task(_periodic_cleanup(session_manager))
@@ -243,6 +257,18 @@ async def get_faqs():
         faqs = [f.model_dump() for f in library_info.faqs]
     return JSONResponse(
         content={"faqs": faqs},
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
+    )
+
+
+@app.get("/api/ai-config")
+async def get_ai_config():
+    """Return public AI config for the widget (name, welcome message)."""
+    return JSONResponse(
+        content={
+            "name": ai_settings.name,
+            "welcome_message": ai_settings.get_welcome_text(),
+        },
         headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"},
     )
 

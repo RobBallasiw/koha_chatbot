@@ -225,6 +225,56 @@ async def get_unanswered_queries(
 
 
 # ------------------------------------------------------------------
+# AI Settings
+# ------------------------------------------------------------------
+
+
+@router.get("/ai-settings")
+async def get_ai_settings():
+    """Return the current AI personality settings."""
+    from app.staff_routes import staff_store as _staff_store
+    from app.ai_settings import load_ai_settings
+    settings = load_ai_settings(_staff_store)
+    return settings.to_dict()
+
+
+@router.put("/ai-settings")
+async def update_ai_settings(payload: dict):
+    """Update AI personality settings and reload in the running app."""
+    from app.staff_routes import staff_store as _staff_store
+    from app.ai_settings import AiSettings, save_ai_settings
+
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return JSONResponse(status_code=400, content={"error": "AI name is required."})
+
+    new_settings = AiSettings(
+        name=name,
+        personality=(payload.get("personality") or "").strip(),
+        limitations=(payload.get("limitations") or "").strip(),
+        welcome_message=(payload.get("welcome_message") or "").strip(),
+    )
+
+    # Persist to DB
+    try:
+        save_ai_settings(_staff_store, new_settings)
+    except Exception:
+        logger.exception("Failed to save AI settings")
+        return JSONResponse(status_code=500, content={"error": "Failed to save AI settings"})
+
+    # Reload system prompt in running app
+    try:
+        import app.groq_client as _gc
+        import app.main as _main
+        _gc.SYSTEM_PROMPT = new_settings.build_system_prompt()
+        _main.ai_settings = new_settings
+    except Exception:
+        logger.exception("Failed to reload AI settings in running app")
+
+    return {"status": "ok", "message": "AI settings updated"}
+
+
+# ------------------------------------------------------------------
 # Library Info Management
 # ------------------------------------------------------------------
 
