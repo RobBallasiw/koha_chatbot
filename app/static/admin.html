@@ -543,9 +543,14 @@
           <textarea id="li-d-content" rows="6" placeholder="Type the answer here, or leave blank for AI to answer…" aria-label="FAQ content"></textarea>
         </div>
         <div class="li-drawer-field">
-          <label for="li-d-image">Image URL <span style="font-weight:400;color:#7f8c8d">(optional)</span></label>
-          <p class="ai-hint">A public image URL shown below the reply. Leave blank for no image.</p>
-          <input type="url" id="li-d-image" placeholder="https://example.com/image.jpg" aria-label="Image URL">
+          <label for="li-d-image">Image <span style="font-weight:400;color:#7f8c8d">(optional)</span></label>
+          <p class="ai-hint">Upload an image or paste a URL. Shown below the bot reply in the widget.</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <input type="url" id="li-d-image" placeholder="https://example.com/image.jpg" aria-label="Image URL" style="flex:1;min-width:0">
+            <label class="li-upload-btn" for="li-d-image-file" aria-label="Upload image">📁 Upload</label>
+            <input type="file" id="li-d-image-file" accept="image/*" style="display:none" aria-label="Choose image file">
+          </div>
+          <div id="li-d-upload-status" style="font-size:0.82em;color:#7f8c8d;margin-top:4px"></div>
           <div id="li-d-image-preview" style="margin-top:8px;display:none"><img id="li-d-image-thumb" src="" alt="Preview" style="max-width:100%;max-height:160px;border-radius:6px;border:1px solid #ddd"></div>
         </div>
         <div id="li-drawer-error" class="li-drawer-error hidden"></div>
@@ -754,6 +759,8 @@
     .li-drawer-field input, .li-drawer-field textarea { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.92em; font-family: inherit; }
     .li-drawer-field input:focus, .li-drawer-field textarea:focus { border-color: #2c3e50; outline: none; }
     .li-drawer-field textarea { resize: vertical; line-height: 1.5; }
+    .li-upload-btn { display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border: 1px solid #2c3e50; border-radius: 4px; background: #fff; color: #2c3e50; font-size: 0.84em; cursor: pointer; white-space: nowrap; transition: all .15s; }
+    .li-upload-btn:hover { background: #2c3e50; color: #fff; }
     .li-drawer-error { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; padding: 8px 12px; border-radius: 4px; font-size: 0.88em; }
     .li-drawer-footer { padding: 14px 20px; border-top: 1px solid #ecf0f1; display: flex; align-items: center; gap: 10px; }
 
@@ -1691,7 +1698,7 @@
 
       document.getElementById("li-add-faq-btn").addEventListener("click", function() { openDrawer(-1); });
 
-      // Image preview
+      // Image preview and upload
       function updateImagePreview(url) {
         var preview = document.getElementById("li-d-image-preview");
         var thumb = document.getElementById("li-d-image-thumb");
@@ -1705,6 +1712,38 @@
       }
       document.getElementById("li-d-image").addEventListener("input", function() {
         updateImagePreview(this.value);
+      });
+
+      document.getElementById("li-d-image-file").addEventListener("change", async function() {
+        var file = this.files && this.files[0];
+        if (!file) return;
+        var statusEl = document.getElementById("li-d-upload-status");
+        statusEl.textContent = "Uploading…";
+        statusEl.style.color = "#7f8c8d";
+        var formData = new FormData();
+        formData.append("file", file);
+        try {
+          var resp = await fetch("/admin/api/upload-image", {
+            method: "POST",
+            headers: { "X-Admin-Key": apiKey },
+            body: formData,
+          });
+          var result = await resp.json();
+          if (resp.ok && result.url) {
+            document.getElementById("li-d-image").value = result.url;
+            updateImagePreview(result.url);
+            statusEl.textContent = "✓ Uploaded";
+            statusEl.style.color = "#27ae60";
+            setTimeout(function() { statusEl.textContent = ""; }, 3000);
+          } else {
+            statusEl.textContent = "✗ " + (result.error || "Upload failed");
+            statusEl.style.color = "#e74c3c";
+          }
+        } catch (e) {
+          statusEl.textContent = "✗ Network error";
+          statusEl.style.color = "#e74c3c";
+        }
+        this.value = ""; // reset so same file can be re-selected
       });
 
       document.getElementById("li-drawer-save").addEventListener("click", async function() {

@@ -4,7 +4,7 @@ import json
 import logging
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
@@ -272,6 +272,45 @@ async def update_ai_settings(payload: dict):
         logger.exception("Failed to reload AI settings in running app")
 
     return {"status": "ok", "message": "AI settings updated"}
+
+
+# ------------------------------------------------------------------
+# Image Upload (stored as base64 data URL in DB)
+# ------------------------------------------------------------------
+
+
+@router.post("/upload-image")
+async def upload_image(request: Request):
+    """Accept an image upload and store it as a base64 data URL in the DB.
+
+    Returns the data URL which can be used directly as an image src.
+    Max size: 512 KB after base64 encoding (~384 KB raw).
+    """
+    from fastapi import Request as _Request
+    MAX_BYTES = 512 * 1024  # 512 KB
+
+    try:
+        form = await request.form()
+        file = form.get("file")
+        if file is None:
+            return JSONResponse(status_code=400, content={"error": "No file provided."})
+
+        content_type = file.content_type or "image/jpeg"
+        if not content_type.startswith("image/"):
+            return JSONResponse(status_code=400, content={"error": "Only image files are allowed."})
+
+        data = await file.read()
+        if len(data) > MAX_BYTES:
+            return JSONResponse(status_code=400, content={"error": f"Image too large. Maximum size is 512 KB."})
+
+        import base64
+        b64 = base64.b64encode(data).decode("ascii")
+        data_url = f"data:{content_type};base64,{b64}"
+
+        return {"url": data_url}
+    except Exception:
+        logger.exception("Failed to process image upload")
+        return JSONResponse(status_code=500, content={"error": "Failed to process image upload"})
 
 
 # ------------------------------------------------------------------
