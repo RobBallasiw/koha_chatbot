@@ -227,37 +227,16 @@
       <div id="library-info-tab" class="tab-content">
         <div class="li-editor-wrap">
           <div class="li-header">
-            <p class="li-desc">Manage library information. Hours are per-location. Policies and fines apply to all locations.</p>
+            <p class="li-desc">Manage FAQ buttons shown in the chat widget. Each button has a label (what patrons see), a question (sent when clicked), and a content area (the bot's reply — leave blank to let the AI answer).</p>
             <div class="li-actions">
               <button id="li-save-btn" type="button" class="btn-primary">Save All Changes</button>
               <span id="li-save-status" class="li-status"></span>
             </div>
           </div>
 
-          <div class="li-shared">
-            <section class="li-shared-section">
-              <h3>📋 Policies <span class="li-badge">All locations</span></h3>
-              <div id="li-policies" class="li-fields"></div>
-              <button class="li-add-btn" data-target="li-policies" type="button">+ Add entry</button>
-            </section>
-            <section class="li-shared-section">
-              <h3>💰 Fines <span class="li-badge">All locations</span></h3>
-              <div id="li-fines" class="li-fields"></div>
-              <button class="li-add-btn" data-target="li-fines" type="button">+ Add entry</button>
-            </section>
-          </div>
-
-          <div class="li-locations-header">
-            <h3>🕐 Hours by Location</h3>
-            <button id="li-add-location-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add Location</button>
-          </div>
-          <div id="li-locations" class="li-locations"></div>
-
-          <div class="li-locations-header" style="margin-top:24px">
-            <h3>💬 FAQ Buttons <span class="li-badge">Widget quick-reply buttons</span></h3>
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px">
             <button id="li-add-faq-btn" type="button" class="btn-primary" style="background:#27ae60;font-size:0.84em;padding:6px 14px">+ Add FAQ</button>
           </div>
-          <p class="li-desc" style="margin:0 0 10px 0;font-size:0.88em">Each FAQ appears as a button in the chat widget. The button label is what patrons see; the question is sent when clicked; the content is the bot's reply (leave blank to let the AI answer).</p>
           <div id="li-faqs" class="li-faq-list"></div>
         </div>
       </div><!-- end library-info-tab -->
@@ -1494,103 +1473,22 @@
         return str.length > len ? str.substring(0, len) + "…" : str;
       }
 
-      // --- Library Info Editor ---
-      var liLocationsContainer = document.getElementById("li-locations");
+      // --- Library Info Editor (FAQ-based) ---
+      var liLocationsContainer = null; // kept for compat, unused
 
       async function loadLibraryInfo() {
         var data = await apiFetch("/admin/api/library-info");
         if (!data) return;
 
-        // Render shared policies
-        renderSharedSection("li-policies", data.policies || {});
-        // Render shared fines
-        renderSharedSection("li-fines", data.fines || {});
-
-        // Render location hours
-        liLocationsContainer.innerHTML = "";
-        var locations = data.locations || {};
-        Object.entries(locations).forEach(function (pair) {
-          addLocationBlock(pair[0], pair[1]);
-        });
-        if (Object.keys(locations).length === 0) {
-          liLocationsContainer.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:20px">No locations yet. Click "+ Add Location" to add one.</p>';
-        }
-
         // Render FAQs
         var faqContainer = document.getElementById("li-faqs");
         faqContainer.innerHTML = "";
         var faqs = data.faqs || [];
-        faqs.forEach(function(faq) { addFaqRow(faq.label || "", faq.question || "", faq.content || ""); });
-      }
-
-      function renderSharedSection(containerId, entries) {
-        var container = document.getElementById(containerId);
-        container.innerHTML = "";
-        Object.entries(entries).forEach(function (pair) {
-          addLibraryInfoRow(container, pair[0], pair[1]);
-        });
-      }
-
-      function addLocationBlock(name, locData) {
-        var placeholder = liLocationsContainer.querySelector("p");
-        if (placeholder) placeholder.remove();
-
-        var address = (locData && locData.address) || "";
-        var hours = (locData && locData.hours) || {};
-
-        var loc = document.createElement("div");
-        loc.className = "li-location";
-
-        var header = document.createElement("div");
-        header.className = "li-loc-header";
-        header.innerHTML =
-          '<span class="li-loc-icon">📍</span>' +
-          '<input type="text" class="li-loc-name" value="' + escapeHtml(name) + '" placeholder="Location name" aria-label="Location name">' +
-          '<button class="li-loc-remove" type="button" aria-label="Remove location">✕ Remove</button>';
-        header.querySelector(".li-loc-remove").addEventListener("click", function () {
-          if (confirm("Remove \"" + (header.querySelector(".li-loc-name").value || name) + "\"?")) loc.remove();
-        });
-        loc.appendChild(header);
-
-        var body = document.createElement("div");
-        body.className = "li-loc-body";
-
-        var addrRow = document.createElement("div");
-        addrRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:10px";
-        addrRow.innerHTML =
-          '<label style="font-size:0.88em;color:#7f8c8d;width:60px;flex-shrink:0">Address</label>' +
-          '<input type="text" class="li-loc-address" value="' + escapeHtml(address) + '" placeholder="e.g. 123 Main St, City" style="flex:1;padding:5px 8px;border:1px solid #ddd;border-radius:4px;font-size:0.88em" aria-label="Location address">';
-        body.appendChild(addrRow);
-
-        var fields = document.createElement("div");
-        fields.className = "li-fields";
-        fields.setAttribute("data-category", "hours");
-        Object.entries(hours).forEach(function (pair) {
-          addLibraryInfoRow(fields, pair[0], pair[1]);
-        });
-        body.appendChild(fields);
-        var addBtn = document.createElement("button");
-        addBtn.className = "li-add-btn";
-        addBtn.type = "button";
-        addBtn.textContent = "+ Add hours entry";
-        addBtn.addEventListener("click", function () {
-          addLibraryInfoRow(fields, "", "");
-          fields.lastChild.querySelector(".li-key").focus();
-        });
-        body.appendChild(addBtn);
-        loc.appendChild(body);
-        liLocationsContainer.appendChild(loc);
-      }
-
-      function addLibraryInfoRow(container, key, value) {
-        var row = document.createElement("div");
-        row.className = "li-row";
-        row.innerHTML =
-          '<input type="text" class="li-key" value="' + escapeHtml(key) + '" placeholder="Key" aria-label="Key">' +
-          '<input type="text" class="li-val" value="' + escapeHtml(value) + '" placeholder="Value" aria-label="Value">' +
-          '<button class="li-del" type="button" aria-label="Remove entry">×</button>';
-        row.querySelector(".li-del").addEventListener("click", function () { row.remove(); });
-        container.appendChild(row);
+        if (faqs.length === 0) {
+          faqContainer.innerHTML = '<p style="color:#7f8c8d;text-align:center;padding:20px">No FAQ buttons yet. Click "+ Add FAQ" to add one.</p>';
+        } else {
+          faqs.forEach(function(faq) { addFaqRow(faq.label || "", faq.question || "", faq.content || ""); });
+        }
       }
 
       function addFaqRow(label, question, content) {
@@ -1622,51 +1520,10 @@
         item.querySelector(".li-faq-label").focus();
       });
 
-      // Shared section add-entry buttons
-      document.querySelectorAll(".li-add-btn[data-target]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var container = document.getElementById(btn.getAttribute("data-target"));
-          addLibraryInfoRow(container, "", "");
-          container.lastChild.querySelector(".li-key").focus();
-        });
-      });
-
-      // Add Location button
-      document.getElementById("li-add-location-btn").addEventListener("click", function () {
-        var name = prompt("Enter location name:", "");
-        if (name === null || !name.trim()) return;
-        addLocationBlock(name.trim(), { address: "", hours: {} });
-      });
-
       // Save
       document.getElementById("li-save-btn").addEventListener("click", async function () {
-        var payload = { locations: {}, policies: {}, fines: {}, faqs: [] };
+        var payload = { faqs: [] };
 
-        // Collect shared policies
-        document.getElementById("li-policies").querySelectorAll(".li-row").forEach(function (row) {
-          var k = row.querySelector(".li-key").value.trim();
-          var v = row.querySelector(".li-val").value.trim();
-          if (k) payload.policies[k] = v;
-        });
-        // Collect shared fines
-        document.getElementById("li-fines").querySelectorAll(".li-row").forEach(function (row) {
-          var k = row.querySelector(".li-key").value.trim();
-          var v = row.querySelector(".li-val").value.trim();
-          if (k) payload.fines[k] = v;
-        });
-        // Collect location hours + address
-        liLocationsContainer.querySelectorAll(".li-location").forEach(function (loc) {
-          var locName = loc.querySelector(".li-loc-name").value.trim();
-          if (!locName) return;
-          var address = (loc.querySelector(".li-loc-address") || {}).value || "";
-          var hours = {};
-          loc.querySelectorAll('.li-fields[data-category="hours"] .li-row').forEach(function (row) {
-            var k = row.querySelector(".li-key").value.trim();
-            var v = row.querySelector(".li-val").value.trim();
-            if (k) hours[k] = v;
-          });
-          payload.locations[locName] = { address: address.trim(), hours: hours };
-        });
         // Collect FAQs
         document.getElementById("li-faqs").querySelectorAll(".li-faq-item").forEach(function (item) {
           var label = item.querySelector(".li-faq-label").value.trim();

@@ -256,30 +256,19 @@ async def get_library_info():
 @router.put("/library-info")
 async def update_library_info(payload: dict):
     """Update library info and reload it in the running app."""
-    # Validate structure
-    if "locations" not in payload or not isinstance(payload["locations"], dict):
-        return JSONResponse(status_code=400, content={"error": "Missing or invalid 'locations'."})
-    for loc_name, loc_data in payload["locations"].items():
-        if not isinstance(loc_data, dict):
-            return JSONResponse(status_code=400, content={"error": f"Location '{loc_name}' must be an object."})
-        if "hours" not in loc_data or not isinstance(loc_data["hours"], dict):
-            return JSONResponse(status_code=400, content={"error": f"Location '{loc_name}' missing 'hours'."})
-    for key in ("policies", "fines"):
-        if key not in payload or not isinstance(payload[key], dict):
-            return JSONResponse(status_code=400, content={"error": f"Missing or invalid '{key}' section."})
-    # faqs is optional — validate if present
-    if "faqs" in payload:
-        if not isinstance(payload["faqs"], list):
-            return JSONResponse(status_code=400, content={"error": "'faqs' must be a list."})
-        for i, faq in enumerate(payload["faqs"]):
-            if not isinstance(faq, dict) or not faq.get("label") or not faq.get("question"):
-                return JSONResponse(status_code=400, content={"error": f"FAQ item {i} must have 'label' and 'question'."})
-
+    # Validate structure — only faqs is required now
+    if "faqs" not in payload or not isinstance(payload["faqs"], list):
+        return JSONResponse(status_code=400, content={"error": "'faqs' must be a list."})
+    for i, faq in enumerate(payload["faqs"]):
+        if not isinstance(faq, dict) or not faq.get("label") or not faq.get("question"):
+            return JSONResponse(status_code=400, content={"error": f"FAQ item {i} must have 'label' and 'question'."})
+    # Strip legacy fields from payload to keep storage clean
+    clean_payload = {"faqs": payload["faqs"]}
     # Save to database (works on Vercel and locally)
     from app.staff_routes import staff_store as _staff_store
     if _staff_store is not None:
         try:
-            _staff_store.update_settings({"library_info_json": json.dumps(payload, ensure_ascii=False)})
+            _staff_store.update_settings({"library_info_json": json.dumps(clean_payload, ensure_ascii=False)})
         except Exception:
             logger.exception("Failed to save library info to database")
             return JSONResponse(status_code=500, content={"error": "Failed to save library info"})
@@ -288,7 +277,7 @@ async def update_library_info(payload: dict):
     if library_info_path:
         try:
             with open(library_info_path, "w", encoding="utf-8") as f:
-                json.dump(payload, f, indent=2, ensure_ascii=False)
+                json.dump(clean_payload, f, indent=2, ensure_ascii=False)
                 f.write("\n")
         except Exception:
             logger.info("Could not write library_info.json to disk (read-only filesystem)")
@@ -296,9 +285,8 @@ async def update_library_info(payload: dict):
     # Reload in the running app
     try:
         import app.main as main_module
-        from app.library_info_handler import load_library_info
         from app.models import LibraryInfo
-        main_module.library_info = LibraryInfo(**payload)
+        main_module.library_info = LibraryInfo(**clean_payload)
     except Exception:
         logger.exception("Failed to reload library info into running app")
 

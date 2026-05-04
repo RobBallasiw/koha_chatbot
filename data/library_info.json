@@ -1,80 +1,34 @@
 {
-  "locations": {
-    "CHS Library": {
-      "address": "Carlatan, San Fernando City, La Union",
-      "email": "chslibrary@lorma.edu",
-      "hours": {
-        "monday": "7:00 AM - 7:00 PM (no noon break)",
-        "tuesday": "7:00 AM - 7:00 PM (no noon break)",
-        "wednesday": "7:00 AM - 7:00 PM (no noon break)",
-        "thursday": "7:00 AM - 7:00 PM (no noon break)",
-        "friday": "7:00 AM - 7:00 PM (no noon break)",
-        "saturday": "8:30 AM - 4:30 PM (no noon break)",
-        "sunday": "Closed",
-        "holidays": "Closed"
-      }
-    },
-    "CLI Library": {
-      "address": "Urbiztondo, San Juan, La Union",
-      "email": "clilibrary@lorma.edu",
-      "hours": {
-        "monday": "7:30 AM - 5:00 PM (no noon break)",
-        "tuesday": "7:30 AM - 5:00 PM (no noon break)",
-        "wednesday": "7:30 AM - 5:00 PM (no noon break)",
-        "thursday": "7:30 AM - 5:00 PM (no noon break)",
-        "friday": "7:30 AM - 5:00 PM (no noon break)",
-        "saturday": "Closed",
-        "sunday": "Closed",
-        "holidays": "Closed"
-      }
-    },
-    "High School Library": {
-      "hours": {
-        "monday": "8:30 AM - 4:30 PM",
-        "tuesday": "8:30 AM - 4:30 PM",
-        "wednesday": "8:30 AM - 4:30 PM",
-        "thursday": "8:30 AM - 4:30 PM",
-        "friday": "8:30 AM - 4:30 PM",
-        "saturday": "Closed",
-        "sunday": "Closed",
-        "holidays": "Closed"
-      }
-    },
-    "Preschool and Grade School Library": {
-      "hours": {
-        "monday": "8:30 AM - 4:30 PM",
-        "tuesday": "8:30 AM - 4:30 PM",
-        "wednesday": "8:30 AM - 4:30 PM",
-        "thursday": "8:30 AM - 4:30 PM",
-        "friday": "8:30 AM - 4:30 PM",
-        "saturday": "Closed",
-        "sunday": "Closed",
-        "holidays": "Closed"
-      }
-    }
-  },
-  "policies": {
-    "borrowing_faculty": "Higher Education Faculty: Maximum of 5 books for 1 month, renewable if there is no demand from other users",
-    "borrowing_students": "Higher Education Students: Maximum of 2 books for 1 week, renewable if there is no demand from other users",
-    "printing_procedure": "1. Student purchases printing card at the business office. 2. Student sends PDF to official library email. 3. Library personnel reviews document. 4. Library personnel prints documents. 5. Student fills out Printing Monitoring Form. 6. Library personnel sends notification for pick-up through email. 7. Library personnel releases printouts.",
-    "printing_card_price": "A printing card costs Php 100.00 and can be purchased at the business office"
-  },
-  "fines": {
-    "overdue_faculty": "Higher Education Faculty: Php 20.00 per day per book",
-    "overdue_students": "Higher Education Students: Php 12.00 per day per book",
-    "printing_card": "A printing card costs Php 100.00 and can be purchased at the business office",
-    "printing_short_bw": "Short/A4 bond paper, Black & White (pure text): Php 2.00",
-    "printing_short_color_text": "Short/A4 bond paper, With colored text or illustration: Php 5.00",
-    "printing_short_full_color": "Short/A4 bond paper, Full Page Colored: Php 10.00",
-    "printing_long_bw": "Long bond paper, Black & White (pure text): Php 3.00",
-    "printing_long_color_text": "Long bond paper, With colored text or illustration: Php 7.00",
-    "printing_long_full_color": "Long bond paper, Full Page Colored: Php 12.00"
-  },
   "faqs": [
     {
       "label": "🕐 Library hours",
       "question": "What are the library hours?",
-      "content": ""
+      "content": "CHS Library (Carlatan, San Fernando City, La Union): Monday to Friday 7:00 AM - 7:00 PM (no noon break), Saturday 8:30 AM - 4:30 PM, Sunday and holidays Closed.\n\nCLI Library (Urbiztondo, San Juan, La Union): Monday to Friday 7:30 AM - 5:00 PM (no noon break), Saturday, Sunday and holidays Closed.\n\nHigh School Library: Monday to Friday 8:30 AM - 4:30 PM, Saturday, Sunday and holidays Closed.\n\nPreschool and Grade School Library: Monday to Friday 8:30 AM - 4:30 PM, Saturday, Sunday and holidays Closed."
+    },
+    {
+      "label": "📧 Library email",
+      "question": "What is the library email address?",
+      "content": "CHS Library: chslibrary@lorma.edu\nCLI Library: clilibrary@lorma.edu"
+    },
+    {
+      "label": "📖 Borrowing privileges",
+      "question": "What are the borrowing privileges?",
+      "content": "Higher Education Faculty: Maximum of 5 books for 1 month, renewable if there is no demand from other users.\n\nHigher Education Students: Maximum of 2 books for 1 week, renewable if there is no demand from other users."
+    },
+    {
+      "label": "💸 Overdue fines",
+      "question": "What are the overdue fines?",
+      "content": "Higher Education Faculty: Php 20.00 per day per book.\n\nHigher Education Students: Php 12.00 per day per book."
+    },
+    {
+      "label": "🖨️ Printing rates",
+      "question": "What are the printing rates?",
+      "content": "Short/A4 bond paper:\n- Black & White (pure text): Php 2.00\n- With colored text or illustration: Php 5.00\n- Full Page Colored: Php 10.00\n\nLong bond paper:\n- Black & White (pure text): Php 3.00\n- With colored text or illustration: Php 7.00\n- Full Page Colored: Php 12.00\n\nA printing card costs Php 100.00 and can be purchased at the business office."
+    },
+    {
+      "label": "📄 Printing procedure",
+      "question": "How do I print documents?",
+      "content": "1. Purchase a printing card at the business office (Php 100.00).\n2. Send your PDF to the official library email.\n3. Library personnel reviews the document.\n4. Library personnel prints the documents.\n5. Fill out the Printing Monitoring Form.\n6. Library personnel sends a notification for pick-up through email.\n7. Library personnel releases the printouts."
     },
     {
       "label": "💬 LIBVAS",
@@ -94,11 +48,6 @@
     {
       "label": "🖨️ LibPrintS",
       "question": "How does LibPrintS work?",
-      "content": ""
-    },
-    {
-      "label": "📖 Borrowing privileges",
-      "question": "What are the borrowing privileges?",
       "content": ""
     }
   ]

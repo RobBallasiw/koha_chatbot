@@ -2,50 +2,25 @@
 
 import json
 import logging
-import sys
 
 from app.groq_client import GroqClient
 from app.models import LibraryInfo
 
 logger = logging.getLogger(__name__)
 
-VALID_CATEGORIES = {"hours", "email", "address", "fines", "policies"}
-
-CATEGORY_CLASSIFY_SYSTEM = (
-    "You are a category classifier for a library information system. "
-    "Given a patron's message, determine which category of library information they need. "
-    "Respond with ONLY a JSON object, no other text.\n\n"
-    "Categories:\n"
-    '- "hours": anything about opening hours, schedules, when the library is open or closed\n'
-    '- "email": anything about email address, how to contact the library by email\n'
-    '- "address": anything about physical location, address, where the library is, directions, branches, how to visit\n'
-    '- "policies": anything about borrowing rules, limits, renewals, membership, library cards, loans, printing\n'
-    '- "fines": anything about fines, fees, overdue charges, lost items, penalties, costs\n'
-    '- "all": the question spans multiple categories or is a general library question\n'
-    '- "none": the message has nothing to do with library information\n\n'
-    "Respond in this exact format:\n"
-    '{"category": "<category>"}'
-)
-
-CATEGORY_CLASSIFY_PROMPT = 'Patron message: "{message}"'
-
 CONTACT_STAFF_MESSAGE = (
     "I'm sorry, I don't have that information available. "
     "Please contact library staff for further assistance."
 )
 
-INFO_RESPONSE_PROMPT = (
+FAQ_RESPONSE_PROMPT = (
     "A patron asked: \"{message}\"\n\n"
     "Here is the relevant library information:\n"
     "{data}\n\n"
     "Rules:\n"
-    "- Answer in a friendly way using ONLY the data above.\n"
-    "- Do NOT start with 'I'm Hero' or introduce yourself — just answer the question directly.\n"
+    "- Answer in a friendly, conversational way using ONLY the data above.\n"
+    "- Do NOT introduce yourself — just answer the question directly.\n"
     "- Write in natural flowing sentences. Do NOT use bullet points, dashes, or lists.\n"
-    "- For hours questions: include the specific hours for EVERY location listed. Do not skip any location.\n"
-    "- For email questions: state the email address(es) in a sentence.\n"
-    "- For address/location questions: state the location(s) in a sentence.\n"
-    "- Fines and policies apply to ALL locations — do NOT repeat them per location.\n"
     "- Use 1 emoji at the end."
 )
 
@@ -55,7 +30,6 @@ def _resolve_library_info_path(file_path: str) -> str:
     import os
     if os.path.isfile(file_path):
         return file_path
-    # Try relative to this file's directory (works on Vercel)
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     candidate = os.path.join(base, file_path)
     if os.path.isfile(candidate):
@@ -64,11 +38,7 @@ def _resolve_library_info_path(file_path: str) -> str:
 
 
 def load_library_info(file_path: str) -> LibraryInfo:
-    """Load and validate library information from a JSON file.
-
-    Supports both multi-location format (with ``locations`` key) and
-    legacy single-location format (top-level hours/policies/fines).
-    """
+    """Load and validate library information from a JSON file."""
     resolved = _resolve_library_info_path(file_path)
     try:
         with open(resolved, "r", encoding="utf-8") as f:
@@ -87,192 +57,38 @@ def load_library_info(file_path: str) -> LibraryInfo:
         return LibraryInfo()
 
 
-_HOURS_KEYWORDS = {"hours", "hour", "open", "close", "closing", "opening", "schedule", "time"}
-_EMAIL_KEYWORDS = {"email", "e-mail", "mail", "contact", "reach"}
-_ADDRESS_KEYWORDS = {"address", "location", "locations", "loc", "where", "directions", "branch", "branches", "visit", "map"}
-_FINES_KEYWORDS = {"fine", "fines", "fee", "fees", "overdue", "penalty", "charge", "cost", "lost"}
-_POLICIES_KEYWORDS = {"policy", "policies", "borrow", "borrowing", "renew", "renewal",
-                      "member", "membership", "limit", "rule", "rules", "loan", "card",
-                      "print", "printing", "printer", "photocopy", "scan", "scanning"}
-
-
-def _keyword_fallback(message: str) -> str | None:
-    """Fast keyword-based category matching as fallback when LLM is unavailable."""
-    words = set(message.lower().replace("?", " ").replace("!", " ").split())
-    if words & _EMAIL_KEYWORDS:
-        return "email"
-    if words & _ADDRESS_KEYWORDS:
-        return "address"
-    if words & _HOURS_KEYWORDS:
-        return "hours"
-    if words & _FINES_KEYWORDS:
-        return "fines"
-    if words & _POLICIES_KEYWORDS:
-        return "policies"
-    return None
-
-
-def _classify_category(client: GroqClient, message: str) -> str | None:
-    """Determine which library info category the patron needs.
-    Uses fast keyword matching first, falls back to LLM only when needed."""
-    # Try fast keyword match first (avoids slow LLM call)
-    keyword_result = _keyword_fallback(message)
-    if keyword_result:
-        return keyword_result
-
-    # Fall back to LLM for ambiguous messages
-    prompt = CATEGORY_CLASSIFY_PROMPT.format(message=message)
-    raw = client.chat_with_system(CATEGORY_CLASSIFY_SYSTEM, [{"role": "user", "content": prompt}])
-    logger.info("Category classification raw: %s", raw)
-    try:
-        data = json.loads(raw)
-        category = data.get("category", "none")
-        if category in VALID_CATEGORIES:
-            return category
-        if category == "all":
-            return "all"
-        return None
-    except (json.JSONDecodeError, TypeError, ValueError):
-        logger.warning("Failed to parse category classification: %s", raw)
-        return None
-
-
-def _group_hours(hours: dict[str, str]) -> str:
-    """Group days with the same hours into ranges like 'Mon–Fri: 8:00 AM - 5:00 PM'."""
-    day_order = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    day_short = {"monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu",
-                 "friday": "Fri", "saturday": "Sat", "sunday": "Sun"}
-
-    # Build ordered list of (day, time) pairs
-    ordered = []
-    for day in day_order:
-        for key, val in hours.items():
-            if key.lower() == day:
-                ordered.append((day, val.strip()))
-                break
-
-    if not ordered:
-        # Fallback: just list whatever keys exist
-        return "\n".join(f"  📅 {k}: {v}" for k, v in hours.items())
-
-    # Group consecutive days with the same time
-    groups: list[tuple[list[str], str]] = []
-    for day, time_val in ordered:
-        if groups and groups[-1][1].lower() == time_val.lower():
-            groups[-1][0].append(day)
-        else:
-            groups.append(([day], time_val))
-
-    lines = []
-    for days, time_val in groups:
-        if len(days) == 1:
-            label = day_short[days[0]]
-        elif len(days) == 2:
-            label = f"{day_short[days[0]]} & {day_short[days[-1]]}"
-        else:
-            label = f"{day_short[days[0]]}–{day_short[days[-1]]}"
-        lines.append(f"  📅 {label}: {time_val}")
-
-    return "\n".join(lines)
-
-
-_OVERDUE_KEYS = {"overdue_faculty", "overdue_students"}
-_PRINTING_KEYS = {"printing_procedure", "printing_card_price", "printing_card",
-                  "printing_short_bw", "printing_short_color_text", "printing_short_full_color",
-                  "printing_long_bw", "printing_long_color_text", "printing_long_full_color"}
-_PRINTING_RATE_KEYS = {"printing_short_bw", "printing_short_color_text", "printing_short_full_color",
-                       "printing_long_bw", "printing_long_color_text", "printing_long_full_color"}
-
-
-def _filter_section(section: dict[str, str], message: str) -> dict[str, str]:
-    """Return only the relevant keys from a section based on the patron's message."""
-    words = set(message.lower().replace("?", " ").replace("!", " ").split())
-    # Overdue-specific
-    if words & {"overdue", "late", "penalty", "penalties"}:
-        filtered = {k: v for k, v in section.items() if k in _OVERDUE_KEYS}
-        if filtered:
-            return filtered
-    # Printing rates specifically
-    if words & {"rate", "rates", "price", "prices", "cost", "costs", "how much"}:
-        filtered = {k: v for k, v in section.items() if k in _PRINTING_RATE_KEYS}
-        if filtered:
-            return filtered
-    # Printing in general
-    if words & {"print", "printing", "printer", "photocopy", "scan"}:
-        filtered = {k: v for k, v in section.items() if k in _PRINTING_KEYS}
-        if filtered:
-            return filtered
-    return section
-    """Format a location's hours as a natural sentence string."""
-    if not loc_info.hours:
-        return ""
-    day_order = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-    day_short = {"monday": "Mon", "tuesday": "Tue", "wednesday": "Wed", "thursday": "Thu",
-                 "friday": "Fri", "saturday": "Sat", "sunday": "Sun"}
-    ordered = []
-    for day in day_order:
-        for key, val in loc_info.hours.items():
-            if key.lower() == day:
-                ordered.append((day, val.strip()))
-                break
-    # Group consecutive days with same hours
-    groups: list[tuple[list[str], str]] = []
-    for day, time_val in ordered:
-        if groups and groups[-1][1].lower() == time_val.lower():
-            groups[-1][0].append(day)
-        else:
-            groups.append(([day], time_val))
-    parts = []
-    for days, time_val in groups:
-        if len(days) == 1:
-            label = day_short[days[0]]
-        elif len(days) == 2:
-            label = f"{day_short[days[0]]} and {day_short[days[-1]]}"
-        else:
-            label = f"{day_short[days[0]]} to {day_short[days[-1]]}"
-        parts.append(f"{label} {time_val}")
-    name = loc_name
-    if loc_info.address:
-        name += f" ({loc_info.address})"
-    return f"The {name} is open {', '.join(parts)}."
-
-
-def _format_category_data(category: str, library_info: LibraryInfo, message: str = "") -> str:
-    """Format the data for a matched category across all locations as natural sentences."""
-    if category in ("hours", "email", "address"):
-        locations = library_info.get_all_locations()
-        if not locations:
-            return "No location data is available at this time."
-        parts: list[str] = []
-        for loc_name, loc_info in locations.items():
-            if category == "email":
-                if loc_info.email:
-                    parts.append(f"The {loc_name} can be reached at {loc_info.email}.")
-            elif category == "address":
-                if loc_info.address:
-                    parts.append(f"The {loc_name} is located at {loc_info.address}.")
-            else:  # hours
-                sentence = _format_hours_as_sentences(loc_name, loc_info)
-                if sentence:
-                    parts.append(sentence)
-        if not parts:
-            return f"No {category} information is available at this time."
-        return " ".join(parts)
-    else:
-        section: dict[str, str] = getattr(library_info, category, {})
-        if not section:
-            return "No information is available at this time."
-        if message:
-            section = _filter_section(section, message)
-        return " ".join(value for value in section.values())
-
-
 def _is_llm_available(client: GroqClient) -> bool:
-    """Check if the LLM client is configured with a real API (not local Ollama fallback)."""
+    """Check if the LLM client is configured with a real API."""
     import os
     return bool(os.environ.get("OPENROUTER_API_KEY") or
                 "openrouter" in os.environ.get("OLLAMA_URL", "").lower() or
                 "groq" in os.environ.get("OLLAMA_URL", "").lower())
+
+
+def _find_matching_faqs(message: str, library_info: LibraryInfo) -> list:
+    """Return FAQ items whose question or label is relevant to the message."""
+    if not library_info.faqs:
+        return []
+    msg_lower = message.strip().lower()
+    words = set(msg_lower.replace("?", " ").replace("!", " ").split())
+
+    # 1. Exact question match — highest priority
+    for faq in library_info.faqs:
+        if faq.question.strip().lower() == msg_lower:
+            return [faq]
+
+    # 2. Keyword match against question and label
+    scored = []
+    for faq in library_info.faqs:
+        faq_words = set((faq.question + " " + faq.label).lower().replace("?", " ").split())
+        overlap = len(words & faq_words)
+        if overlap > 0:
+            scored.append((overlap, faq))
+    if scored:
+        scored.sort(key=lambda x: x[0], reverse=True)
+        return [faq for score, faq in scored[:3] if score >= 1]
+
+    return []
 
 
 def handle_library_info_query(
@@ -282,42 +98,43 @@ def handle_library_info_query(
     conversation_history: list[dict],
 ) -> str:
     """Handle a library information query from a patron."""
-    # Check if the message matches a configured FAQ question exactly
-    if library_info.faqs:
-        msg_lower = message.strip().lower()
-        for faq in library_info.faqs:
-            if faq.question.strip().lower() == msg_lower and faq.content.strip():
-                return faq.content.strip()
-
-    category = _classify_category(client, message)
-
-    if category is None:
+    if not library_info or not library_info.faqs:
         return CONTACT_STAFF_MESSAGE
 
-    # Build data string
-    if category == "all":
-        parts = []
-        for cat in ("hours", "address", "email", "policies", "fines"):
-            cat_data = _format_category_data(cat, library_info, message)
-            if cat_data and "No" not in cat_data:
-                parts.append(f"[{cat.upper()}]\n{cat_data}")
-        data_str = "\n\n".join(parts) if parts else "(No data available)"
-    else:
-        data_str = _format_category_data(category, library_info, message)
+    matches = _find_matching_faqs(message, library_info)
+
+    if not matches:
+        return CONTACT_STAFF_MESSAGE
+
+    # Exact match with content — return directly
+    msg_lower = message.strip().lower()
+    if len(matches) == 1 and matches[0].question.strip().lower() == msg_lower:
+        if matches[0].content.strip():
+            return matches[0].content.strip()
+
+    # Build data string from matched FAQ content
+    data_parts = []
+    for faq in matches:
+        if faq.content.strip():
+            data_parts.append(f"[{faq.question}]\n{faq.content.strip()}")
+
+    if not data_parts:
+        return CONTACT_STAFF_MESSAGE
+
+    data_str = "\n\n".join(data_parts)
 
     # Try LLM for a conversational reply
     if client and _is_llm_available(client):
         try:
-            prompt = INFO_RESPONSE_PROMPT.format(message=message, data=data_str)
+            prompt = FAQ_RESPONSE_PROMPT.format(message=message, data=data_str)
             messages: list[dict] = []
             if conversation_history:
-                messages.extend(conversation_history[-4:])  # Last 2 turns for context
+                messages.extend(conversation_history[-4:])
             messages.append({"role": "user", "content": prompt})
             reply = client.chat(messages)
             if isinstance(reply, str) and reply and "trouble" not in reply.lower() and "moment" not in reply.lower():
                 return reply
         except Exception:
-            logger.info("LLM unavailable for library info, using formatted data")
+            logger.info("LLM unavailable for library info, using raw FAQ content")
 
-    # Fallback: return formatted data directly
     return f"{data_str} 📚"

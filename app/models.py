@@ -62,44 +62,33 @@ class ItemAvailability(BaseModel):
     due_date: str | None = None  # ISO date string if checked out
 
 
-class LocationInfo(BaseModel):
-    """Information for a single library location."""
-
-    address: str = ""
-    email: str = ""
-    hours: dict[str, str] = {}
-
-
 class FaqItem(BaseModel):
     """A single FAQ entry shown as a quick-reply button in the chat widget."""
 
     label: str  # Button label shown in the widget
     question: str  # The question text sent when the button is clicked
-    content: str  # The answer content the bot returns
+    content: str = ""  # The answer content the bot returns
 
 
 class LibraryInfo(BaseModel):
-    """Structured library information.
+    """Structured library information stored as FAQ entries.
 
-    Hours are per-location (under ``locations``).
-    Policies and fines are shared across all locations.
+    Each FAQ has a label (button text), question (sent on click),
+    and content (the bot's reply). Legacy fields are kept for
+    backward compatibility when loading old JSON files.
     """
 
-    locations: dict[str, LocationInfo] = {}
-    policies: dict[str, str] = {}
-    fines: dict[str, str] = {}
     faqs: list[FaqItem] = []
 
-    # Legacy field for backward compatibility
+    # Legacy fields — kept so old library_info.json files still load
+    locations: dict = {}
+    policies: dict[str, str] = {}
+    fines: dict[str, str] = {}
     hours: dict[str, str] = {}
 
-    def get_all_locations(self) -> dict[str, LocationInfo]:
-        """Return all locations. If legacy format, wrap in a single 'Main' location."""
-        if self.locations:
-            return self.locations
-        if self.hours:
-            return {"Main": LocationInfo(hours=self.hours)}
-        return {}
+    def get_all_locations(self) -> dict:
+        """Return legacy locations dict (for backward compat)."""
+        return self.locations
 
 
 class SessionData:
